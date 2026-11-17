@@ -251,14 +251,19 @@ func ParsePort(s string) (Port, error)
 Tests no longer needed: every caller's re-check of the range, and approving an inactive user.
 
 ### 4.5 When a function exists
-A function exists only when its result type carries what it established (§4.4) and it hides branches behind a small interface (a deep module). These are not functions and are inlined:
-- A bundle of statements wrapped for readability
-- Statements that look the same, extracted only to share them
-- A call one level down, or a thin entry point that only passes values on
-- A name for a condition used in one place
-- A meaningless conversion: `string -> string`, `string -> int`, `User -> User`
+Creating a function is prohibited, except when it meets all of these:
+- **Its result type carries what it established** (§4.4). The type is the proposition the function proves: holding a value of the result type is the evidence that the function's work was done
+- **It is a deep module.** It hides branches behind an interface much smaller than what it hides
+- **Its branches are covered by tests**, so that the functions together cover the branches of the code base
 
-Splitting code into such functions makes each piece look short while the code as a whole grows, and every piece needs a test of its own.
+Each of these is prohibited as a function, without exception, and is written inline where it is used:
+- A bundle of statements wrapped for readability
+- Statements that look the same, extracted to share them
+- A call one level down, or an entry point that passes values on
+- A name for a condition used in one place
+- A conversion whose result type carries nothing new: `string -> string`, `string -> int`, `int -> int`, `User -> User`
+
+Such functions make each piece look short while the code as a whole grows, and every piece needs a test of its own.
 
 Check *(not yet)*: functions whose body is a single expression (except one returning a function literal); unexported functions without branches and with one caller; functions whose results callers branch on; functions with only primitive parameters and results; functions returning a parameter's type. Methods whose signature an interface fixes, such as `UnmarshalJSON`, are exempt.
 
