@@ -130,7 +130,7 @@ Check *(not yet)*: outside the designated packages, `depguard` rejects imports s
 Every branch is a test to write. When the code you are writing looks like one of the cases below, write it as shown instead. Each case is shown first in its shortest, ideal form (TypeScript), then in a language that cannot express it directly (Go).
 
 #### Sum types and pattern matching
-- **Recognize it by:** a value compared with constants to choose which code runs: `if (c.kind === "shell")`, `switch (mode)`, `if (status == "done")`
+- **Recognize it by:** a value compared with constants to choose which code runs, where the value's type also allows other values: a `string`, a number or a boolean such as `if (c.kind === "shell")` with `kind: string`. A case can then be missing or unknown, and each needs a test. A `switch` over a sum type looks the same but is the fix: its type allows only its cases
 - **Concepts:** a sum type is a type whose value is exactly one of several cases (`A | B`). Pattern matching is the operation on such a value: it chooses one function per case. The type alone removes no branch; the match over it, checked for every case, does
 
 Instead of:
