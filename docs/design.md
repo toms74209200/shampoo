@@ -83,6 +83,20 @@ The loop must keep running with no human present. That requires:
 - **Checks are added when a trigger is observed**, cheapest first, and reorganized on cost (run time, failure cost). A check is not removed for catching nothing: catching nothing does not show it is ineffective
 - **Agents don't change the checks that judge their own work.** Such changes go through the human-review budget
 
+### 5.1 Acceptance tests
+Tests come in two kinds, and only one of them belongs to the implementation:
+
+| Kind | Role | In the same task as the implementation |
+|---|---|---|
+| White-box (small) tests | The implementer's own design artifacts; they depend on internal structure | Yes |
+| Feature specs and black-box (acceptance) tests | The spec, made executable: checks that judge the implementation | No |
+
+- **An implementation task never changes acceptance tests.** This follows from the rule above: an implementation that may rewrite its acceptance tests can pass anything
+- **A behavior change starts with a spec-change task.** It updates the feature specs and acceptance tests, and goes through the human-review budget. Implementation tasks follow it
+- **Acceptance tests ratchet.** A test is identified by its name and a hash of its definition. At the PR guard, every test that passes on the merge-base must still pass on the head, unless its definition changed; the base is git, not the ledger, so local runs and CI judge the same way. A test whose definition changed counts as new: it is not yet required to pass, so a spec change can land before its implementation. The milestone guard requires all acceptance tests to pass
+- **A previously passing test that fails with an unchanged definition is a regression**: a task failure, sent back
+- **When a spec change missed something** (e.g. a format change also breaks another command's tests), the implementation cannot satisfy both, exhausts its retry budget, and escapes. The repair is another spec-change task. An implementation agent that finds the spec wrong does not edit it; it escapes and proposes the spec change
+
 ## 6. Non-goals
 - Project-specific checks: these come from the project (§7)
 - Replacing CI or the code host: shampoo drives GitHub and GitHub Actions rather than reimplementing them
