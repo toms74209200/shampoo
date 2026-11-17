@@ -130,8 +130,8 @@ Check *(not yet)*: outside the designated packages, `depguard` rejects imports s
 Every branch is a test to write. When the code you are writing looks like one of the cases below, write it as shown instead. Each case is shown first in its shortest, ideal form (TypeScript), then in a language that cannot express it directly (Go).
 
 #### Sum types and pattern matching
-- **Recognize it by:** a value compared with constants to choose which code runs, where the value's type also allows other values: a `string`, a number or a boolean such as `if (c.kind === "shell")` with `kind: string`. A case can then be missing or unknown, and each needs a test. A `switch` over a sum type looks the same but is the fix: its type allows only its cases
-- **Concepts:** a sum type is a type whose value is exactly one of several cases (`A | B`). Pattern matching is the operation on such a value: it chooses one function per case. The type alone removes no branch; the match over it, checked for every case, does
+- **Recognize it by:** a later step inspects a value decided by an earlier step, to choose its own behavior
+- **Write it as:** the earlier step returns the behavior itself, as a value of a sum type or as a function, and the later step applies it. A sum type is a type whose value is exactly one of several cases (`A | B`); pattern matching is the operation on it that chooses one function per case, checked for every case
 
 Instead of:
 ```ts
@@ -228,8 +228,8 @@ func Retrying(attempts int, f func(URL) (Page, error)) func(URL) (Page, error)
 Tests no longer needed: `fetchPage` with and without retries. Retrying is tested once, for any function.
 
 #### Types that carry facts (parse, don't validate)
-- **Recognize it by:** a function that checks or normalizes a value, then returns a `string`, a number, or the type it was given; callers that check the result again
-- **Concepts:** the result's type states what the function established. Parsing returns a new type that only the parse function can make; validating returns a type that says nothing, so the fact is lost
+- **Recognize it by:** input from outside the program
+- **Write it as:** at the boundary where the input enters, parse it into an always-valid value, of a type that only the parse function can make. Inside the boundary, pass always-valid types only
 
 Instead of:
 ```ts
