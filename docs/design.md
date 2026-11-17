@@ -119,9 +119,12 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 
 ## 7. What a project provides
 A project provides these in `.shampoo/`, one file per item, named by its id:
-- **Rules** (`.shampoo/rules/`), each with its check, the transitions it guards, the paths whose changes start the check, its test size, and the mapping of the check's exit codes to pass / task failure / workflow failure
+- **Rules** (`.shampoo/rules/`), each with the transitions it guards, the paths whose changes trigger it, the check that implements it, and optionally a judge
+- **Checks** (`.shampoo/checks/`), each with its command, its test size, and the mapping of its exit codes to pass / task failure / workflow failure
 - **Policies** (`.shampoo/policies/`), each with its code example (§5.2)
 - **Task sources**: where tasks come from (for jeer: clusters of mismatches against the oracle)
+
+At a transition, the rules whose transitions and paths match trigger their checks. Each check runs once, however many rules name it. A rule's verdict is its judge applied to the check's output, or the check's exit code when the rule has no judge: the composition of judge and check. Rules sharing a check apply their judges to one output.
 
 The state machine (§2) is shampoo's own. Its transitions are bound to Claude Code hooks, CI and GitHub, so a project names them (`edit`, `task`, `pr`, `milestone`) and does not define them.
 
