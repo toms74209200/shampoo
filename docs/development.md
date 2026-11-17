@@ -29,9 +29,15 @@ Lint findings have no warnings: a finding fails the check. A false positive pass
 
 ## 3. Commits
 ### 3.1 Minimal commits
-A task (a PR) is made of minimal commits. A commit is minimal between two bounds:
-- **Lower bound: every commit passes the checks on its own.** A change and the white-box tests it needs or breaks are one commit, since either alone fails. This bound is checkable
-- **Upper bound: one purpose per commit.** If a part of the change passes the checks alone and serves a different purpose, it is a separate commit. This bound is semantic; how to enforce it without a human is an open problem (§7)
+A task (a PR) is made of minimal commits. "Minimal" is defined by what can be tried, not by judgment:
+
+> One commit, one subject. Everything staged is needed either for the subject to be true or for the checks to pass.
+>
+> To try it: take out any file or hunk. If the subject is still true and the checks still pass, that part belongs in another commit.
+
+This gives two bounds:
+- **Lower bound: every commit passes the checks on its own.** A change and the white-box tests it needs or breaks are one commit, since either alone fails. This bound is checked
+- **Upper bound: one subject per commit.** The subject's conjunction rule (§3.2) catches the most common sign of two changes in one commit; the rest is judgment, an open problem for HOOTL (§7)
 
 Examples from this repository's history:
 - Creating the Go project is `go.mod` and `main.go` only. Dependencies, `.gitignore`, the Makefile, and the lint config each come in their own commit
