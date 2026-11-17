@@ -36,7 +36,7 @@ A task (a PR) is made of minimal commits. "Minimal" is defined by what can be tr
 > To try it: take out any file or hunk. If the subject is still true and the checks still pass, that part belongs in another commit.
 
 This gives two bounds:
-- **Lower bound: every commit passes the checks on its own.** A change and the white-box tests it needs or breaks are one commit, since either alone fails. This bound is checked
+- **Lower bound: every commit passes the checks on its own.** A change and the white-box tests it needs or breaks are one commit, since either alone fails. The pre-commit hook checks this bound
 - **Upper bound: one subject per commit.** The subject's conjunction rule (§3.2) catches the most common sign of two changes in one commit; the rest is judgment, an open problem for HOOTL (§7)
 
 Examples from this repository's history:
@@ -123,12 +123,11 @@ Each workflow starts from the changes it checks, as in earlier repositories:
 | Workflow | Starts when | Checks |
 |---|---|---|
 | `on-pullrequest-commit.yml` | Every PR, since every PR has commits | The message of each commit |
-| `on-pullrequest-go.yml` | Go-related files change (its `paths`) | `make check` on each commit touching those files |
+| `on-pullrequest-go.yml` | Go-related files change (its `paths`) | Applies the formatter and commits the result, then lint; small tests |
 
 The `job-*.yml` workflows hold the steps, and the `on-*.yml` workflows decide when they run.
 
-Rules for CI:
-- **Every commit is checked, not only the head.** Each commit stays on `master` as it is, so each must pass on its own
+Rules for CI (start minimal, as in earlier repositories, and add a check only when a failure calls for it):
 - **A run's results belong to the commit that started it.** A run may change the code before checking it (apply a formatter, generate, build, bundle) and may push what it produced; those commits are its output, covered by its results
 - **Changes made by automation arrive as PRs.** Whatever makes them, an agent, a scheduled workflow or a bot, opens its own PR rather than pushing to another PR's branch, and that PR runs CI like any other. A PR opened with the workflow token starts no workflows, so automation uses a token that does (e.g. a GitHub App's)
 - **Nothing skips CI.** Commit messages cannot skip it (§3.2)
