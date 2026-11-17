@@ -1,0 +1,32 @@
+name: On Pull Request (Go)
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - '**.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+      - '.golangci.yml'
+      - '.github/workflows/on-pullrequest-go.yml'
+      - '.github/workflows/job-commit-check.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  commit-check:
+    uses: ./.github/workflows/job-commit-check.yml
+    with:
+      base: ${{ github.event.pull_request.base.sha }}
+      head: ${{ github.event.pull_request.head.sha }}
+      paths: >-
+        *.go go.mod go.sum Makefile .golangci.yml
+        .github/workflows/on-pullrequest-go.yml
+        .github/workflows/job-commit-check.yml
