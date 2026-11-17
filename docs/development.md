@@ -59,7 +59,7 @@ Which kinds of files a commit touches says nothing about minimality, so it is no
 - The subject describes one change: outside `code spans` it contains no `and`, `,` or `&`. Two changes in one subject mean two commits. A single change that reads naturally with them is rephrased: `drag-and-drop` passes, as does an identifier such as `` `andThen` ``
 - A body, if any, is separated from the subject by a blank line, and explains why the change is made; the diff already shows what changed
 - Emoji are written as `:code:`, not as Unicode characters
-- A PR's title follows the same format, since it becomes part of its merge commit's message
+- These rules apply to commits written by people and agents. Merge commits are written by GitHub from the PR title and are not checked
 
 `scripts/check-commit.sh` enforces this format and holds the authoritative lists of emoji and verbs. The tables below explain how to choose; change both together.
 
@@ -125,9 +125,8 @@ CI is based on the workflows of earlier repositories built with a human in the l
 | A required check per job | One aggregate job is the required check | Jobs can be added or reorganized without changing the branch rule |
 | Checks run on the head only | Every commit in the PR is checked | Each commit stays on `master` as it is, so each must pass on its own |
 | Linter version set in the workflow | Version pinned in the Makefile, CI runs `make` | Local runs and CI judge the same way |
-| Dependabot with its default messages | Dependabot with the commit prefix `:arrow_up:` | Its commits and PR titles then follow the commit rules, with `bump` as an allowed verb. The exact message it produces is to be verified when it is added |
+| Dependabot with its default messages | Dependabot with the commit prefix `:arrow_up:` | Its commits then follow the commit rules, with `bump` as an allowed verb. The exact message it produces is to be verified when it is added |
 
 ## 7. Open problems
 Recorded here so that they are solved before shampoo runs HOOTL:
 - **The upper bound of a minimal commit** (§3.1) is kept by judgment, which needs a human or an agent's discretion
-- **PR titles** are not checked yet. They follow the commit rules (§3.2), but no check runs on them
