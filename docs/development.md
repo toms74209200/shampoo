@@ -57,6 +57,7 @@ Which kinds of files a commit touches says nothing about minimality, so it is no
 
 - The subject is at most 72 characters and does not end with a period
 - The subject describes one change: outside `code spans` it contains no `and`, `,` or `&`. Two changes in one subject mean two commits. A single change that reads naturally with them is rephrased: `drag-and-drop` passes, as does an identifier such as `` `andThen` ``
+- The message has no directive that skips CI: `[skip ci]`, `[ci skip]`, `[no ci]`, `[skip actions]`, `[actions skip]`, or a `skip-checks: true` trailer. A commit that skips CI is never checked, and the PR view cannot tell it from one that needs no checks
 - A body, if any, is separated from the subject by a blank line, and explains why the change is made; the diff already shows what changed
 - Emoji are written as `:code:`, not as Unicode characters
 - These rules apply to commits written by people and agents. Merge commits are written by GitHub from the PR title and are not checked

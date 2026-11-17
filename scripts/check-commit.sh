@@ -12,6 +12,7 @@
 #   2. Subject is at most 72 characters and does not end with a period
 #   3. A body, if any, is separated from the subject by a blank line
 #   4. The subject describes one change: outside `code spans`, it has no "and", "," or "&"
+#   5. The message has no directive that skips CI ("[skip ci]" and the like, "skip-checks: true")
 
 set -u
 
@@ -94,6 +95,10 @@ esac
 prose=$(printf '%s' "$subject" | sed 's/`[^`]*`//g')
 if printf '%s' "$prose" | grep -qiE '(^|[^[:alnum:]_-])and([^[:alnum:]_-]|$)|[,&]'; then
 	violate "subject joins changes with \"and\", \",\" or \"&\"; split the commit, or rephrase if it is one change (§3.1, §3.2)"
+fi
+
+if printf '%s\n' "$msg" | grep -qiE '\[(skip ci|ci skip|no ci|skip actions|actions skip)\]|^skip-checks: *true'; then
+	violate "message must not skip CI; remove \"[skip ci]\" or \"skip-checks: true\" (§3.2)"
 fi
 
 if [ -n "$second" ]; then
