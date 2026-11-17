@@ -1,6 +1,6 @@
 GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 
-.PHONY: all setup build check lint check-exceptions check-dependencies check-small-test-coverage fmt test-small help
+.PHONY: all setup build check lint check-exceptions check-dependencies check-small-test-coverage check-side-effects fmt test-small help
 
 all: check build
 
@@ -10,7 +10,7 @@ setup: ## Enable the git hooks in .githooks
 build: ## Build the binary
 	go build -o shampoo .
 
-check: lint check-exceptions check-dependencies test-small check-small-test-coverage ## Run all checks guarding a commit
+check: lint check-exceptions check-dependencies test-small check-small-test-coverage check-side-effects ## Run all checks guarding a commit
 
 lint: ## Run linters and format checks
 	$(GOLANGCI_LINT) run --build-tags small,medium,large
@@ -23,6 +23,9 @@ check-dependencies: ## Check that every module is in the allowlist
 
 check-small-test-coverage: ## Check small-test coverage outside side-effect packages
 	scripts/check-small-test-coverage.sh
+
+check-side-effects: ## Run small tests isolated from network, file system and environment
+	scripts/check-side-effects.sh
 
 fmt: ## Apply formatters
 	$(GOLANGCI_LINT) fmt
