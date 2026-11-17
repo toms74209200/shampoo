@@ -21,6 +21,8 @@ on:
       - '.github/workflows/job-check-small-test-coverage.yml'
       - 'scripts/check-small-test-coverage.sh'
       - 'scripts/side-effect-packages.txt'
+      - '.github/workflows/job-check-side-effects.yml'
+      - 'scripts/check-side-effects.sh'
 
 permissions:
   contents: read
@@ -42,3 +44,5 @@ jobs:
     uses: ./.github/workflows/job-check-dependencies.yml
   small-test-coverage:
     uses: ./.github/workflows/job-check-small-test-coverage.yml
+  side-effects:
+    uses: ./.github/workflows/job-check-side-effects.yml
