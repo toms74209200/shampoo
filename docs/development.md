@@ -112,7 +112,7 @@ Tests follow test sizes (design doc §5), selected by build tag: `small`, `mediu
 - Feature specs and acceptance tests are the spec. They change only in a spec-change commit that precedes the implementation, never together with it (design doc §5.1)
 
 ## 5. Branches and merging
-- **Now (bootstrapping):** commits go directly to `master`, each one minimal
+- **Now (bootstrapping):** commits go directly to `master`, each one minimal. CI runs the same checks on every pushed commit, since local hooks can be bypassed
 - **Production code:** one task per branch and PR, made of minimal commits. The PR is auto-merged with a merge commit once the required checks pass, so each task's commits stay on `master` as they are
 
 ## 6. CI
