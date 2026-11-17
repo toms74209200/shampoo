@@ -30,3 +30,13 @@ jobs:
           git push
       - name: Run linter
         run: make lint
+      - name: Check exceptions
+        run: make check-exceptions
+      - name: Check dependencies
+        run: make check-dependencies
+      - name: Check comments
+        run: make check-comments
+      - name: Check test helpers
+        run: make check-test-helpers
+      - name: Check test names
+        run: make check-test-names

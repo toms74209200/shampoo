@@ -8,31 +8,7 @@ on:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
-      - 'Makefile'
-      - '.golangci.yml'
-      - '.github/workflows/on-pullrequest-go.yml'
-      - '.github/workflows/job-lint-go.yml'
-      - '.github/workflows/job-test-small-go.yml'
-      - '.github/workflows/job-check-exceptions.yml'
-      - 'scripts/check-exceptions.sh'
-      - '.github/workflows/job-check-dependencies.yml'
-      - 'scripts/check-dependencies.sh'
-      - 'scripts/allowed-modules.txt'
-      - '.github/workflows/job-check-small-test-coverage.yml'
-      - 'scripts/check-small-test-coverage.sh'
-      - 'scripts/side-effect-packages.txt'
-      - '.github/workflows/job-check-side-effects.yml'
-      - 'scripts/check-side-effects.sh'
-      - '.github/workflows/job-check-coverage.yml'
-      - 'scripts/check-coverage.sh'
-      - 'scripts/coverage-baseline.txt'
-      - '.github/workflows/job-check-comments.yml'
-      - 'scripts/check-comments.sh'
-      - '.github/workflows/job-check-test-helpers.yml'
-      - 'scripts/check-test-helpers.sh'
-      - '.github/workflows/job-check-test-names.yml'
-      - 'scripts/check-test-names.sh'
-      - 'tools/**'
+      - '.github/workflows/**'
 
 permissions:
   contents: read
@@ -42,27 +18,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build:
+    uses: ./.github/workflows/job-build-go.yml
   lint:
+    needs: [build]
     uses: ./.github/workflows/job-lint-go.yml
     permissions:
       contents: write
   small-test:
+    needs: [build]
     uses: ./.github/workflows/job-test-small-go.yml
-  exceptions:
-    uses: ./.github/workflows/job-check-exceptions.yml
-  dependencies:
-    uses: ./.github/workflows/job-check-dependencies.yml
-  small-test-coverage:
-    uses: ./.github/workflows/job-check-small-test-coverage.yml
-  side-effects:
-    uses: ./.github/workflows/job-check-side-effects.yml
-  comments:
-    uses: ./.github/workflows/job-check-comments.yml
-  test-helpers:
-    uses: ./.github/workflows/job-check-test-helpers.yml
-  test-names:
-    uses: ./.github/workflows/job-check-test-names.yml
   coverage:
-    uses: ./.github/workflows/job-check-coverage.yml
+    needs: [small-test, lint]
+    uses: ./.github/workflows/job-coverage-go.yml
     permissions:
       contents: write
