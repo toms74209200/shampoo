@@ -1,0 +1,3 @@
+command = "make check-test-helpers"
+size = "small"
+exit = { 1 = "task-failure", other = "workflow-failure" }

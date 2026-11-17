@@ -1,6 +1,4 @@
 rule = "Mocks are prohibited. Fakes stand in for what has side effects."
-check = "make lint"
 transitions = ["edit", "task", "pr"]
 paths = ["**.go", "go.mod", "go.sum", "Makefile", ".golangci.yml"]
-size = "small"
-exit = { 1 = "task-failure", other = "workflow-failure" }
+check = "lint"

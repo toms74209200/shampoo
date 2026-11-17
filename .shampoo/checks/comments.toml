@@ -1,0 +1,3 @@
+command = "make check-comments"
+size = "small"
+exit = { 1 = "task-failure", other = "workflow-failure" }

@@ -1,6 +1,4 @@
 rule = "Exceptions other than `//nolint:<linter> // <reason>` are prohibited."
-check = "make check-exceptions"
 transitions = ["edit", "task", "pr"]
 paths = ["**.go", ".golangci.yml", "scripts/check-exceptions.sh"]
-size = "small"
-exit = { 1 = "task-failure", other = "workflow-failure" }
+check = "exceptions"

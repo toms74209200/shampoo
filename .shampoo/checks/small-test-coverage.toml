@@ -1,0 +1,3 @@
+command = "make check-small-test-coverage"
+size = "small"
+exit = { 1 = "task-failure", other = "workflow-failure" }
