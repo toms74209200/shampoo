@@ -1,1 +1,1 @@
-rule = "Exceptions other than `//nolint:<linter> // <reason>` are prohibited. Adding one goes through human review."
+rule = "Exceptions other than `//nolint:<linter> // <reason>` are prohibited."
