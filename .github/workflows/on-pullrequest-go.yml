@@ -11,7 +11,8 @@ on:
       - 'Makefile'
       - '.golangci.yml'
       - '.github/workflows/on-pullrequest-go.yml'
-      - '.github/workflows/job-commit-check.yml'
+      - '.github/workflows/job-lint-go.yml'
+      - '.github/workflows/job-test-small-go.yml'
 
 permissions:
   contents: read
@@ -21,12 +22,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  commit-check:
-    uses: ./.github/workflows/job-commit-check.yml
-    with:
-      base: ${{ github.event.pull_request.base.sha }}
-      head: ${{ github.event.pull_request.head.sha }}
-      paths: >-
-        *.go go.mod go.sum Makefile .golangci.yml
-        .github/workflows/on-pullrequest-go.yml
-        .github/workflows/job-commit-check.yml
+  lint:
+    uses: ./.github/workflows/job-lint-go.yml
+    permissions:
+      contents: write
+  small-test:
+    uses: ./.github/workflows/job-test-small-go.yml
