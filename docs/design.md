@@ -75,7 +75,7 @@ The loop must keep running with no human present. That requires:
 | Self-healing | Escapes become harness-repair tasks for an agent. A human is reached only when the repair budget is exhausted |
 | Asynchronous human review | Human approval never blocks the loop directly; only the human-review budget does |
 
-## 5. Rules for checks
+## 5. Principles for checks
 - **A check failure always sends the work back.** No warnings
 - **False positives pass only through an explicit exception with a written reason**, counted against that check's budget
 - **Exceeding the budget means fixing the check**, not adding exceptions
@@ -100,8 +100,8 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 ### 5.2 Rules and policies
 | Term | Definition |
 |---|---|
-| Check | An executable that judges the work at a transition, reporting pass, task failure or workflow failure (§3, §7) |
-| Rule | A constraint whose violations a check detects. A violation fails the transition and sends the work back. A constraint without such a check is not a rule |
+| Rule | A categorical constraint on the work: it must hold. Its violation fails the transition and sends the work back |
+| Check | The implementation of rules: a deterministic executable that judges the work at a transition, reporting pass, task failure or workflow failure (§3, §7) |
 | Policy | Guidance that the harness puts into the agent's context. No check detects its violations; it takes effect only as far as the agent follows it |
 
 - **The harness puts policies into the context at fixed times**: all policies when the orchestrator starts a task, and all of them again after the context is compacted. The agent does not choose whether to load them
