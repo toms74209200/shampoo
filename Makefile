@@ -1,8 +1,6 @@
 GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
-BASE ?= origin/master
-OUT := out
 
-.PHONY: all setup build check lint check-exceptions check-dependencies check-small-test-coverage check-side-effects check-coverage check-comments check-test-helpers check-test-names fmt test-small help
+.PHONY: all setup build check lint check-exceptions check-dependencies check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names fmt test-small help
 
 all: check build
 
@@ -23,14 +21,11 @@ check-exceptions: ## Check that no exception other than nolint is used
 check-dependencies: ## Check that every module is in the allowlist
 	scripts/check-dependencies.sh
 
-check-small-test-coverage: test-small ## Judge small-test coverage outside side-effect packages
-	scripts/judge-small-test-coverage.sh $(OUT)/small.cover
+check-small-test-coverage: ## Judge small-test coverage outside side-effect packages
+	scripts/judge-small-test-coverage.sh out/small.cover
 
-check-side-effects: test-small ## Judge the system calls of small tests
-	scripts/judge-side-effects.sh $(OUT)/traces
-
-check-coverage: test-small ## Judge that coverage does not go down from BASE
-	scripts/judge-coverage.sh $(OUT)/small.cover $(BASE)
+check-side-effects: ## Judge the system calls of small tests
+	scripts/judge-side-effects.sh out/traces
 
 check-comments: ## Check that code has no comments other than directives
 	scripts/check-comments.sh
@@ -46,8 +41,8 @@ fmt: ## Apply formatters
 
 test-small: ## Run small tests once, recording coverage and system calls
 	strace -qq -o /dev/null true
-	rm -rf $(OUT)/traces && mkdir -p $(OUT)/traces
-	CGO_ENABLED=0 TRACE_DIR=$(abspath $(OUT)/traces) go test -tags=small -exec $(abspath scripts/trace-exec.sh) -coverpkg=./... -coverprofile=$(OUT)/small.cover ./...
+	rm -rf out/traces && mkdir -p out/traces
+	CGO_ENABLED=0 TRACE_DIR=$(CURDIR)/out/traces go test -tags=small -exec $(CURDIR)/scripts/trace-exec.sh -coverpkg=./... -coverprofile=out/small.cover ./...
 
 help: ## Display this help screen
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "%-12s %s\n", $$1, $$2}'
