@@ -118,10 +118,12 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 # Part III. Usage
 
 ## 7. What a project provides
-- **Checks per transition**, each with a test size
-- **Exit-code mapping**: how each check's exit codes map to pass / task failure / workflow failure
-- **Policies**, each with its code example (§5.2)
+A project provides these in `.shampoo/`, one file per item, named by its id:
+- **Rules** (`.shampoo/rules/`), each with its check, the transitions it guards, the paths whose changes start the check, its test size, and the mapping of the check's exit codes to pass / task failure / workflow failure
+- **Policies** (`.shampoo/policies/`), each with its code example (§5.2)
 - **Task sources**: where tasks come from (for jeer: clusters of mismatches against the oracle)
+
+The state machine (§2) is shampoo's own. Its transitions are bound to Claude Code hooks, CI and GitHub, so a project names them (`edit`, `task`, `pr`, `milestone`) and does not define them.
 
 ## 8. Commands
 - `shampoo run`: the orchestrator. A long-running server that watches state and drives transitions between sessions (§11)
