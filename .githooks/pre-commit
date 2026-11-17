@@ -1,2 +1,4 @@
 #!/bin/sh
-exec make check
+make check && exit 0
+echo "pre-commit: checks failed; every commit must pass them on its own (docs/development.md §2, §3.1)" >&2
+exit 1
