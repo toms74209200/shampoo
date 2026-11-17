@@ -1,0 +1,280 @@
+rules:
+  - id: commit-message
+    rule: Every commit message follows docs/development.md §3.2.
+    check: scripts/check-commit.sh --rev <commit>
+    size: small
+    exit: { 1: task-failure, other: workflow-failure }
+
+  - id: lint
+    rule: The code passes golangci-lint with .golangci.yml.
+    check: make lint
+    size: small
+    exit: { 1: task-failure, other: workflow-failure }
+
+  - id: small-tests
+    rule: Every small test passes.
+    check: make test-small
+    size: small
+    exit: { 1: task-failure, other: workflow-failure }
+
+  - id: comments
+    rule: >-
+      Comments are prohibited in all code, test code included. Directives are
+      not comments and are allowed: `//go:` directives, build constraints,
+      `// Code generated`, and `//nolint:<linter> // <reason>`.
+
+  - id: exceptions
+    rule: >-
+      Exceptions other than `//nolint:<linter> // <reason>` are prohibited.
+      Adding one goes through human review.
+
+  - id: dependencies
+    rule: >-
+      Every module the code depends on is in the project's allowlist, with its
+      reason. Changing the allowlist goes through human review.
+
+  - id: side-effects
+    rule: >-
+      Side effects, as defined by test sizes, are statements in the packages
+      designated for them.
+
+  - id: prohibited-functions
+    rule: |-
+      Each of these is prohibited as a function, and is written inline where it is used:
+      - A bundle of statements wrapped for readability
+      - Statements that look the same, extracted to share them
+      - A call one level down, or an entry point that passes values on
+      - A name for a condition used in one place
+      - A conversion whose result type carries nothing new: `string -> string`, `string -> int`, `int -> int`, `User -> User`
+
+  - id: mocks
+    rule: Mocks are prohibited. Fakes stand in for what has side effects.
+
+  - id: test-helpers
+    rule: >-
+      Test helpers are prohibited. A test file declares only `Test`, `Fuzz` and
+      `Example` functions, and does not call `t.Helper()`.
+
+  - id: fixed-values
+    rule: >-
+      Fixed strings and numbers are prohibited in tests. Inputs are random,
+      from the standard library (`crypto/rand.Text`, `testing/quick`).
+
+  - id: test-names
+    rule: Every test is named `when <target> with <given conditions> then returns <expected>`.
+
+  - id: white-box-dependencies
+    rule: >-
+      A white-box test depends on its target only. If the target is a function,
+      no other production code is used, except the types needed to build its
+      arguments.
+
+  - id: black-box-dependencies
+    rule: >-
+      A black-box test depends on the public API only, from an external test
+      package (`package foo_test`).
+
+  - id: acceptance-tests
+    rule: >-
+      Feature specs and acceptance tests change only in a spec-change commit
+      that precedes the implementation, never together with it
+      (docs/design.md §5.1).
+
+  - id: coverage
+    rule: Coverage, one ratio over the whole code base across all test sizes, does not go down.
+
+policies:
+  - id: structure
+    text: |-
+      Production code is made of:
+      - Parse functions at the boundary
+      - Structures that choose which function applies
+      - Statements with side effects
+
+      Small tests cover the first two.
+
+  - id: functions
+    text: |-
+      Creating a function is prohibited, except when it meets both of these:
+      - It satisfies parse, don't validate and the Curry–Howard isomorphism
+      - It is a deep module: it hides branches behind an interface much smaller than what it hides
+
+      Functions of the two kinds in the structure policy leave no room for the
+      functions prohibited by the rules.
+
+  - id: sum-types
+    text: |-
+      Every branch is a test to write. When the code you are writing looks like
+      this, write it as in the example instead.
+
+      Recognize it by: a later step inspects a value decided by an earlier step,
+      to choose its own behavior.
+
+      Write it as: the earlier step returns the behavior itself, as a value of a
+      sum type or as a function, and the later step applies it. A sum type is a
+      type whose value is exactly one of several cases (`A | B`); pattern
+      matching is the operation on it that chooses one function per case,
+      checked for every case.
+
+      Instead of:
+      ```ts
+      type Command = { kind: string; name?: string };
+      const run = (c: Command) => {
+        if (c.kind === "shell") return openShell(c.name ?? "default");
+        if (c.kind === "stop") return stopContainer(c.name ?? "default");
+        throw new Error(`unknown command: ${c.kind}`);
+      };
+      ```
+
+      Tests no longer needed: `when run with unknown command then throws`,
+      `when run with shell command without name then returns default shell`.
+
+      Languages with overloading choose the function by the argument's type at
+      compile time, the same choice made by the type checker; Go has no
+      overloading.
+    example: |-
+      Ideal:
+      ```ts
+      type Command =
+        | { kind: "shell"; name: string }
+        | { kind: "stop"; name: string }
+        | { kind: "help" };
+
+      const run = (c: Command): Result => {
+        switch (c.kind) {
+          case "shell": return openShell(c.name);
+          case "stop": return stopContainer(c.name);
+          case "help": return printHelp();
+        }
+      };
+      ```
+      In Go, a sealed interface stands in for the sum, and a type switch for the
+      match; the compiler does not check that every case is covered:
+      ```go
+      type Command interface{ command() }
+      type Shell struct{ Name string }
+      type Stop struct{ Name string }
+      type Help struct{}
+      func (Shell) command() {}
+      func (Stop) command()  {}
+      func (Help) command()  {}
+
+      switch c := cmd.(type) {
+      case Shell:
+      	return openShell(c.Name)
+      case Stop:
+      	return stopContainer(c.Name)
+      case Help:
+      	return printHelp()
+      }
+      ```
+
+  - id: product-of-applications
+    text: |-
+      Recognize it by: one value run through several checks or steps, each with
+      its own `if`, the results collected by hand.
+
+      Concepts: a product type holds several values at once (`A × B`, a tuple or
+      a struct). A product of applications is the operation that makes one:
+      several functions applied to the same value, giving the results together.
+      It is not only a type with several fields.
+
+      Instead of:
+      ```ts
+      const check = (tree: Tree) => {
+        const failures: string[] = [];
+        if (!formatted(tree)) failures.push("format");
+        if (!linted(tree)) failures.push("lint");
+        return failures;
+      };
+      ```
+
+      Tests no longer needed: every combination of passing and failing checks.
+      Each check is tested alone, and adding one changes no other test.
+    example: |-
+      Ideal:
+      ```ts
+      const check = (tree: Tree) => [format, lint].map((c) => c(tree));
+      ```
+      In Go, a slice of functions and a loop:
+      ```go
+      results := make([]Result, 0, len(checks))
+      for _, c := range checks {
+      	results = append(results, c(tree))
+      }
+      ```
+
+  - id: composition
+    text: |-
+      Recognize it by: a boolean or option argument that switches extra behavior
+      on: `retry`, `verbose`, `cache`.
+
+      Concepts: composition builds a function from functions. The extra behavior
+      becomes a function that takes the core function and returns a new one, so
+      the core has no branch for it.
+
+      Instead of:
+      ```ts
+      const fetchPage = async (url: URL, retry: boolean): Promise<Page> => {
+        if (retry) { ... }
+        ...
+      };
+      ```
+
+      Tests no longer needed: `fetchPage` with and without retries. Retrying is
+      tested once, for any function.
+    example: |-
+      Ideal:
+      ```ts
+      const fetchPageWithRetry = retrying(3)(fetchPage);
+      ```
+      In Go, a function that takes and returns a function:
+      ```go
+      func Retrying(attempts int, f func(URL) (Page, error)) func(URL) (Page, error)
+      ```
+
+  - id: parse-dont-validate
+    text: |-
+      Recognize it by: input from outside the program.
+
+      Write it as: at the boundary where the input enters, parse it into an
+      always-valid value, of a type that only the parse function can make.
+      Inside the boundary, pass always-valid types only.
+
+      Instead of:
+      ```ts
+      const toPort = (s: string): number => Number(s);
+      if (port > 0 && port < 65536) { ... }
+      ```
+
+      Tests no longer needed: every caller's re-check of the range.
+    example: |-
+      Ideal:
+      ```ts
+      type Port = number & { readonly brand: "Port" };
+      const parsePort = (s: string): Port | ParseError => ...;
+      ```
+      In Go, a named type whose only constructor is the parse function:
+      ```go
+      type Port uint16
+      func ParsePort(s string) (Port, error)
+      ```
+
+  - id: dependencies
+    text: |-
+      Dependencies are kept to the minimum. Tools such as golangci-lint are not
+      dependencies: they are pinned in the Makefile and run through `go run`.
+      Dependencies used only by acceptance tests live in the acceptance tests'
+      own module.
+
+  - id: tests
+    text: |-
+      Code and tests are two sides of one thing. Tests are as many small tests
+      as possible.
+      - Code with side effects is tested by medium or larger tests, written knowing their cost
+      - A server whose code is mostly CRUD may have few small tests; coverage is counted across all sizes
+      - DAMP over DRY
+      - Parameterized tests when cases differ only in inputs and expected results
+      - Property-based tests when a property holds for all inputs (`testing/quick`, or fuzz targets whose seeds run as tests)
+      - Arrange-Act-Assert
+      - Mutation testing shows whether tests assert: on a PR it runs on the changed lines; at a milestone, on everything
