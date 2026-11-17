@@ -1,0 +1,1 @@
+rule = "Fixed strings and numbers are prohibited in tests. Inputs are random, from the standard library (`crypto/rand.Text`, `testing/quick`)."

@@ -1,1 +1,0 @@
-rule: Coverage, one ratio over the whole code base across all test sizes, does not go down.

@@ -1,0 +1,27 @@
+text = '''
+Recognize it by: a boolean or option argument that switches extra behavior
+on: `retry`, `verbose`, `cache`.
+
+Concepts: composition builds a function from functions. The extra behavior
+becomes a function that takes the core function and returns a new one, so
+the core has no branch for it.
+
+Instead of:
+```ts
+const fetchPage = async (url: URL, retry: boolean): Promise<Page> => {
+  if (retry) { ... }
+  ...
+};
+```
+
+Tests no longer needed: `fetchPage` with and without retries. Retrying is
+tested once, for any function.'''
+example = '''
+Ideal:
+```ts
+const fetchPageWithRetry = retrying(3)(fetchPage);
+```
+In Go, a function that takes and returns a function:
+```go
+func Retrying(attempts int, f func(URL) (Page, error)) func(URL) (Page, error)
+```'''

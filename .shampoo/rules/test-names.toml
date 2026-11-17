@@ -1,0 +1,1 @@
+rule = "Every test is named `when <target> with <given conditions> then returns <expected>`."

@@ -1,1 +1,0 @@
-rule: Every module the code depends on is in the project's allowlist, with its reason. Changing the allowlist goes through human review.

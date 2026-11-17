@@ -1,5 +1,0 @@
-text: |-
-  Dependencies are kept to the minimum. Tools such as golangci-lint are not
-  dependencies: they are pinned in the Makefile and run through `go run`.
-  Dependencies used only by acceptance tests live in the acceptance tests'
-  own module.

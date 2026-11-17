@@ -1,0 +1,25 @@
+text = '''
+Recognize it by: input from outside the program.
+
+Write it as: at the boundary where the input enters, parse it into an
+always-valid value, of a type that only the parse function can make.
+Inside the boundary, pass always-valid types only.
+
+Instead of:
+```ts
+const toPort = (s: string): number => Number(s);
+if (port > 0 && port < 65536) { ... }
+```
+
+Tests no longer needed: every caller's re-check of the range.'''
+example = '''
+Ideal:
+```ts
+type Port = number & { readonly brand: "Port" };
+const parsePort = (s: string): Port | ParseError => ...;
+```
+In Go, a named type whose only constructor is the parse function:
+```go
+type Port uint16
+func ParsePort(s string) (Port, error)
+```'''

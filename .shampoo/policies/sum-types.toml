@@ -1,0 +1,65 @@
+text = '''
+Every branch is a test to write. When the code you are writing looks like
+this, write it as in the example instead.
+
+Recognize it by: a later step inspects a value decided by an earlier step,
+to choose its own behavior.
+
+Write it as: the earlier step returns the behavior itself, as a value of a
+sum type or as a function, and the later step applies it. A sum type is a
+type whose value is exactly one of several cases (`A | B`); pattern
+matching is the operation on it that chooses one function per case,
+checked for every case.
+
+Instead of:
+```ts
+type Command = { kind: string; name?: string };
+const run = (c: Command) => {
+  if (c.kind === "shell") return openShell(c.name ?? "default");
+  if (c.kind === "stop") return stopContainer(c.name ?? "default");
+  throw new Error(`unknown command: ${c.kind}`);
+};
+```
+
+Tests no longer needed: `when run with unknown command then throws`,
+`when run with shell command without name then returns default shell`.
+
+Languages with overloading choose the function by the argument's type at
+compile time, the same choice made by the type checker; Go has no
+overloading.'''
+example = '''
+Ideal:
+```ts
+type Command =
+  | { kind: "shell"; name: string }
+  | { kind: "stop"; name: string }
+  | { kind: "help" };
+
+const run = (c: Command): Result => {
+  switch (c.kind) {
+    case "shell": return openShell(c.name);
+    case "stop": return stopContainer(c.name);
+    case "help": return printHelp();
+  }
+};
+```
+In Go, a sealed interface stands in for the sum, and a type switch for the
+match; the compiler does not check that every case is covered:
+```go
+type Command interface{ command() }
+type Shell struct{ Name string }
+type Stop struct{ Name string }
+type Help struct{}
+func (Shell) command() {}
+func (Stop) command()  {}
+func (Help) command()  {}
+
+switch c := cmd.(type) {
+case Shell:
+	return openShell(c.Name)
+case Stop:
+	return stopContainer(c.Name)
+case Help:
+	return printHelp()
+}
+```'''

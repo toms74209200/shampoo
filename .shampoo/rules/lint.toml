@@ -1,0 +1,6 @@
+rule = "The code passes golangci-lint with .golangci.yml."
+check = "make lint"
+transitions = ["edit", "task", "pr"]
+paths = ["**.go", "go.mod", "go.sum", "Makefile", ".golangci.yml"]
+size = "small"
+exit = { 1 = "task-failure", other = "workflow-failure" }

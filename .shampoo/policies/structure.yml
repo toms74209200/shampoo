@@ -1,7 +1,0 @@
-text: |-
-  Production code is made of:
-  - Parse functions at the boundary
-  - Structures that choose which function applies
-  - Statements with side effects
-
-  Small tests cover the first two.
