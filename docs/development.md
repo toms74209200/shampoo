@@ -113,6 +113,7 @@ Tests follow test sizes (design doc §5), selected by build tag: `small`, `mediu
 
 ## 5. Branches and merging
 - **Now (bootstrapping):** commits go directly to `master`, each one minimal. CI runs the same checks on every pushed commit, since local hooks can be bypassed
+- **Repository rules:** the `master` ruleset requires a PR, the `ci` check, and merge commits, and forbids force pushes and deletion. Auto-merge is enabled, and only merge commits are allowed, titled with the PR title. Until production code starts, repository admins bypass the ruleset so that the commits above can be pushed directly. **Remove that bypass before the first production code**
 - **Production code:** one task per branch and PR, made of minimal commits. The PR is auto-merged with a merge commit once the required checks pass, so each task's commits stay on `master` as they are
 
 ## 6. CI
