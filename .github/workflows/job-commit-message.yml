@@ -1,0 +1,42 @@
+name: Job - Commit message
+
+on:
+  workflow_call:
+    inputs:
+      base:
+        description: 'Commit the range starts after; all zeros checks only head'
+        required: true
+        type: string
+      head:
+        description: 'Last commit of the range'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Check each commit message
+        env:
+          BASE: ${{ inputs.base }}
+          HEAD: ${{ inputs.head }}
+        run: |
+          if [ "$BASE" = 0000000000000000000000000000000000000000 ]; then
+            range="$HEAD -1"
+          else
+            range="$BASE..$HEAD"
+          fi
+          result=0
+          for c in $(git rev-list --reverse --no-merges $range); do
+            echo "::group::$(git log -1 --format='%h %s' "$c")"
+            scripts/check-commit.sh --rev "$c" || { s=$?; [ $s -gt $result ] && result=$s; }
+            echo "::endgroup::"
+          done
+          exit $result
