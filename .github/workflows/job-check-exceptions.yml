@@ -1,0 +1,16 @@
+name: Job - Check exceptions
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check exceptions
+        run: make check-exceptions

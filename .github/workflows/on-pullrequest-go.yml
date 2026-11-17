@@ -13,6 +13,8 @@ on:
       - '.github/workflows/on-pullrequest-go.yml'
       - '.github/workflows/job-lint-go.yml'
       - '.github/workflows/job-test-small-go.yml'
+      - '.github/workflows/job-check-exceptions.yml'
+      - 'scripts/check-exceptions.sh'
 
 permissions:
   contents: read
@@ -28,3 +30,5 @@ jobs:
       contents: write
   small-test:
     uses: ./.github/workflows/job-test-small-go.yml
+  exceptions:
+    uses: ./.github/workflows/job-check-exceptions.yml
