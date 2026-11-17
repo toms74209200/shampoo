@@ -26,6 +26,9 @@ on:
       - '.github/workflows/job-check-coverage.yml'
       - 'scripts/check-coverage.sh'
       - 'scripts/coverage-baseline.txt'
+      - '.github/workflows/job-check-comments.yml'
+      - 'scripts/check-comments.sh'
+      - 'tools/**'
 
 permissions:
   contents: read
@@ -49,6 +52,8 @@ jobs:
     uses: ./.github/workflows/job-check-small-test-coverage.yml
   side-effects:
     uses: ./.github/workflows/job-check-side-effects.yml
+  comments:
+    uses: ./.github/workflows/job-check-comments.yml
   coverage:
     uses: ./.github/workflows/job-check-coverage.yml
     permissions:
