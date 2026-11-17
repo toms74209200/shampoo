@@ -15,6 +15,9 @@ on:
       - '.github/workflows/job-test-small-go.yml'
       - '.github/workflows/job-check-exceptions.yml'
       - 'scripts/check-exceptions.sh'
+      - '.github/workflows/job-check-dependencies.yml'
+      - 'scripts/check-dependencies.sh'
+      - 'scripts/allowed-modules.txt'
 
 permissions:
   contents: read
@@ -32,3 +35,5 @@ jobs:
     uses: ./.github/workflows/job-test-small-go.yml
   exceptions:
     uses: ./.github/workflows/job-check-exceptions.yml
+  dependencies:
+    uses: ./.github/workflows/job-check-dependencies.yml
