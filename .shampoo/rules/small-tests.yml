@@ -1,0 +1,4 @@
+rule: Every small test passes.
+check: make test-small
+size: small
+exit: { 1: task-failure, other: workflow-failure }

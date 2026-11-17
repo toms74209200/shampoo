@@ -1,0 +1,1 @@
+rule: Feature specs and acceptance tests change only in a spec-change commit that precedes the implementation, never together with it (docs/design.md §5.1).

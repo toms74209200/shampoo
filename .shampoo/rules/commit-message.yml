@@ -1,0 +1,4 @@
+rule: Every commit message follows docs/development.md §3.2.
+check: scripts/check-commit.sh --rev <commit>
+size: small
+exit: { 1: task-failure, other: workflow-failure }

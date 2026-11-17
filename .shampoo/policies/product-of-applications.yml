@@ -1,0 +1,33 @@
+text: |-
+  Recognize it by: one value run through several checks or steps, each with
+  its own `if`, the results collected by hand.
+
+  Concepts: a product type holds several values at once (`A × B`, a tuple or
+  a struct). A product of applications is the operation that makes one:
+  several functions applied to the same value, giving the results together.
+  It is not only a type with several fields.
+
+  Instead of:
+  ```ts
+  const check = (tree: Tree) => {
+    const failures: string[] = [];
+    if (!formatted(tree)) failures.push("format");
+    if (!linted(tree)) failures.push("lint");
+    return failures;
+  };
+  ```
+
+  Tests no longer needed: every combination of passing and failing checks.
+  Each check is tested alone, and adding one changes no other test.
+example: |-
+  Ideal:
+  ```ts
+  const check = (tree: Tree) => [format, lint].map((c) => c(tree));
+  ```
+  In Go, a slice of functions and a loop:
+  ```go
+  results := make([]Result, 0, len(checks))
+  for _, c := range checks {
+  	results = append(results, c(tree))
+  }
+  ```

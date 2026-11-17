@@ -1,0 +1,4 @@
+rule: The code passes golangci-lint with .golangci.yml.
+check: make lint
+size: small
+exit: { 1: task-failure, other: workflow-failure }

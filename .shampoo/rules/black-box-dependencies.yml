@@ -1,0 +1,1 @@
+rule: A black-box test depends on the public API only, from an external test package (`package foo_test`).

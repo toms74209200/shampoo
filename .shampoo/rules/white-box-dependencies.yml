@@ -1,0 +1,1 @@
+rule: A white-box test depends on its target only. If the target is a function, no other production code is used, except the types needed to build its arguments.

@@ -1,0 +1,1 @@
+rule: Test helpers are prohibited. A test file declares only `Test`, `Fuzz` and `Example` functions, and does not call `t.Helper()`.
