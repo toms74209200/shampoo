@@ -1,6 +1,7 @@
 GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
+BASE ?= origin/master
 
-.PHONY: all setup build check lint check-exceptions check-dependencies check-small-test-coverage check-side-effects fmt test-small help
+.PHONY: all setup build check lint check-exceptions check-dependencies check-small-test-coverage check-side-effects check-coverage fmt test-small help
 
 all: check build
 
@@ -26,6 +27,9 @@ check-small-test-coverage: ## Check small-test coverage outside side-effect pack
 
 check-side-effects: ## Run small tests isolated from network, file system and environment
 	scripts/check-side-effects.sh
+
+check-coverage: ## Check that coverage does not go down from BASE
+	scripts/check-coverage.sh $(BASE)
 
 fmt: ## Apply formatters
 	$(GOLANGCI_LINT) fmt

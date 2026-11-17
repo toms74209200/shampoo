@@ -23,6 +23,9 @@ on:
       - 'scripts/side-effect-packages.txt'
       - '.github/workflows/job-check-side-effects.yml'
       - 'scripts/check-side-effects.sh'
+      - '.github/workflows/job-check-coverage.yml'
+      - 'scripts/check-coverage.sh'
+      - 'scripts/coverage-baseline.txt'
 
 permissions:
   contents: read
@@ -46,3 +49,7 @@ jobs:
     uses: ./.github/workflows/job-check-small-test-coverage.yml
   side-effects:
     uses: ./.github/workflows/job-check-side-effects.yml
+  coverage:
+    uses: ./.github/workflows/job-check-coverage.yml
+    permissions:
+      contents: write

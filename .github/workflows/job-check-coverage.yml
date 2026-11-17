@@ -1,0 +1,32 @@
+name: Job - Check coverage
+
+on:
+  workflow_call:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.mod
+      - name: Check coverage against the base
+        run: scripts/check-coverage.sh ${{ github.event.pull_request.base.sha }} --update
+      - name: Commit coverage baseline
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am ":white_check_mark: Update coverage baseline"
+          git pull --rebase origin ${{ github.head_ref }}
+          git push
