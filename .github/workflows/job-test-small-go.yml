@@ -22,6 +22,8 @@ jobs:
         run: make test-small
       - name: Judge side effects
         run: scripts/judge-side-effects.sh out/traces
+      - name: Run small tests of tools
+        run: make test-tools
       - uses: actions/upload-artifact@v7
         with:
           name: small-cover
