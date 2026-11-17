@@ -1,19 +1,4 @@
 #!/bin/sh
-# Checks a commit message against the commit rules (docs/development.md).
-#
-# Usage:
-#   check-commit.sh --msg-file <file>  check a message file (commit-msg hook)
-#   check-commit.sh --rev <rev>        check the message of an existing commit (CI)
-#
-# Exit codes: 0 pass, 1 rule violation (task failure), 2 checker error (workflow failure).
-#
-# Rules:
-#   1. Subject is ":<gitmoji>: <Verb> <what>", using the emoji and verbs listed below
-#   2. Subject is at most 72 characters and does not end with a period
-#   3. A body, if any, is separated from the subject by a blank line
-#   4. The subject describes one change: outside `code spans`, it has no "and", "," or "&"
-#   5. The message has no directive that skips CI ("[skip ci]" and the like, "skip-checks: true")
-
 set -u
 
 EMOJIS='
