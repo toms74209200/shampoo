@@ -45,6 +45,7 @@ fmt: ## Apply formatters
 	$(GOLANGCI_LINT) fmt
 
 test-small: ## Run small tests once, recording coverage and system calls
+	strace -qq -o /dev/null true
 	rm -rf $(OUT)/traces && mkdir -p $(OUT)/traces
 	CGO_ENABLED=0 TRACE_DIR=$(abspath $(OUT)/traces) go test -tags=small -exec $(abspath scripts/trace-exec.sh) -coverpkg=./... -coverprofile=$(OUT)/small.cover ./...
 
