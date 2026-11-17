@@ -71,30 +71,30 @@ emoji=$(printf '%s' "$subject" | sed -n 's/^\(:[a-z0-9_]*:\) .*/\1/p')
 verb=$(printf '%s' "$subject" | sed -n 's/^:[a-z0-9_]*: \([^ ]*\) .*/\1/p')
 
 if [ -z "$emoji" ] || [ -z "$verb" ]; then
-	violate "subject must be \":<gitmoji>: <Verb> <what>\", got: \"$subject\""
+	violate "subject must be \":<gitmoji>: <Verb> <what>\", got: \"$subject\" (§3.2)"
 else
 	if ! printf '%s\n' "$EMOJIS" | grep -q "^$emoji "; then
-		violate "emoji $emoji is not allowed; use one of:
+		violate "emoji $emoji is not allowed (§3.3); use one of:
 $(printf '%s' "$EMOJIS" | sed '/^$/d; s/^/    /')"
 	fi
 	case " $VERBS " in
 	*" $verb "*) ;;
-	*) violate "verb \"$verb\" is not allowed; start with an imperative verb from: $VERBS" ;;
+	*) violate "verb \"$verb\" is not allowed (§3.4); start with an imperative verb from: $VERBS" ;;
 	esac
 fi
 
 if [ "${#subject}" -gt 72 ]; then
-	violate "subject is ${#subject} characters; keep it at most 72"
+	violate "subject is ${#subject} characters; keep it at most 72 (§3.2)"
 fi
 case "$subject" in
-*.) violate "subject must not end with a period" ;;
+*.) violate "subject must not end with a period (§3.2)" ;;
 esac
 
 if [ -n "$second" ]; then
-	violate "separate the subject from the body with a blank line"
+	violate "separate the subject from the body with a blank line (§3.2)"
 fi
 
 if [ -n "$violations" ]; then
-	echo "commit rule violations:$violations" >&2
+	echo "commit rule violations (sections refer to docs/development.md):$violations" >&2
 	exit 1
 fi
