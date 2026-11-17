@@ -11,6 +11,7 @@
 #   1. Subject is ":<gitmoji>: <Verb> <what>", using the emoji and verbs listed below
 #   2. Subject is at most 72 characters and does not end with a period
 #   3. A body, if any, is separated from the subject by a blank line
+#   4. The subject describes one change: outside `code spans`, it has no "and", "," or "&"
 
 set -u
 
@@ -89,6 +90,11 @@ fi
 case "$subject" in
 *.) violate "subject must not end with a period (§3.2)" ;;
 esac
+
+prose=$(printf '%s' "$subject" | sed 's/`[^`]*`//g')
+if printf '%s' "$prose" | grep -qiE '(^|[^[:alnum:]_-])and([^[:alnum:]_-]|$)|[,&]'; then
+	violate "subject joins changes with \"and\", \",\" or \"&\"; split the commit, or rephrase if it is one change (§3.1, §3.2)"
+fi
 
 if [ -n "$second" ]; then
 	violate "separate the subject from the body with a blank line (§3.2)"
