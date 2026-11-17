@@ -127,9 +127,9 @@ Side effects (the file system, network, processes, databases, the clock, randomn
 Check *(not yet)*: outside the designated packages, `depguard` rejects imports such as `os`, `os/exec`, `net`, `net/http` and `database/sql`, and `forbidigo` rejects calls such as `time.Now`, `time.Sleep`, `math/rand` and `os.Getenv`.
 
 ### 4.4 Branches go into types and structure
-Every branch is a test to write. Write it in one of the forms below instead. Each form is shown first in its shortest, ideal form (TypeScript), then in a language that cannot express it directly (Go).
+Every branch is a test to write. When the code you are writing looks like one of the cases below, write it as shown instead. Each case is shown first in its shortest, ideal form (TypeScript), then in a language that cannot express it directly (Go).
 
-#### Sum: the case of the value chooses the function
+#### When you branch on a kind, a string or a flag field
 Instead of:
 ```ts
 type Command = { kind: string; name?: string };
@@ -177,7 +177,7 @@ Tests no longer needed: `when run with unknown command then throws`, `when run w
 
 Languages with overloading choose the function by the argument's type at compile time, the same choice made by the type checker; Go has no overloading.
 
-#### Product: several functions applied to one value
+#### When you collect results of several checks with a series of `if`s
 Instead of:
 ```ts
 const check = (tree: Tree) => {
@@ -200,7 +200,7 @@ for _, c := range checks {
 ```
 Tests no longer needed: every combination of passing and failing checks. Each check is tested alone, and adding one changes no other test.
 
-#### Composition: a function built from functions
+#### When a boolean argument turns on extra behavior (retries, logging, caching)
 Instead of:
 ```ts
 const fetchPage = async (url: URL, retry: boolean): Promise<Page> => {
@@ -218,7 +218,7 @@ func Retrying(attempts int, f func(URL) (Page, error)) func(URL) (Page, error)
 ```
 Tests no longer needed: `fetchPage` with and without retries. Retrying is tested once, for any function.
 
-#### Types that carry facts: parse, don't validate
+#### When a function checks a value, then returns a `string`, a number, or the type it was given
 Instead of:
 ```ts
 const toPort = (s: string): number => Number(s);
