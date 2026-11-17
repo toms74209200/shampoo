@@ -127,7 +127,7 @@ Each workflow starts from the changes it checks, as in earlier repositories:
 
 The `job-*.yml` workflows hold the steps, and the `on-*.yml` workflows decide when they run.
 
-Rules for CI (start minimal, as in earlier repositories, and add a check only when a failure calls for it):
+Rules for CI:
 - **A run's results belong to the commit that started it.** A run may change the code before checking it (apply a formatter, generate, build, bundle) and may push what it produced; those commits are its output, covered by its results
 - **Changes made by automation arrive as PRs.** Whatever makes them, an agent, a scheduled workflow or a bot, opens its own PR rather than pushing to another PR's branch, and that PR runs CI like any other. A PR opened with the workflow token starts no workflows, so automation uses a token that does (e.g. a GitHub App's)
 - **Nothing skips CI.** Commit messages cannot skip it (§3.2)
