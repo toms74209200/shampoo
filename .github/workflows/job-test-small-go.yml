@@ -16,5 +16,13 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.mod
+      - name: Install strace
+        run: sudo apt-get install -y strace
       - name: Run small tests
         run: make test-small
+      - name: Judge side effects
+        run: scripts/judge-side-effects.sh out/traces
+      - uses: actions/upload-artifact@v7
+        with:
+          name: small-cover
+          path: out/small.cover

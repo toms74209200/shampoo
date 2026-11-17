@@ -1,10 +1,10 @@
-name: Job - Check coverage
+name: Job - Coverage (Go)
 
 on:
   workflow_call:
 
 jobs:
-  check:
+  coverage:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -14,12 +14,14 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
-      - uses: actions/setup-go@v6
+      - uses: actions/download-artifact@v7
         with:
-          go-version-file: go.mod
-          cache-dependency-path: go.mod
-      - name: Check coverage against the base
-        run: scripts/check-coverage.sh ${{ github.event.pull_request.base.sha }} --update
+          name: small-cover
+          path: out
+      - name: Judge small-test coverage
+        run: scripts/judge-small-test-coverage.sh out/small.cover
+      - name: Judge coverage against the base
+        run: scripts/judge-coverage.sh out/small.cover ${{ github.event.pull_request.base.sha }} --update
       - name: Commit coverage baseline
         run: |
           if git diff --quiet; then
