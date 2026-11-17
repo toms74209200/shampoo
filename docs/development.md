@@ -129,7 +129,10 @@ Check *(not yet)*: outside the designated packages, `depguard` rejects imports s
 ### 4.4 Branches go into types and structure
 Every branch is a test to write. When the code you are writing looks like one of the cases below, write it as shown instead. Each case is shown first in its shortest, ideal form (TypeScript), then in a language that cannot express it directly (Go).
 
-#### When you branch on a kind, a string or a flag field
+#### Sum types and pattern matching
+- **Recognize it by:** a value compared with constants to choose which code runs: `if (c.kind === "shell")`, `switch (mode)`, `if (status == "done")`
+- **Concepts:** a sum type is a type whose value is exactly one of several cases (`A | B`). Pattern matching is the operation on such a value: it chooses one function per case. The type alone removes no branch; the match over it, checked for every case, does
+
 Instead of:
 ```ts
 type Command = { kind: string; name?: string };
@@ -177,7 +180,10 @@ Tests no longer needed: `when run with unknown command then throws`, `when run w
 
 Languages with overloading choose the function by the argument's type at compile time, the same choice made by the type checker; Go has no overloading.
 
-#### When you collect results of several checks with a series of `if`s
+#### Product of applications
+- **Recognize it by:** one value run through several checks or steps, each with its own `if`, the results collected by hand
+- **Concepts:** a product type holds several values at once (`A × B`, a tuple or a struct). A product of applications is the operation that makes one: several functions applied to the same value, `[f, g].map((ex) => ex(applied))`, giving the results together. It is not only a type with several fields
+
 Instead of:
 ```ts
 const check = (tree: Tree) => {
@@ -200,7 +206,10 @@ for _, c := range checks {
 ```
 Tests no longer needed: every combination of passing and failing checks. Each check is tested alone, and adding one changes no other test.
 
-#### When a boolean argument turns on extra behavior (retries, logging, caching)
+#### Composition
+- **Recognize it by:** a boolean or option argument that switches extra behavior on: `retry`, `verbose`, `cache`
+- **Concepts:** composition builds a function from functions. The extra behavior becomes a function that takes the core function and returns a new one, so the core has no branch for it
+
 Instead of:
 ```ts
 const fetchPage = async (url: URL, retry: boolean): Promise<Page> => {
@@ -218,7 +227,10 @@ func Retrying(attempts int, f func(URL) (Page, error)) func(URL) (Page, error)
 ```
 Tests no longer needed: `fetchPage` with and without retries. Retrying is tested once, for any function.
 
-#### When a function checks a value, then returns a `string`, a number, or the type it was given
+#### Types that carry facts (parse, don't validate)
+- **Recognize it by:** a function that checks or normalizes a value, then returns a `string`, a number, or the type it was given; callers that check the result again
+- **Concepts:** the result's type states what the function established. Parsing returns a new type that only the parse function can make; validating returns a type that says nothing, so the fact is lost
+
 Instead of:
 ```ts
 const toPort = (s: string): number => Number(s);
