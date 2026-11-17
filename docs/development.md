@@ -251,10 +251,9 @@ func ParsePort(s string) (Port, error)
 Tests no longer needed: every caller's re-check of the range, and approving an inactive user.
 
 ### 4.5 When a function exists
-Creating a function is prohibited, except when it meets all of these:
+Creating a function is prohibited, except when it meets both of these:
 - **Its result type carries what it established** (§4.4). The type is the proposition the function proves: holding a value of the result type is the evidence that the function's work was done
 - **It is a deep module.** It hides branches behind an interface much smaller than what it hides
-- **Its branches are covered by tests**, so that the functions together cover the branches of the code base
 
 Each of these is prohibited as a function, without exception, and is written inline where it is used:
 - A bundle of statements wrapped for readability
