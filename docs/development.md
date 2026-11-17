@@ -114,20 +114,29 @@ Tests follow test sizes (design doc §5), selected by build tag: `small`, `mediu
 
 ## 5. Branches and merging
 - **Now (bootstrapping):** commits go directly to `master`, each one minimal
-- **Repository rules:** the `master` ruleset requires a PR, the `ci` check, and merge commits, and forbids force pushes and deletion. Auto-merge is enabled, and only merge commits are allowed, titled with the PR title. Until production code starts, repository admins bypass the ruleset so that the commits above can be pushed directly. **Remove that bypass before the first production code**
-- **Production code:** one task per branch and PR, made of minimal commits. The PR is auto-merged with a merge commit once the required checks pass, so each task's commits stay on `master` as they are
+- **Repository rules:** the `master` ruleset requires a PR, the commit message check (`commit-message / check`), and merge commits, and forbids force pushes and deletion. Auto-merge is enabled, and only merge commits are allowed, titled with the PR title. Until production code starts, repository admins bypass the ruleset so that the commits above can be pushed directly. **Remove that bypass before the first production code**
+- **Production code:** one task per branch and PR, made of minimal commits. The PR is merged with a merge commit once the checks its changes call for pass, so each task's commits stay on `master` as they are
 
 ## 6. CI
-CI is based on the workflows of earlier repositories built with a human in the loop. Running HOOTL changes the following:
+Each workflow starts from the changes it checks, as in earlier repositories:
 
-| Earlier repositories | Here | Why |
+| Workflow | Starts when | Checks |
 |---|---|---|
-| CI applies the formatter and pushes a commit | CI fails; the formatter runs at edit time | A commit pushed with the workflow token does not trigger checks, so the required checks never report and auto-merge stalls |
-| Workflows filtered by `paths` | No path filters | A required check that never runs leaves the merge waiting forever |
-| A required check per job | One aggregate job is the required check | Jobs can be added or reorganized without changing the branch rule |
-| Checks run on the head only | Every commit in the PR is checked | Each commit stays on `master` as it is, so each must pass on its own |
-| Linter version set in the workflow | Version pinned in the Makefile, CI runs `make` | Local runs and CI judge the same way |
-| Dependabot with its default messages | Dependabot with the commit prefix `:arrow_up:` | Its commits then follow the commit rules, with `bump` as an allowed verb. The exact message it produces is to be verified when it is added |
+| `on-pullrequest-commit.yml` | Every PR, since every PR has commits | The message of each commit |
+| `on-pullrequest-go.yml` | Go-related files change (its `paths`) | `make check` on each commit touching those files |
+
+The `job-*.yml` workflows hold the steps, and the `on-*.yml` workflows decide when they run.
+
+Rules for CI:
+- **Every commit is checked, not only the head.** Each commit stays on `master` as it is, so each must pass on its own
+- **A run's results belong to the commit that started it.** A run may change the code before checking it (apply a formatter, generate, build, bundle) and may push what it produced; those commits are its output, covered by its results
+- **Changes made by automation arrive as PRs.** Whatever makes them, an agent, a scheduled workflow or a bot, opens its own PR rather than pushing to another PR's branch, and that PR runs CI like any other. A PR opened with the workflow token starts no workflows, so automation uses a token that does (e.g. a GitHub App's)
+- **Nothing skips CI.** Commit messages cannot skip it (§3.2)
+- **Tool versions are pinned in the Makefile, and CI runs `make`**, so local runs and CI judge the same way
+
+GitHub's required checks are a fixed list, while which checks apply depends on the change: a required check whose workflow did not start for its paths waits forever. So only the commit message check, which starts for every PR, is required. A human merges until shampoo does; shampoo then decides from the changed paths which checks the head must have passed (design doc §10).
+
+Dependabot, when added, uses the commit prefix `:arrow_up:` so that its commits follow the commit rules, with `bump` as an allowed verb. The exact message it produces is to be verified then.
 
 ## 7. Open problems
 Recorded here so that they are solved before shampoo runs HOOTL:
