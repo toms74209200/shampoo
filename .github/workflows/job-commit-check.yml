@@ -11,6 +11,10 @@ on:
         description: 'Last commit of the range'
         required: true
         type: string
+      paths:
+        description: 'Space-separated pathspecs; only commits touching them are checked'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -31,14 +35,16 @@ jobs:
         env:
           BASE: ${{ inputs.base }}
           HEAD: ${{ inputs.head }}
+          PATHS: ${{ inputs.paths }}
         run: |
           if [ "$BASE" = 0000000000000000000000000000000000000000 ]; then
             range="$HEAD -1"
           else
             range="$BASE..$HEAD"
           fi
+          set -f
           result=0
-          for c in $(git rev-list --reverse --no-merges $range); do
+          for c in $(git rev-list --reverse --no-merges $range -- $PATHS); do
             echo "::group::$(git log -1 --format='%h %s' "$c")"
             git checkout -q "$c"
             make check || { s=$?; [ $s -gt $result ] && result=$s; }
