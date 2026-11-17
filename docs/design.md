@@ -97,6 +97,18 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 - **A previously passing test that fails with an unchanged definition is a regression**: a task failure, sent back
 - **When a spec change missed something** (e.g. a format change also breaks another command's tests), the implementation cannot satisfy both, exhausts its retry budget, and escapes. The repair is another spec-change task. An implementation agent that finds the spec wrong does not edit it; it escapes and proposes the spec change
 
+### 5.2 Rules and policies
+| Term | Definition |
+|---|---|
+| Check | An executable that judges the work at a transition, reporting pass, task failure or workflow failure (§3, §7) |
+| Rule | A constraint whose violations a check detects. A violation fails the transition and sends the work back. A constraint without such a check is not a rule |
+| Policy | Guidance that the harness puts into the agent's context. No check detects its violations; it takes effect only as far as the agent follows it |
+
+- **The harness puts policies into the context at fixed times**: all policies when the orchestrator starts a task, and all of them again after the context is compacted. The agent does not choose whether to load them
+- **A policy may carry a code example**: written inline, a reference `path#L<start>-L<end>` at a fixed commit, or none
+- **Every rule passes on every code example.** A rule that fails on one contradicts the policy, and the rule is fixed
+- **Policies and rules are defined independently**, in the project's configuration (§7). shampoo provides no defaults: their content is the project's own
+
 ## 6. Non-goals
 - Project-specific checks: these come from the project (§7)
 - Replacing CI or the code host: shampoo drives GitHub and GitHub Actions rather than reimplementing them
@@ -108,6 +120,7 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 ## 7. What a project provides
 - **Checks per transition**, each with a test size
 - **Exit-code mapping**: how each check's exit codes map to pass / task failure / workflow failure
+- **Policies**, each with its code example (§5.2)
 - **Task sources**: where tasks come from (for jeer: clusters of mismatches against the oracle)
 
 ## 8. Commands
