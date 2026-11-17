@@ -14,7 +14,7 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "curl -fsSL https://claude.ai/install.sh | bash &&  curl -LsSf https://astral.sh/uv/install.sh | sh",
+	"postCreateCommand": "curl -fsSL https://claude.ai/install.sh | bash &&  curl -LsSf https://astral.sh/uv/install.sh | sh && make setup",
 
 	// Configure tool-specific properties.
 	// "customizations": {},
