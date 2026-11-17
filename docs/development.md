@@ -108,7 +108,7 @@ The subject starts with one of the verbs below, in the imperative. Other verbs a
 
 ## 4. Branches and merging
 - **Now (bootstrapping):** commits go directly to `master`, each one minimal
-- **Repository rules:** the `master` ruleset requires a PR, the commit message check (`commit-message / check`), and merge commits, and forbids force pushes and deletion. Auto-merge is enabled, and only merge commits are allowed, titled with the PR title. Until production code starts, repository admins bypass the ruleset so that the commits above can be pushed directly. **Remove that bypass before the first production code**
+- **Repository rules:** the `master` ruleset requires a PR, the commit message check (`commit-message / check`), and merge commits, and forbids force pushes and deletion. Auto-merge is enabled, and only merge commits are allowed, titled with the PR title. Repository admins can bypass the ruleset; production code still goes through PRs
 - **Production code:** one task per branch and PR, made of minimal commits. The PR is merged with a merge commit once the checks its changes call for pass, so each task's commits stay on `master` as they are
 
 ## 5. CI
