@@ -127,107 +127,116 @@ Side effects (the file system, network, processes, databases, the clock, randomn
 Check *(not yet)*: outside the designated packages, `depguard` rejects imports such as `os`, `os/exec`, `net`, `net/http` and `database/sql`, and `forbidigo` rejects calls such as `time.Now`, `time.Sleep`, `math/rand` and `os.Getenv`.
 
 ### 4.4 Branches go into types and structure
-Every branch is something a test has to cover. Before writing a branch, move it into a type or a structure, where the compiler or the structure guarantees it and no test is needed.
+Every branch is a test to write. Write it in one of the forms below instead. Each form is shown first in its shortest, ideal form (TypeScript), then in a language that cannot express it directly (Go).
 
-**Parse, don't validate.** A function that establishes a fact returns a type that carries it. A result whose type does not carry the fact forgets it, so every caller checks it again: `string -> string`, `string -> int`, `int -> int` and `User -> User` all lose what the function found out.
+#### Sum: the case of the value chooses the function
 Instead of:
-```go
-func normalizePort(s string) (int, error)
-if port > 0 && port < 65536 { ... }
+```ts
+type Command = { kind: string; name?: string };
+const run = (c: Command) => {
+  if (c.kind === "shell") return openShell(c.name ?? "default");
+  if (c.kind === "stop") return stopContainer(c.name ?? "default");
+  throw new Error(`unknown command: ${c.kind}`);
+};
 ```
-Write:
-```go
-type Port uint16
-func ParsePort(s string) (Port, error)
-```
-Tests no longer needed: every caller's re-check.
+Ideal:
+```ts
+type Command =
+  | { kind: "shell"; name: string }
+  | { kind: "stop"; name: string }
+  | { kind: "help" };
 
-**Sum types and exhaustive type switches.** Variants are types of a sealed interface, not values of a kind field.
-Instead of:
-```go
-type Command struct{ Kind, Name string }
-switch c.Kind { case "shell": ...; case "stop": ... }
+const run = (c: Command): Result => {
+  switch (c.kind) {
+    case "shell": return openShell(c.name);
+    case "stop": return stopContainer(c.name);
+    case "help": return printHelp();
+  }
+};
 ```
-Write:
+In Go, a sealed interface stands in for the sum, and a type switch for the match; the compiler does not check that every case is covered, so `gochecksumtype` does *(not yet)*:
 ```go
 type Command interface{ command() }
 type Shell struct{ Name string }
 type Stop struct{ Name string }
+type Help struct{}
 func (Shell) command() {}
 func (Stop) command()  {}
-switch c := cmd.(type) { case Shell: ...; case Stop: ... }
-```
-`gochecksumtype` checks that every switch covers every variant *(not yet)*. Tests no longer needed: unknown kinds, and fields that one kind leaves unset.
+func (Help) command()  {}
 
-**Typestate.** A state with different rules is a different type, not a flag.
-Instead of:
-```go
-type User struct{ Active bool }
-func Approve(u User) error { if !u.Active { return errInactive }; ... }
-```
-Write:
-```go
-type ActiveUser struct{ ... }
-func Activate(u User) (ActiveUser, error)
-func Approve(u ActiveUser)
-```
-Tests no longer needed: approving an inactive user.
-
-**Polymorphism instead of repeated switches (Strategy, State).** When several functions switch on the same thing, each case becomes one implementation of an interface.
-Instead of:
-```go
-func render(f Format, d Doc) string { switch f { ... } }
-func extension(f Format) string    { switch f { ... } }
-```
-Write:
-```go
-type Format interface {
-	Render(Doc) string
-	Extension() string
+switch c := cmd.(type) {
+case Shell:
+	return openShell(c.Name)
+case Stop:
+	return stopContainer(c.Name)
+case Help:
+	return printHelp()
 }
 ```
-Tests no longer needed: the same switch tested once per function.
+Tests no longer needed: `when run with unknown command then throws`, `when run with shell command without name then returns default shell`.
 
-**Chain of Responsibility.** A growing if-else ladder becomes a list of handlers; each one decides alone whether it handles the input.
-```go
-type Handler interface{ Handle(Request) (Response, bool) }
-handlers := []Handler{RedirectHandler{}, StaticHandler{}, NotFoundHandler{}}
-```
-Each handler is tested alone, and adding one changes no other handler or test.
+Languages with overloading choose the function by the argument's type at compile time, the same choice made by the type checker; Go has no overloading.
 
-**Lookup tables.** When cases differ only in data, the data is a table, not branches.
+#### Product: several functions applied to one value
 Instead of:
-```go
-switch code { case 200: return "OK"; case 404: return "Not Found"; ... }
+```ts
+const check = (tree: Tree) => {
+  const failures: string[] = [];
+  if (!formatted(tree)) failures.push("format");
+  if (!linted(tree)) failures.push("lint");
+  return failures;
+};
 ```
-Write:
-```go
-var statusText = map[Status]string{OK: "OK", NotFound: "Not Found"}
+Ideal:
+```ts
+const check = (tree: Tree) => [format, lint].map((c) => c(tree));
 ```
+In Go, a slice of functions and a loop:
+```go
+results := make([]Result, 0, len(checks))
+for _, c := range checks {
+	results = append(results, c(tree))
+}
+```
+Tests no longer needed: every combination of passing and failing checks. Each check is tested alone, and adding one changes no other test.
 
-**Split flag arguments.** A boolean argument that switches behavior becomes two functions.
+#### Composition: a function built from functions
 Instead of:
-```go
-func Render(d Doc, compact bool) string
+```ts
+const fetchPage = async (url: URL, retry: boolean): Promise<Page> => {
+  if (retry) { ... }
+  ...
+};
 ```
-Write:
-```go
-func RenderCompact(d Doc) string
-func RenderFull(d Doc) string
+Ideal:
+```ts
+const fetchPageWithRetry = retrying(3)(fetchPage);
 ```
+In Go, a function that takes and returns a function:
+```go
+func Retrying(attempts int, f func(URL) (Page, error)) func(URL) (Page, error)
+```
+Tests no longer needed: `fetchPage` with and without retries. Retrying is tested once, for any function.
 
-**Decorator.** Cross-cutting concerns such as retries or logging wrap the core instead of branching inside it.
+#### Types that carry facts: parse, don't validate
 Instead of:
-```go
-func Fetch(url string, retry bool) (Page, error) { ... if retry { ... } }
+```ts
+const toPort = (s: string): number => Number(s);
+if (port > 0 && port < 65536) { ... }
 ```
-Write:
-```go
-type Fetcher interface{ Fetch(URL) (Page, error) }
-type Retrying struct{ Inner Fetcher; Attempts int }
+Ideal:
+```ts
+type Port = number & { readonly brand: "Port" };
+const parsePort = (s: string): Port | ParseError => ...;
 ```
+In Go, a named type whose only constructor is the parse function:
+```go
+type Port uint16
+func ParsePort(s string) (Port, error)
+```
+`string -> string`, `string -> int`, `int -> int` and `User -> User` all return a type that does not carry what the function established, so every caller checks it again. A state with different rules is a different type in the same way: `activate(user): ActiveUser`, and only `ActiveUser` can be approved.
 
-**Method overloading** chooses by argument types at compile time. Go has no overloading, so it does not apply here; it is listed for languages that have it.
+Tests no longer needed: every caller's re-check of the range, and approving an inactive user.
 
 The Null Object pattern is an anti-pattern and is not used.
 
