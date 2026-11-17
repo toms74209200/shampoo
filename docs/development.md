@@ -255,7 +255,7 @@ Creating a function is prohibited, except when it meets both of these:
 - **Its result type carries what it established** (§4.4). The type is the proposition the function proves: holding a value of the result type is the evidence that the function's work was done
 - **It is a deep module.** It hides branches behind an interface much smaller than what it hides
 
-The whole production code is made of such functions. The conditions look strict enough to leave no function possible, yet they hold whenever every branch is written as in §4.4: parsed at the boundary into types that carry facts, and applied through those types.
+Every conditional branch in the production code takes one of the forms in §4.4. Code written that way leaves no room for the functions prohibited below, so the production code consists only of functions that meet both conditions.
 
 Each of these is prohibited as a function, without exception, and is written inline where it is used:
 - A bundle of statements wrapped for readability
