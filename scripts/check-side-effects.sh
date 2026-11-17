@@ -1,6 +1,8 @@
 #!/bin/sh
 set -u
 
+bwrap --unshare-all --die-with-parent --ro-bind / / true || { echo "check-side-effects: bwrap cannot isolate a process here" >&2; exit 2; }
+
 binaries=$(mktemp -d) || exit 2
 trap 'rm -rf "$binaries"' EXIT
 
