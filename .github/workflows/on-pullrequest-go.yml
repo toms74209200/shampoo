@@ -30,6 +30,8 @@ on:
       - 'scripts/check-comments.sh'
       - '.github/workflows/job-check-test-helpers.yml'
       - 'scripts/check-test-helpers.sh'
+      - '.github/workflows/job-check-test-names.yml'
+      - 'scripts/check-test-names.sh'
       - 'tools/**'
 
 permissions:
@@ -58,6 +60,8 @@ jobs:
     uses: ./.github/workflows/job-check-comments.yml
   test-helpers:
     uses: ./.github/workflows/job-check-test-helpers.yml
+  test-names:
+    uses: ./.github/workflows/job-check-test-names.yml
   coverage:
     uses: ./.github/workflows/job-check-coverage.yml
     permissions:

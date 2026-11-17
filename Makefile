@@ -1,7 +1,7 @@
 GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 BASE ?= origin/master
 
-.PHONY: all setup build check lint check-exceptions check-dependencies check-small-test-coverage check-side-effects check-coverage check-comments check-test-helpers fmt test-small help
+.PHONY: all setup build check lint check-exceptions check-dependencies check-small-test-coverage check-side-effects check-coverage check-comments check-test-helpers check-test-names fmt test-small help
 
 all: check build
 
@@ -11,7 +11,7 @@ setup: ## Enable the git hooks in .githooks
 build: ## Build the binary
 	go build -o shampoo .
 
-check: lint check-exceptions check-dependencies test-small check-small-test-coverage check-side-effects check-comments check-test-helpers ## Run all checks guarding a commit
+check: lint check-exceptions check-dependencies test-small check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names ## Run all checks guarding a commit
 
 lint: ## Run linters and format checks
 	$(GOLANGCI_LINT) run --build-tags small,medium,large
@@ -36,6 +36,9 @@ check-comments: ## Check that code has no comments other than directives
 
 check-test-helpers: ## Check that test files declare only Test, Fuzz and Example functions
 	scripts/check-test-helpers.sh
+
+check-test-names: ## Check that every test is named when <target> with <given conditions> then returns <expected>
+	scripts/check-test-names.sh
 
 fmt: ## Apply formatters
 	$(GOLANGCI_LINT) fmt
