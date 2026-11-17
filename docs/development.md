@@ -110,7 +110,7 @@ The subject starts with one of the verbs below, in the imperative. Other verbs a
 Rules for production code. Each rule names its deterministic check; a check marked *(not yet)* is not implemented. What no check can decide is left to review.
 
 ### 4.1 Comments
-Code has no comments, test code included. What the code does is stated by the code and its types; why it is so goes in the commit message body or the design doc; how to work on the project goes in this guide. Only directives are allowed: `//go:` directives, build constraints, `// Code generated`, and `//nolint:<linter> // <reason>` (§4.6).
+Comments are prohibited in all code, test code included. What the code does is stated by its names and types; why it is so goes in the commit message body or the design doc; how to work on the project goes in this guide. Directives are not comments and are allowed: `//go:` directives, build constraints, `// Code generated`, and `//nolint:<linter> // <reason>` (§4.6).
 
 Check *(not yet)*: any other comment fails.
 
@@ -250,8 +250,6 @@ func ParsePort(s string) (Port, error)
 
 Tests no longer needed: every caller's re-check of the range, and approving an inactive user.
 
-The Null Object pattern is an anti-pattern and is not used.
-
 ### 4.5 When a function exists
 A function exists only when its result type carries what it established (§4.4) and it hides branches behind a small interface (a deep module). These are not functions and are inlined:
 - A bundle of statements wrapped for readability
@@ -292,15 +290,15 @@ Check *(not yet)*: tests in packages without side effects carry `//go:build smal
 ### 5.2 What a test depends on
 - **A white-box test depends on its target only.** If the target is a function, no other production code is used, except the types needed to build its arguments
 - **A black-box test depends on the public API only.** It lives in an external test package (`package foo_test`), so the compiler allows nothing else
-- **No mocks.** Fakes stand in for what has side effects
+- **Mocks are prohibited.** Fakes stand in for what has side effects
 
 Check *(not yet)*: in a white-box test, production identifiers other than the target named by the test (§5.3) and types fail. No mocking library is in the dependency allowlist (§4.2).
 
 ### 5.3 How a test is written
 - **Name:** `when <target> with <given conditions> then returns <expected>`
 - **DAMP over DRY.** Each test reads on its own
-- **No test helpers.** A test file declares only `Test`, `Fuzz` and `Example` functions, and does not call `t.Helper()`
-- **No fixed strings or numbers.** Inputs are random, from the standard library (`crypto/rand.Text`, `testing/quick`), unless the value itself is the point, such as a boundary
+- **Test helpers are prohibited.** A test file declares only `Test`, `Fuzz` and `Example` functions, and does not call `t.Helper()`
+- **Fixed strings and numbers are prohibited.** Inputs are random, from the standard library (`crypto/rand.Text`, `testing/quick`)
 - **Parameterized tests** when cases differ only in inputs and expected results
 - **Property-based tests** when a property holds for all inputs (`testing/quick`, or fuzz targets whose seeds run as tests)
 - **Arrange-Act-Assert.** Enforced at medium size and larger once tests are instrumented with OpenTelemetry, where each phase becomes a span
