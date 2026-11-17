@@ -39,7 +39,7 @@ EMOJIS='
 :rewind:             revert
 '
 
-VERBS='Add Update Fix Remove Rename Move Refactor Replace Split Extract Simplify Clean Apply Implement Introduce Improve Support Enable Disable Use Pin Bump Revert Reorganize'
+VERBS='Add Change Update Bump bump Fix Remove Rename Move Refactor Clean Replace Apply Revert'
 
 workflow_failure() {
 	echo "check-commit: $1" >&2
