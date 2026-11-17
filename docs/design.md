@@ -147,9 +147,15 @@ Implementation language: Go. The core is concurrent coordination (the reconcilia
 | Edit done | Claude Code PostToolUse hook on every tool [3]. It ignores which tool ran (agents also edit through Bash, Python, sed) and looks at files: what changed since the last passed guard, recorded as a git tree at each pass. If nothing changed, it does nothing |
 | Task done | Claude Code Stop hook [3] in a headless session launched by the orchestrator. With no human to ask, every stop is an attempt at task done: the agent either thinks it is done or is stuck, and in both cases the guard decides |
 | PR | CI on GitHub Actions, running `shampoo guard pr` |
-| Merge | Branch protection with required checks, and auto-merge |
+| Merge | The orchestrator merges once the checks the change calls for have passed (below) |
 | Milestone | A GitHub milestone, plus a manually dispatched workflow for large checks |
 | Escape | The guard stops blocking and records the escape; the orchestrator creates a harness-repair task |
+
+Which checks a PR needs depends on what it changes, since each workflow starts from the paths it checks. GitHub's required checks are a fixed list, and a required check whose workflow did not start waits forever; its auto-merge waits only on that list. So the merge is decided by the orchestrator:
+- **Expected checks** are derived from the PR's changed paths, by the same rules as the workflows' path filters. The commit message check is always expected
+- **The results that count** are those of runs started by the PR's latest commit that no run pushed. A run may change the code before checking it and push what it produced; those commits, on top of it, are the run's output and are covered by its results
+- **A missing expected check means wait**, whatever the cause: a run not yet registered, one awaiting approval, or a commit that started none. Waiting past a time limit is a workflow failure
+- **Automation delivers changes as PRs** opened with a token that starts workflows, never by pushing to another PR's branch, and no commit may skip CI
 
 ## 11. Who drives transitions
 Transitions are driven by three actors.
@@ -157,8 +163,8 @@ Transitions are driven by three actors.
 | Actor | Transitions | How |
 |---|---|---|
 | Hooks (inside a session) | Edit done, task done | Synchronous calls to the guard. They must be synchronous, since the result decides whether the agent is sent back |
-| Orchestrator (`shampoo run`) | Task done → PR, PR failed → Editing, escape → harness repair | A reconciliation loop: it observes the actual state (git, GitHub, ledger) and acts to close the gap to the desired state |
-| GitHub | PR checks, merge | CI and auto-merge |
+| Orchestrator (`shampoo run`) | Task done → PR, PR failed → Editing, PR passed → Merged, escape → harness repair | A reconciliation loop: it observes the actual state (git, GitHub, ledger) and acts to close the gap to the desired state |
+| GitHub | PR checks | CI |
 
 The orchestrator is level-triggered rather than event-driven. It does not react to events that could be lost; it looks at the state each time and decides the next action from it (e.g. a worktree with no running session and a passed task guard → open a PR; a PR with failing checks and no running session → launch a session to fix it). A restart only needs to look at the state again. Observing state periodically is not a scheduled check: checks still run only when a transition is attempted. Event notifications (e.g. webhooks) can be added later to wake the loop if its latency becomes a problem.
 
@@ -167,7 +173,7 @@ The flow of one task:
 2. On every tool call, the PostToolUse hook calls `shampoo guard edit`; on failure the agent gets the reason and fixes it
 3. When the agent tries to stop, the Stop hook calls `shampoo guard task`. On failure with retry budget left, the agent is sent back with the reason. On pass, or when the budget is exhausted, the stop is allowed and the outcome is recorded in the ledger
 4. The orchestrator sees the ended session and the recorded outcome: on pass it pushes the branch and opens a PR with auto-merge; on escape it creates a harness-repair task
-5. CI runs `shampoo guard pr`. On pass, GitHub merges. On failure, the orchestrator launches a new session in the same worktree with the failure reason
+5. CI runs `shampoo guard pr`. On pass, the orchestrator merges. On failure, the orchestrator launches a new session in the same worktree with the failure reason
 
 ## 12. State and ledger
 - **State** is derived from git and GitHub (a branch per task in its own worktree, the PR, whether it is merged). There is no separate state file to drift
