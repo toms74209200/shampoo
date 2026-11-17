@@ -5,8 +5,31 @@ run:
 
 linters:
   enable:
+    - depguard
     - nolintlint
   settings:
+    depguard:
+      rules:
+        mocks:
+          deny:
+            - pkg: github.com/golang/mock
+              desc: mocks are prohibited, use a fake (.shampoo/rules/mocks.toml)
+            - pkg: go.uber.org/mock
+              desc: mocks are prohibited, use a fake (.shampoo/rules/mocks.toml)
+            - pkg: github.com/stretchr/testify/mock
+              desc: mocks are prohibited, use a fake (.shampoo/rules/mocks.toml)
+            - pkg: github.com/vektra/mockery
+              desc: mocks are prohibited, use a fake (.shampoo/rules/mocks.toml)
+            - pkg: github.com/gojuno/minimock
+              desc: mocks are prohibited, use a fake (.shampoo/rules/mocks.toml)
+            - pkg: github.com/maxbrunsfeld/counterfeiter
+              desc: mocks are prohibited, use a fake (.shampoo/rules/mocks.toml)
+            - pkg: github.com/DATA-DOG/go-sqlmock
+              desc: mocks are prohibited, use a fake (.shampoo/rules/mocks.toml)
+            - pkg: github.com/jarcoal/httpmock
+              desc: mocks are prohibited, use a fake (.shampoo/rules/mocks.toml)
+            - pkg: github.com/h2non/gock
+              desc: mocks are prohibited, use a fake (.shampoo/rules/mocks.toml)
     nolintlint:
       require-explanation: true
       require-specific: true
