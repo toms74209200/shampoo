@@ -1,0 +1,6 @@
+rule = "Small-test coverage of the code outside the side-effect packages is at least 95%."
+check = "make check-small-test-coverage"
+transitions = ["task", "pr"]
+paths = ["**.go", "go.mod", "go.sum", "scripts/check-small-test-coverage.sh", "scripts/side-effect-packages.txt"]
+size = "small"
+exit = { 1 = "task-failure", other = "workflow-failure" }

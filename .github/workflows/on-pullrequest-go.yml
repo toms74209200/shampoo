@@ -18,6 +18,9 @@ on:
       - '.github/workflows/job-check-dependencies.yml'
       - 'scripts/check-dependencies.sh'
       - 'scripts/allowed-modules.txt'
+      - '.github/workflows/job-check-small-test-coverage.yml'
+      - 'scripts/check-small-test-coverage.sh'
+      - 'scripts/side-effect-packages.txt'
 
 permissions:
   contents: read
@@ -37,3 +40,5 @@ jobs:
     uses: ./.github/workflows/job-check-exceptions.yml
   dependencies:
     uses: ./.github/workflows/job-check-dependencies.yml
+  small-test-coverage:
+    uses: ./.github/workflows/job-check-small-test-coverage.yml
