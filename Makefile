@@ -13,7 +13,7 @@ build: ## Build the binary
 check: lint test-small ## Run all checks guarding a commit
 
 lint: ## Run linters and format checks
-	$(GOLANGCI_LINT) run
+	$(GOLANGCI_LINT) run --build-tags small,medium,large
 
 fmt: ## Apply formatters
 	$(GOLANGCI_LINT) fmt
