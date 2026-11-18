@@ -44,3 +44,5 @@ jobs:
         run: make check-fixed-values
       - name: Check prohibited functions
         run: make check-functions
+      - name: Check white-box dependencies
+        run: make check-white-box
