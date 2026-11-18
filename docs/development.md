@@ -108,7 +108,7 @@ The subject starts with one of the verbs below, in the imperative. Other verbs a
 
 ## 4. Branches and merging
 - **Now (bootstrapping):** commits go directly to `master`, each one minimal
-- **Repository rules:** the `master` ruleset requires a PR, the commit message check (`commit-message / check`), and merge commits, and forbids force pushes and deletion. Auto-merge is enabled, and only merge commits are allowed, titled with the PR title. Until production code starts, repository admins bypass the ruleset so that the commits above can be pushed directly. **Remove that bypass before the first production code**
+- **Repository rules:** the `master` ruleset requires a PR and merge commits, and forbids force pushes and deletion. Auto-merge is enabled, and only merge commits are allowed, titled with the PR title. Until production code starts, repository admins bypass the ruleset so that the commits above can be pushed directly. **Remove that bypass before the first production code**
 - **Production code:** one task per branch and PR, made of minimal commits. The PR is merged with a merge commit once the checks its changes call for pass, so each task's commits stay on `master` as they are
 
 ## 5. CI
@@ -127,7 +127,7 @@ Rules for CI:
 - **Nothing skips CI.** Commit messages cannot skip it (§3.2)
 - **Tool versions are pinned in the Makefile, and CI runs `make`**, so local runs and CI judge the same way
 
-GitHub's required checks are a fixed list, while which checks apply depends on the change: a required check whose workflow did not start for its paths waits forever. So only the commit message check, which starts for every PR, is required. A human merges until shampoo does; shampoo then decides from the changed paths which checks the head must have passed (design doc §10).
+No check is required by the ruleset. GitHub's required checks are a fixed list on the head commit, while the checks a PR needs depend on its changes, and the commits CI pushes run no checks of their own. A human merges until shampoo does; shampoo then decides from the changed paths which checks must have passed, on the commit that started them (design doc §10).
 
 Dependabot, when added, uses the commit prefix `:arrow_up:` so that its commits follow the commit rules, with `bump` as an allowed verb. The exact message it produces is to be verified then.
 
