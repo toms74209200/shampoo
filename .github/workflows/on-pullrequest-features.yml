@@ -1,0 +1,15 @@
+name: On Pull Request (features)
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'features/**'
+
+permissions:
+  contents: read
+
+jobs:
+  scenarios:
+    uses: ./.github/workflows/job-check-scenarios.yml

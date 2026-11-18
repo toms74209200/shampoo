@@ -1,6 +1,6 @@
 GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 
-.PHONY: all setup build check lint check-exceptions check-dependencies check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names check-fixed-values check-functions check-white-box fmt test-small test-tools help
+.PHONY: all setup build check lint check-exceptions check-dependencies check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names check-fixed-values check-functions check-white-box check-scenarios fmt test-small test-tools help
 
 all: check build
 
@@ -10,7 +10,7 @@ setup: ## Enable the git hooks in .githooks
 build: ## Build the binary
 	go build -o shampoo .
 
-check: lint check-exceptions check-dependencies test-small check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names check-fixed-values check-functions check-white-box test-tools ## Run all checks guarding a commit
+check: lint check-exceptions check-dependencies test-small check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names check-fixed-values check-functions check-white-box check-scenarios test-tools ## Run all checks guarding a commit
 
 lint: ## Run linters and format checks
 	$(GOLANGCI_LINT) run --build-tags small,medium,large
@@ -45,6 +45,9 @@ check-functions: ## Check that production code has none of the prohibited functi
 
 check-white-box: ## Check that white-box tests depend on their target and types only
 	scripts/check-white-box.sh
+
+check-scenarios: ## Check that every scenario without a matching @sha carries @skip
+	scripts/check-scenarios.sh
 
 fmt: ## Apply formatters
 	$(GOLANGCI_LINT) fmt

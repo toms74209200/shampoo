@@ -1,0 +1,6 @@
+rule = "Every scenario whose @sha is missing or does not match its content carries @skip (docs/design.md §5.1)."
+check = "make check-scenarios"
+transitions = ["edit", "task", "pr"]
+paths = ["features/**"]
+size = "small"
+exit = { 1 = "task-failure", other = "workflow-failure" }
