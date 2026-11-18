@@ -75,6 +75,12 @@ Budgets work as SRE error budgets do: urgency comes from how fast a budget is co
 
 Budgets are kept apart from rules only when one turns out to be shared.
 
+### 3.2 Drift
+What no rule catches can still pile up: each run within every limit, the process slowly worsening. The ledger records process metrics per task and PR: rework (failed guard attempts until merge), each check's run time, open exceptions, the share of pure code, escapes and workflow failures.
+- **Each metric is watched against its own history**, on control charts (EWMA, CUSUM) that catch a small shift that persists, which a threshold per run misses
+- **The whole is watched too**: an outcome metric, rework until merge, and the metrics' joint shift (a multivariate chart such as Hotelling's T²). Metrics can each stay within bounds while worsening together, and improving one can worsen the whole
+- **A drift creates a task** to review its cause; the metric that shifted points to where to look
+
 ## 4. Requirements for HOOTL
 The loop must keep running with no human present. That requires:
 
