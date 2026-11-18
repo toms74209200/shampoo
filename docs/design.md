@@ -58,8 +58,11 @@ Transitions are governed by budgets, in the manner of SRE error budgets. When to
 | Time | A check's run time, against its test size's time limit [2] | Reorganize the check |
 | False positive | Exceptions to a check | Fix the check |
 | Human review | Exceptions and workflow changes awaiting asynchronous human review | Stop until reviewed |
+| Structure | A drop in the share of pure code, the small-test coverage of the whole code base, of more than one standard deviation below the base's share: √(p(1−p)/N), with p the base's share smoothed as (covered + 1) / (total + 2) and N the head's statements | Review the structure |
 
 Charging the right budget requires telling a task failure (the check found a problem in the work) from a workflow failure (the harness misbehaved). Every check reports which one it is.
+
+The share of pure code is also reported on every PR. Adding side effects lowers it, by an amount that depends on the code base's size: the same addition moves a small code base's share much more than a large one's, which the standard deviation accounts for.
 
 Initial values are guesses and are adjusted from observation.
 
@@ -98,7 +101,7 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 - **A change to feature files is checked on its own, statically**: every scenario whose `@sha` is missing or does not match carries `@skip`. No test runs for it
 - **A commit that changes scenario content changes no production code**
 - **A scenario with a matching `@sha` and no `@skip` that fails is a regression**: a task failure, sent back
-- **Skipped scenarios show in coverage.** Acceptance tests run against a binary built with `-cover`, and their coverage joins the whole code base's, which does not go down
+- **Acceptance coverage shows what skipped scenarios leave untested.** Acceptance tests run against a binary built with `-cover`
 - **When a spec change missed something** (e.g. a format change also breaks another command's tests), the implementation cannot satisfy both, exhausts its retry budget, and escapes. The repair is another spec-change task. An implementation agent that finds the spec wrong does not edit it; it escapes and proposes the spec change
 
 ### 5.2 Rules and policies
