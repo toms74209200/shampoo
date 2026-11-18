@@ -1,5 +1,5 @@
 rule = "Coverage, one ratio over the whole code base across all test sizes, does not go down."
-check = "scripts/judge-coverage.sh out/small.cover <base>"
+check = "scripts/judge-coverage.sh <base> out/small.cover out/medium.cover"
 transitions = ["pr"]
 paths = ["**.go", "go.mod", "go.sum", "scripts/judge-coverage.sh", "scripts/coverage-baseline.txt"]
 size = "small"
