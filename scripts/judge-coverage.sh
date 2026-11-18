@@ -40,6 +40,6 @@ if [ "$mode" = "--update" ]; then
 fi
 
 if [ "$dropped" -eq 1 ]; then
-	echo "the share of pure code dropped more than one standard deviation, which charges the structure budget (.shampoo/rules/coverage.toml)" >&2
+	echo "the share of pure code dropped more than one standard deviation, which charges the budget (.shampoo/rules/coverage.toml)" >&2
 	exit 3
 fi
