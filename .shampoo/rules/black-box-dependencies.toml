@@ -1,1 +1,2 @@
 rule = "A black-box test uses the product only as its users do, through its public interfaces."
+unchecked = "Whether a test uses the product as its users do is intent, which no check reads from the test's code. Acceptance tests drive the product from outside, in Python, so they cannot reach its Go internals in any case."
