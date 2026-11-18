@@ -1,0 +1,1 @@
+github.com/BurntSushi/toml reads the TOML files of .shampoo/; the standard library has no TOML parser
