@@ -1,1 +1,5 @@
-rule = "Feature specs and acceptance tests change only in a spec-change commit that precedes the implementation, never together with it (docs/design.md §5.1)."
+rule = "A commit that changes scenario content changes no production code (docs/design.md §5.1)."
+check = "scripts/check-scenario-commit.sh --rev <commit>"
+transitions = ["pr"]
+size = "small"
+exit = { 1 = "task-failure", other = "workflow-failure" }
