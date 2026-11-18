@@ -123,7 +123,7 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 
 ## 7. What a project provides
 A project provides these in `.shampoo/`, one file per item, named by its id:
-- **Rules** (`.shampoo/rules/`), each with its check, the transitions it guards, the paths whose changes start the check, its test size, and the mapping of the check's exit codes to pass / task failure / workflow failure
+- **Rules** (`.shampoo/rules/`), each with its check, the transitions it guards, the paths whose changes start the check, its test size, and the mapping of the check's exit codes to pass / task failure / workflow failure; a rule without a check states why, as `unchecked`
 - **Policies** (`.shampoo/policies/`), each with its code example (§5.2)
 - **Task sources**: where tasks come from (for jeer: clusters of mismatches against the oracle)
 
