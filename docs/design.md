@@ -58,19 +58,18 @@ Transitions are governed by budgets, in the manner of SRE error budgets. When to
 | Time | A check's run time, against its test size's time limit [2] | Reorganize the check |
 | False positive | Exceptions to a check | Fix the check |
 | Human review | Exceptions and workflow changes awaiting asynchronous human review | Stop until reviewed |
-| Structure | A drop in the share of pure code, the small-test coverage of the whole code base, of more than one standard deviation below the base's share: √(p(1−p)/N), with p the base's share smoothed as (covered + 1) / (total + 2) and N the head's statements | Review the structure |
 
 Charging the right budget requires telling a task failure (the check found a problem in the work) from a workflow failure (the harness misbehaved). Every check reports which one it is.
 
-The share of pure code is also reported on every PR. Adding side effects lowers it, by an amount that depends on the code base's size: the same addition moves a small code base's share much more than a large one's, which the standard deviation accounts for.
+The share of pure code, the small-test coverage of the whole code base, is reported on every PR. Adding side effects lowers it, by an amount that depends on the code base's size: the same addition moves a small code base's share much more than a large one's. A drop of more than one standard deviation, √(p(1−p)/N) with p the base's share smoothed as (covered + 1) / (total + 2) and N the head's statements, charges the budget of the rule that judges it.
 
 Initial values are guesses and are adjusted from observation.
 
 ### 3.1 Units, windows and urgency
 Budgets work as SRE error budgets do: urgency comes from how fast a budget is consumed, not from each failure on its own.
-- **A rule's budget is part of the rule.** Its unit is a violation of the rule, and its window is counted in runs of the rule's check, not in time: there are no calendar-based runs. A check run on every edit, such as small tests, moves through its window fast, so a failure that persists over a few runs burns quickly. The rule gives its limit and its actions
-- **A limit is a count or a ratio** of the window. A limit of zero tolerates nothing: any charge acts at once, whatever the rate, for what stops everything when it fails, such as a deploy
-- **Actions follow the burn rate**, the share of the limit consumed over the share of the window elapsed, so that budgets of different rules compare on one scale. A fast burn escapes or stops work; a slow burn, through the window, leads to review or a task
+- **A rule's budget is part of the rule.** Its unit is a violation of the rule, and its window is counted in runs of the rule's check, not in time: there are no calendar-based runs. A check run on every edit, such as small tests, moves through its window fast, so a failure that persists over a few runs burns quickly. The rule gives its limit: the share of its check's runs it may violate
+- **A limit of zero tolerates nothing**: any charge acts at once, whatever the rate, for what stops everything when it fails, such as a deploy
+- **Actions follow the burn rate**, the share of the limit consumed over the share of the window elapsed, so that budgets of different rules compare on one scale. A fast burn escapes or stops work; a slow burn, through the window, leads to review or a task. The window's length and the burn rates that act are shared by all rules, until one needs its own
 - **The budgets shampoo charges itself** (retry, workflow failure, time, human review) belong to no rule, and are counted the same way over the transitions they govern
 
 Budgets are kept apart from rules only when one turns out to be shared.
@@ -141,7 +140,7 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 
 ## 7. What a project provides
 A project provides these in `.shampoo/`, one file per item, named by its id:
-- **Rules** (`.shampoo/rules/`), each with its check, the transitions it guards, the paths whose changes start the check, its test size, and the mapping of the check's exit codes to pass / task failure / workflow failure; a rule without a check states why, as `unchecked`; a rule's budget gives its limit and its actions at given burn rates (§3.1)
+- **Rules** (`.shampoo/rules/`), each with its check, the transitions it guards, the paths whose changes start the check, its test size, and the mapping of the check's exit codes to pass / task failure / workflow failure; a rule without a check states why, as `unchecked`; a rule's budget gives its limit (§3.1)
 - **Policies** (`.shampoo/policies/`), each with its code example (§5.2)
 - **Task sources**: where tasks come from (for jeer: clusters of mismatches against the oracle)
 
