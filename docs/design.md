@@ -93,8 +93,12 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 
 - **An implementation task never changes acceptance tests.** This follows from the rule above: an implementation that may rewrite its acceptance tests can pass anything
 - **A behavior change starts with a spec-change task.** It updates the feature specs and acceptance tests, and goes through the human-review budget. Implementation tasks follow it
-- **Acceptance tests ratchet.** A test is identified by its name and a hash of its definition. At the PR guard, every test that passes on the merge-base must still pass on the head, unless its definition changed; the base is git, not the ledger, so local runs and CI judge the same way. A test whose definition changed counts as new: it is not yet required to pass, so a spec change can land before its implementation. The milestone guard requires all acceptance tests to pass
-- **A previously passing test that fails with an unchanged definition is a regression**: a task failure, sent back
+- **A scenario's content is its name and steps.** Its tags are not content
+- **A scenario that has passed carries `@sha:<hash>`** of its content. A scenario without `@sha`, or whose `@sha` does not match its content, is new or changed, and carries `@skip`: it is not run, so a spec change can land before its implementation. The implementation removes `@skip` and records `@sha`, changing tags only
+- **A change to feature files is checked on its own, statically**: every scenario whose `@sha` is missing or does not match carries `@skip`. No test runs for it
+- **A commit that changes scenario content changes no production code**
+- **A scenario with a matching `@sha` and no `@skip` that fails is a regression**: a task failure, sent back
+- **Skipped scenarios show in coverage.** Acceptance tests run against a binary built with `-cover`, and their coverage joins the whole code base's, which does not go down
 - **When a spec change missed something** (e.g. a format change also breaks another command's tests), the implementation cannot satisfy both, exhausts its retry budget, and escapes. The repair is another spec-change task. An implementation agent that finds the spec wrong does not edit it; it escapes and proposes the spec change
 
 ### 5.2 Rules and policies
