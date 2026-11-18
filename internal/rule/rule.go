@@ -99,7 +99,7 @@ func Parse(id string, data []byte) (Rule, error) {
 	}
 	for key, value := range file.Exit {
 		outcome := Outcome(value)
-		if !slices.Contains([]Outcome{TaskFailure, WorkflowFailure}, outcome) {
+		if !slices.Contains([]Outcome{TaskFailure, WorkflowFailure, StructureBudget}, outcome) {
 			return nil, fmt.Errorf("%w: %s: exit outcome %q", ErrInvalid, id, value)
 		}
 		if key == "other" {

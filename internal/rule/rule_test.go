@@ -26,7 +26,7 @@ func TestParse(t *testing.T) {
 		{
 			name: "when Parse with a rule and its check then returns the checked rule",
 			id:   id,
-			data: fmt.Sprintf("rule = %q\ncheck = %q\ntransitions = [\"edit\", \"pr\"]\npaths = [\"**.go\", \"tools/*.go\", \"a?b\"]\nsize = \"medium\"\nexit = { 1 = \"task-failure\", 2 = \"workflow-failure\", other = \"workflow-failure\" }\n", statement, command),
+			data: fmt.Sprintf("rule = %q\ncheck = %q\ntransitions = [\"edit\", \"pr\"]\npaths = [\"**.go\", \"tools/*.go\", \"a?b\"]\nsize = \"medium\"\nexit = { 1 = \"task-failure\", 2 = \"workflow-failure\", 3 = \"structure-budget\", other = \"workflow-failure\" }\n", statement, command),
 			want: Checked{
 				ID:          id,
 				Statement:   statement,
@@ -34,7 +34,7 @@ func TestParse(t *testing.T) {
 				Transitions: []Transition{Transition("edit"), Transition("pr")},
 				Paths:       Paths{patterns: []*regexp.Regexp{regexp.MustCompile(`^.*\.go$`), regexp.MustCompile(`^tools/[^/]*\.go$`), regexp.MustCompile(`^a[^/]?b$`)}},
 				Size:        Size("medium"),
-				Exit:        Exit{codes: map[int]Outcome{1: Outcome("task-failure"), 2: Outcome("workflow-failure")}, other: Outcome("workflow-failure")},
+				Exit:        Exit{codes: map[int]Outcome{1: Outcome("task-failure"), 2: Outcome("workflow-failure"), 3: Outcome("structure-budget")}, other: Outcome("workflow-failure")},
 			},
 		},
 		{
