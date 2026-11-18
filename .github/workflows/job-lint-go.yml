@@ -40,3 +40,5 @@ jobs:
         run: make check-test-helpers
       - name: Check test names
         run: make check-test-names
+      - name: Check fixed values
+        run: make check-fixed-values
