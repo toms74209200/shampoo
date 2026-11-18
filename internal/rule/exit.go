@@ -6,7 +6,7 @@ const (
 	Pass            Outcome = "pass"
 	TaskFailure     Outcome = "task-failure"
 	WorkflowFailure Outcome = "workflow-failure"
-	StructureBudget Outcome = "structure-budget"
+	Budget          Outcome = "budget"
 )
 
 type Exit struct {
