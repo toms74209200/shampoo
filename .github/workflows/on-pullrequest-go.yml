@@ -28,8 +28,11 @@ jobs:
   small-test:
     needs: [build]
     uses: ./.github/workflows/job-test-small-go.yml
+  medium-test:
+    needs: [small-test]
+    uses: ./.github/workflows/job-test-medium-go.yml
   coverage:
-    needs: [small-test, lint]
+    needs: [small-test, medium-test, lint]
     uses: ./.github/workflows/job-coverage-go.yml
     permissions:
       contents: write

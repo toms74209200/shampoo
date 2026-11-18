@@ -16,12 +16,13 @@ jobs:
           fetch-depth: 0
       - uses: actions/download-artifact@v7
         with:
-          name: small-cover
+          pattern: '*-cover'
+          merge-multiple: true
           path: out
       - name: Judge small-test coverage
         run: scripts/judge-small-test-coverage.sh out/small.cover
       - name: Judge coverage against the base
-        run: scripts/judge-coverage.sh out/small.cover ${{ github.event.pull_request.base.sha }} --update
+        run: scripts/judge-coverage.sh ${{ github.event.pull_request.base.sha }} --update out/small.cover out/medium.cover
       - name: Commit coverage baseline
         run: |
           if git diff --quiet; then
