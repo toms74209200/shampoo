@@ -3,6 +3,7 @@ package rule
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strconv"
@@ -23,6 +24,7 @@ type Checked struct {
 	Paths       Paths
 	Size        Size
 	Exit        Exit
+	Budget      float64
 }
 
 type Unchecked struct {
@@ -46,6 +48,7 @@ func Parse(id string, data []byte) (Rule, error) {
 		Size        string            `toml:"size"`
 		Exit        map[string]string `toml:"exit"`
 		Unchecked   string            `toml:"unchecked"`
+		Budget      any               `toml:"budget"`
 	}
 	meta, err := toml.Decode(string(data), &file)
 	if err != nil {
@@ -58,7 +61,7 @@ func Parse(id string, data []byte) (Rule, error) {
 		return nil, fmt.Errorf("%w: %s: no rule", ErrInvalid, id)
 	}
 	if meta.IsDefined("unchecked") {
-		if slices.ContainsFunc([]string{"check", "transitions", "paths", "size", "exit"}, func(key string) bool { return meta.IsDefined(key) }) || file.Unchecked == "" {
+		if slices.ContainsFunc([]string{"check", "transitions", "paths", "size", "exit", "budget"}, func(key string) bool { return meta.IsDefined(key) }) || file.Unchecked == "" {
 			return nil, fmt.Errorf("%w: %s: an unchecked rule has a reason and no check", ErrInvalid, id)
 		}
 		return Unchecked{ID: id, Statement: file.Rule, Reason: file.Unchecked}, nil
@@ -99,7 +102,7 @@ func Parse(id string, data []byte) (Rule, error) {
 	}
 	for key, value := range file.Exit {
 		outcome := Outcome(value)
-		if !slices.Contains([]Outcome{TaskFailure, WorkflowFailure, StructureBudget}, outcome) {
+		if !slices.Contains([]Outcome{TaskFailure, WorkflowFailure, Budget}, outcome) {
 			return nil, fmt.Errorf("%w: %s: exit outcome %q", ErrInvalid, id, value)
 		}
 		if key == "other" {
@@ -114,6 +117,21 @@ func Parse(id string, data []byte) (Rule, error) {
 	}
 	if checked.Exit.other == "" {
 		return nil, fmt.Errorf("%w: %s: exit has no other", ErrInvalid, id)
+	}
+	switch budget := file.Budget.(type) {
+	case nil:
+		if checked.Exit.other == Budget || slices.Contains(slices.Collect(maps.Values(checked.Exit.codes)), Budget) {
+			return nil, fmt.Errorf("%w: %s: an exit charging the budget needs a budget", ErrInvalid, id)
+		}
+	case int64:
+		checked.Budget = float64(budget)
+	case float64:
+		checked.Budget = budget
+	default:
+		return nil, fmt.Errorf("%w: %s: budget %v is not a number", ErrInvalid, id, budget)
+	}
+	if checked.Budget < 0 || checked.Budget > 1 {
+		return nil, fmt.Errorf("%w: %s: budget %v is not a share between 0 and 1", ErrInvalid, id, checked.Budget)
 	}
 	return checked, nil
 }

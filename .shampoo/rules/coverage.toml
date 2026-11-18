@@ -1,6 +1,7 @@
-rule = "The share of pure code, the small-test coverage of the whole code base, does not drop more than one standard deviation below the base's; a drop charges the structure budget (docs/design.md §3)."
+rule = "The share of pure code, the small-test coverage of the whole code base, does not drop more than one standard deviation below the base's; a drop charges this rule's budget (docs/design.md §3)."
 check = "scripts/judge-coverage.sh <base> out/small.cover"
 transitions = ["pr"]
 paths = ["**.go", "go.mod", "go.sum", "scripts/judge-coverage.sh", "scripts/coverage-baseline.txt"]
 size = "small"
-exit = { 3 = "structure-budget", other = "workflow-failure" }
+exit = { 3 = "budget", other = "workflow-failure" }
+budget = 0.1

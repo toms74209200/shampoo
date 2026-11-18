@@ -26,7 +26,7 @@ func TestParse(t *testing.T) {
 		{
 			name: "when Parse with a rule and its check then returns the checked rule",
 			id:   id,
-			data: fmt.Sprintf("rule = %q\ncheck = %q\ntransitions = [\"edit\", \"pr\"]\npaths = [\"**.go\", \"tools/*.go\", \"a?b\"]\nsize = \"medium\"\nexit = { 1 = \"task-failure\", 2 = \"workflow-failure\", 3 = \"structure-budget\", other = \"workflow-failure\" }\n", statement, command),
+			data: fmt.Sprintf("rule = %q\ncheck = %q\ntransitions = [\"edit\", \"pr\"]\npaths = [\"**.go\", \"tools/*.go\", \"a?b\"]\nsize = \"medium\"\nexit = { 1 = \"task-failure\", 2 = \"workflow-failure\", 3 = \"budget\", other = \"workflow-failure\" }\nbudget = 0.1\n", statement, command),
 			want: Checked{
 				ID:          id,
 				Statement:   statement,
@@ -34,7 +34,8 @@ func TestParse(t *testing.T) {
 				Transitions: []Transition{Transition("edit"), Transition("pr")},
 				Paths:       Paths{patterns: []*regexp.Regexp{regexp.MustCompile(`^.*\.go$`), regexp.MustCompile(`^tools/[^/]*\.go$`), regexp.MustCompile(`^a[^/]?b$`)}},
 				Size:        Size("medium"),
-				Exit:        Exit{codes: map[int]Outcome{1: Outcome("task-failure"), 2: Outcome("workflow-failure"), 3: Outcome("structure-budget")}, other: Outcome("workflow-failure")},
+				Exit:        Exit{codes: map[int]Outcome{1: Outcome("task-failure"), 2: Outcome("workflow-failure"), 3: Outcome("budget")}, other: Outcome("workflow-failure")},
+				Budget:      0.1,
 			},
 		},
 		{
@@ -56,6 +57,23 @@ func TestParse(t *testing.T) {
 			data: fmt.Sprintf("rule = %q\nunchecked = %q\n", statement, reason),
 			want: Unchecked{ID: id, Statement: statement, Reason: reason},
 		},
+		{
+			name: "when Parse with an integer budget then returns the checked rule with that budget",
+			id:   id,
+			data: fmt.Sprintf("rule = %q\ncheck = %q\ntransitions = [\"pr\"]\nsize = \"small\"\nexit = { other = \"budget\" }\nbudget = 0\n", statement, command),
+			want: Checked{
+				ID:          id,
+				Statement:   statement,
+				Command:     command,
+				Transitions: []Transition{Transition("pr")},
+				Size:        Size("small"),
+				Exit:        Exit{codes: map[int]Outcome{}, other: Outcome("budget")},
+			},
+		},
+		{name: "when Parse with an exit charging the budget without a budget then returns an error", id: id, data: fmt.Sprintf("rule = %q\ncheck = %q\ntransitions = [\"pr\"]\nsize = \"small\"\nexit = { 3 = \"budget\", other = \"task-failure\" }\n", statement, command), wantErr: true},
+		{name: "when Parse with a budget above one then returns an error", id: id, data: fmt.Sprintf("rule = %q\ncheck = %q\ntransitions = [\"pr\"]\nsize = \"small\"\nexit = { other = \"budget\" }\nbudget = 1.5\n", statement, command), wantErr: true},
+		{name: "when Parse with a budget that is not a number then returns an error", id: id, data: fmt.Sprintf("rule = %q\ncheck = %q\ntransitions = [\"pr\"]\nsize = \"small\"\nexit = { other = \"budget\" }\nbudget = \"low\"\n", statement, command), wantErr: true},
+		{name: "when Parse with a reason and a budget then returns an error", id: id, data: fmt.Sprintf("rule = %q\nunchecked = %q\nbudget = 0.1\n", statement, reason), wantErr: true},
 		{name: "when Parse with an id outside lowercase words then returns an error", id: "Bad_ID", data: fmt.Sprintf("rule = %q\nunchecked = %q\n", statement, reason), wantErr: true},
 		{name: "when Parse with invalid TOML then returns an error", id: id, data: "rule = ", wantErr: true},
 		{name: "when Parse with an unknown field then returns an error", id: id, data: fmt.Sprintf("rule = %q\nunchecked = %q\nnote = %q\n", statement, reason, reason), wantErr: true},
