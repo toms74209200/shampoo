@@ -1,0 +1,1 @@
+github.com/toms74209200/shampoo/internal/files
