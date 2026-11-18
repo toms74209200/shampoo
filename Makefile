@@ -1,6 +1,6 @@
 GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 
-.PHONY: all setup build check lint check-exceptions check-dependencies check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names check-fixed-values fmt test-small test-tools help
+.PHONY: all setup build check lint check-exceptions check-dependencies check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names check-fixed-values check-functions fmt test-small test-tools help
 
 all: check build
 
@@ -10,7 +10,7 @@ setup: ## Enable the git hooks in .githooks
 build: ## Build the binary
 	go build -o shampoo .
 
-check: lint check-exceptions check-dependencies test-small check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names check-fixed-values test-tools ## Run all checks guarding a commit
+check: lint check-exceptions check-dependencies test-small check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names check-fixed-values check-functions test-tools ## Run all checks guarding a commit
 
 lint: ## Run linters and format checks
 	$(GOLANGCI_LINT) run --build-tags small,medium,large
@@ -39,6 +39,9 @@ check-test-names: ## Check that every test is named when <target> with <given co
 
 check-fixed-values: ## Check that literals in tests appear only in parameterized test tables
 	scripts/check-fixed-values.sh
+
+check-functions: ## Check that production code has none of the prohibited functions
+	scripts/check-functions.sh
 
 fmt: ## Apply formatters
 	$(GOLANGCI_LINT) fmt

@@ -42,3 +42,5 @@ jobs:
         run: make check-test-names
       - name: Check fixed values
         run: make check-fixed-values
+      - name: Check prohibited functions
+        run: make check-functions
