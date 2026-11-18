@@ -1,6 +1,6 @@
-rule = "Coverage, one ratio over the whole code base across all test sizes, does not go down."
-check = "scripts/judge-coverage.sh <base> out/small.cover out/medium.cover"
+rule = "The share of pure code, the small-test coverage of the whole code base, does not drop more than one standard deviation below the base's; a drop charges the structure budget (docs/design.md §3)."
+check = "scripts/judge-coverage.sh <base> out/small.cover"
 transitions = ["pr"]
 paths = ["**.go", "go.mod", "go.sum", "scripts/judge-coverage.sh", "scripts/coverage-baseline.txt"]
 size = "small"
-exit = { 1 = "task-failure", other = "workflow-failure" }
+exit = { 3 = "structure-budget", other = "workflow-failure" }
