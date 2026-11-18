@@ -1,0 +1,34 @@
+text = '''
+- `main.go` only runs the program and exits with its error
+- Code lives in `internal/<context>/`, one package per bounded context
+- Side effects live in packages of their own, one per part of the outside world they reach: an HTTP client and a terminal UI are two packages
+- One responsibility per file, named after it in snake_case
+- White-box tests sit next to their code as `_test.go`
+- Feature specs live in `features/`, acceptance tests in `tests/acceptance/`'''
+example = '''
+```
+main.go
+internal/
+  cli/
+    parser.go
+    parser_test.go
+  devcontainer/
+    config.go
+    config_test.go
+    docker_args.go
+    docker_args_test.go
+  docker/
+    cli.go
+features/
+  shell.feature
+tests/
+  acceptance/
+```
+```go
+func main() {
+	if err := run.Run(os.Args); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		os.Exit(1)
+	}
+}
+```'''
