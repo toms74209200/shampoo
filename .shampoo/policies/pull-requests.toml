@@ -1,0 +1,4 @@
+text = '''
+A pull request is one task, on its own branch, made of minimal commits.
+- Branch from the current master
+- The pull request is done when its checks pass; it is merged with a merge commit'''
