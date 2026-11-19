@@ -14,11 +14,11 @@ func TestParseSettings(t *testing.T) {
 		want    Settings
 		wantErr bool
 	}{
-		{name: "when ParseSettings with no settings then returns the defaults", data: "", want: Settings{Repair: 3}},
-		{name: "when ParseSettings with a repair budget then returns it", data: "repair = 1\n", want: Settings{Repair: 1}},
-		{name: "when ParseSettings with invalid TOML then returns an error", data: "repair = ", wantErr: true},
-		{name: "when ParseSettings with an unknown field then returns an error", data: "window = 3\n", wantErr: true},
-		{name: "when ParseSettings with a negative repair budget then returns an error", data: "repair = -1\n", wantErr: true},
+		{name: "when ParseSettings with no settings then returns the defaults", data: "", want: Settings{RepairAttempts: 3}},
+		{name: "when ParseSettings with failed attempts of harness repair then returns them", data: "[state-machine.harness-repair]\nmax-failed-attempts = 1\n", want: Settings{RepairAttempts: 1}},
+		{name: "when ParseSettings with invalid TOML then returns an error", data: "[state-machine", wantErr: true},
+		{name: "when ParseSettings with a state not settable yet then returns an error", data: "[state-machine.editing]\nmax-failed-attempts = 3\n", wantErr: true},
+		{name: "when ParseSettings with negative failed attempts then returns an error", data: "[state-machine.harness-repair]\nmax-failed-attempts = -1\n", wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -47,7 +47,7 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 	if err != nil {
 		return rule.WorkflowFailure, "", err
 	}
-	settingsData, err := files.Optional(filepath.Join(repo.Root, ".shampoo", "budgets.toml"))
+	settingsData, err := files.Optional(filepath.Join(repo.Root, ".shampoo", "settings.toml"))
 	if err != nil {
 		return rule.WorkflowFailure, "", err
 	}
@@ -66,7 +66,7 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 	window := 0
 	for _, r := range rules {
 		if checked, ok := r.(rule.Checked); ok {
-			window = max(window, checked.Window)
+			window = max(window, checked.Budget.Runs, checked.Stop.Runs)
 		}
 	}
 	ledgerPath := filepath.Join(repo.CommonDir, "shampoo", "ledger.jsonl")
@@ -165,11 +165,11 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 			if outcome != rule.TaskFailure && outcome != rule.Budget {
 				continue
 			}
-			if burn := budget.BurnRate(lines, checked.ID, checked.Slow.Runs, checked.Budget); burn >= checked.Slow.Rate {
-				report += fmt.Sprintf("%s burns its budget: %.1f times over the latest %d runs\n", checked.ID, burn, checked.Slow.Runs)
+			if used := budget.Violations(lines, checked.ID, checked.Budget.Runs); checked.Budget.Violations > 0 && used >= checked.Budget.Violations {
+				report += fmt.Sprintf("%s burns its budget: %d violations in the latest %d runs, of %d allowed\n", checked.ID, used, checked.Budget.Runs, checked.Budget.Violations)
 			}
-			if burn := budget.BurnRate(lines, checked.ID, checked.Fast.Runs, checked.Budget); burn >= checked.Fast.Rate {
-				report += fmt.Sprintf("%s exceeds its budget: %.1f times over the latest %d runs\n", checked.ID, burn, checked.Fast.Runs)
+			if recent := budget.Violations(lines, checked.ID, checked.Stop.Runs); checked.Budget.Violations == 0 || recent >= checked.Stop.Violations {
+				report += fmt.Sprintf("%s exceeds its budget: %d violations in the latest %d runs\n", checked.ID, recent, checked.Stop.Runs)
 				exceeded = true
 			}
 		}
@@ -186,8 +186,8 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 				return rule.WorkflowFailure, report, err
 			}
 			lines = append(lines, repair)
-			if repairs := budget.Repairs(lines, branch); repairs > settings.Repair {
-				return rule.Handed, report + fmt.Sprintf("repairs in %s exceed their budget of %d: hand the task to a human\n", branch, settings.Repair), nil
+			if repairs := budget.Repairs(lines, branch); repairs > settings.RepairAttempts {
+				return rule.Handed, report + fmt.Sprintf("failed repairs in %s exceed their limit of %d: hand the task to a human\n", branch, settings.RepairAttempts), nil
 			}
 			return rule.Exceeded, report + "repair the harness: find whether the work or the check causes the repeated violations, before going on with the task\n", nil
 		}
