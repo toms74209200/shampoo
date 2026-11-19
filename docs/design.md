@@ -121,7 +121,7 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 - **An implementation task never changes acceptance tests.** This follows from the rule above: an implementation that may rewrite its acceptance tests can pass anything
 - **A behavior change starts with a spec-change task.** It updates the feature specs and acceptance tests, and goes through the human-review budget. Implementation tasks follow it
 - **A scenario's content is its name and steps.** Its tags are not content
-- **A scenario that has passed carries `@sha:<hash>`** of its content. A scenario without `@sha`, or whose `@sha` does not match its content, is new or changed, and carries `@skip`: it is not run, so a spec change can land before its implementation. The implementation removes `@skip` and records `@sha`, changing tags only
+- **A scenario carries `@sha:<hash>`** of its content, which identifies the scenario as defined. A scenario without `@sha`, or whose `@sha` does not match its content, is new or changed, and carries `@skip`, written by whoever changes the spec: it is not run, so a spec change can land before its implementation. The implementation removes `@skip`, changing tags only. `@sha` is recorded by CI, never by hand: when feature files change, CI writes it on every scenario whose `@sha` is missing or does not match, after the check below, and commits
 - **A change to feature files is checked on its own, statically**: every scenario whose `@sha` is missing or does not match carries `@skip`. No test runs for it
 - **A commit that changes scenario content changes no production code**
 - **A scenario with a matching `@sha` and no `@skip` that fails is a regression**: a task failure, sent back

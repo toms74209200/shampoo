@@ -13,3 +13,5 @@ permissions:
 jobs:
   scenarios:
     uses: ./.github/workflows/job-check-scenarios.yml
+    permissions:
+      contents: write
