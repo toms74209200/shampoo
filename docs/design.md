@@ -140,9 +140,17 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 
 ## 7. What a project provides
 A project provides these in `.shampoo/`, one file per item, named by its id:
-- **Rules** (`.shampoo/rules/`), each with its check, the transitions it guards, the paths whose changes start the check, its test size, and the mapping of the check's exit codes to pass / task failure / workflow failure; a rule without a check states why, as `unchecked`; a rule's budget gives its limit (§3.1)
+- **Rules** (`.shampoo/rules/`), each with the transitions it guards, the paths whose changes start it, and the id of its check; optionally a judge, a command applied to the check's output, with the mapping of the judge's exit codes; a rule without a check states why, as `unchecked`; a rule's budget gives its limit (§3.1)
+- **Checks** (`.shampoo/checks/`), each with its command, its test size, the mapping of its exit codes to pass / task failure / workflow failure / budget, and the checks it needs
 - **Policies** (`.shampoo/policies/`), each with its code example (§5.2)
 - **Task sources**: where tasks come from (for jeer: clusters of mismatches against the oracle)
+
+A guard runs them in three steps:
+1. **Rules trigger.** It selects the rules that guard the transition and whose paths cover what changed
+2. **Checks run once each, in order.** It collects the checks the selected rules point to, with the checks they need, and runs each once, after the checks it needs have passed. Rules that point to the same check share its run, as small tests are run once for every rule judging their results. A check whose needed check failed is not run
+3. **Each rule is judged.** A rule with a judge applies it to its check's output, and the judge's exit code decides; a rule without one is decided by its check's exit code
+
+Sharing and order are separate: rules share a check when they judge the same run, and a check needs another when it must run after it, as lint runs after the formatter is applied.
 
 The state machine (§2) is shampoo's own. Its transitions are bound to Claude Code hooks, CI and GitHub, so a project names them (`edit`, `task`, `pr`, `milestone`) and does not define them.
 
