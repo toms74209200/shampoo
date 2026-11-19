@@ -126,6 +126,8 @@ func Parse(id string, data []byte) (Rule, error) {
 		checked.Judge = ByCommand{Command: file.Judge.Command, Exit: exit}
 	}
 	switch budget := file.Budget.(type) {
+	case nil:
+		checked.Budget = 0.1
 	case int64:
 		checked.Budget = float64(budget)
 	case float64:
