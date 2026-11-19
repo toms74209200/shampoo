@@ -3,7 +3,6 @@ package guard
 import (
 	"fmt"
 	"path/filepath"
-	"slices"
 
 	"github.com/toms74209200/shampoo/internal/files"
 	"github.com/toms74209200/shampoo/internal/git"
@@ -59,46 +58,43 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 	selected, order := config.Plan(transition, changed)
 	verdict := rule.Pass
 	report := ""
-	outcomes := map[string]rule.Outcome{}
 	for _, check := range order {
-		if slices.ContainsFunc(check.Needs, func(need string) bool { return outcomes[need] != rule.Pass }) {
-			report += fmt.Sprintf("check %s: not run, since a check it needs did not pass\n", check.ID)
-			continue
-		}
 		code, output, err := shell.Run(repo.Root, check.Command)
 		if err != nil {
 			return rule.WorkflowFailure, report, fmt.Errorf("check %s: %w", check.ID, err)
 		}
-		outcome := check.Exit.Outcome(code)
-		outcomes[check.ID] = outcome
-		if outcome != rule.Pass {
-			report += fmt.Sprintf("check %s: %s exited %d: %s\n%s", check.ID, check.Command, code, outcome, output)
-			if verdict != rule.WorkflowFailure {
+		exceeded := false
+		for _, checked := range selected {
+			if checked.Check != check.ID {
+				continue
+			}
+			var outcome rule.Outcome
+			var detail string
+			switch judge := checked.Judge.(type) {
+			case rule.ByExit:
+				outcome = judge.Exit.Outcome(code)
+				detail = fmt.Sprintf("check %s: %s exited %d\n%s", check.ID, check.Command, code, output)
+			case rule.ByCommand:
+				judgeCode, judgeOutput, err := shell.Run(repo.Root, judge.Command)
+				if err != nil {
+					return rule.WorkflowFailure, report, fmt.Errorf("%s: judge: %w", checked.ID, err)
+				}
+				outcome = judge.Exit.Outcome(judgeCode)
+				detail = fmt.Sprintf("judge: %s exited %d\n%s", judge.Command, judgeCode, judgeOutput)
+			}
+			if outcome != rule.Pass {
+				report += fmt.Sprintf("%s: %s\n%s, %s", checked.ID, checked.Statement, outcome, detail)
+			}
+			if verdict != rule.WorkflowFailure && (outcome == rule.TaskFailure || outcome == rule.WorkflowFailure) {
 				verdict = outcome
 			}
-		}
-	}
-	for _, checked := range selected {
-		if outcomes[checked.Check] != rule.Pass {
-			report += fmt.Sprintf("%s: %s\ncheck %s did not pass\n", checked.ID, checked.Statement, checked.Check)
-			continue
-		}
-		judge, ok := checked.Judge.(rule.Judged)
-		if !ok {
-			continue
-		}
-		code, output, err := shell.Run(repo.Root, judge.Command)
-		if err != nil {
-			return rule.WorkflowFailure, report, fmt.Errorf("%s: judge: %w", checked.ID, err)
-		}
-		switch outcome := judge.Exit.Outcome(code); outcome {
-		case rule.TaskFailure, rule.WorkflowFailure:
-			report += fmt.Sprintf("%s: %s\n%s exited %d: %s\n%s", checked.ID, checked.Statement, judge.Command, code, outcome, output)
-			if verdict != rule.WorkflowFailure {
-				verdict = outcome
+			if (outcome == rule.TaskFailure || outcome == rule.Budget) && checked.Budget == 0 {
+				report += fmt.Sprintf("%s: exceeds its budget of 0\n", checked.ID)
+				exceeded = true
 			}
-		case rule.Budget:
-			report += fmt.Sprintf("%s: %s\n%s exited %d: charges the budget of %s\n%s", checked.ID, checked.Statement, judge.Command, code, checked.ID, output)
+		}
+		if exceeded {
+			return rule.Exceeded, report, nil
 		}
 	}
 	if verdict == rule.Pass {

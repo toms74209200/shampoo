@@ -3,7 +3,6 @@ package rule
 import (
 	"errors"
 	"fmt"
-	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -36,15 +35,17 @@ func (Unchecked) rule() {}
 
 type Judge interface{ judge() }
 
-type ByCheck struct{}
+type ByExit struct {
+	Exit Exit
+}
 
-type Judged struct {
+type ByCommand struct {
 	Command string
 	Exit    Exit
 }
 
-func (ByCheck) judge() {}
-func (Judged) judge()  {}
+func (ByExit) judge()    {}
+func (ByCommand) judge() {}
 
 func Parse(id string, data []byte) (Rule, error) {
 	ids := regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
@@ -82,7 +83,7 @@ func Parse(id string, data []byte) (Rule, error) {
 	if !ids.MatchString(file.Check) || len(file.Transitions) == 0 {
 		return nil, fmt.Errorf("%w: %s: a rule has the id of its check and its transitions, or a reason for having none", ErrInvalid, id)
 	}
-	checked := Checked{ID: id, Statement: file.Rule, Check: file.Check, Judge: ByCheck{}}
+	checked := Checked{ID: id, Statement: file.Rule, Check: file.Check}
 	for _, name := range file.Transitions {
 		transition, err := ParseTransition(name)
 		if err != nil {
@@ -110,23 +111,21 @@ func Parse(id string, data []byte) (Rule, error) {
 		}
 		checked.Paths.patterns = append(checked.Paths.patterns, regexp.MustCompile("^"+expr.String()+"$"))
 	}
-	charges := false
-	if file.Judge != nil {
+	if file.Judge == nil {
+		return nil, fmt.Errorf("%w: %s: a rule has a judge", ErrInvalid, id)
+	}
+	exit, err := parseExit(file.Judge.Exit, []Outcome{TaskFailure, WorkflowFailure, Budget})
+	if err != nil {
+		return nil, fmt.Errorf("%s: judge: %w", id, err)
+	}
+	checked.Judge = ByExit{Exit: exit}
+	if meta.IsDefined("judge", "command") {
 		if file.Judge.Command == "" {
-			return nil, fmt.Errorf("%w: %s: a judge has a command", ErrInvalid, id)
+			return nil, fmt.Errorf("%w: %s: a judge command is not empty", ErrInvalid, id)
 		}
-		exit, err := parseExit(file.Judge.Exit, []Outcome{TaskFailure, WorkflowFailure, Budget})
-		if err != nil {
-			return nil, fmt.Errorf("%s: judge: %w", id, err)
-		}
-		checked.Judge = Judged{Command: file.Judge.Command, Exit: exit}
-		charges = exit.other == Budget || slices.Contains(slices.Collect(maps.Values(exit.codes)), Budget)
+		checked.Judge = ByCommand{Command: file.Judge.Command, Exit: exit}
 	}
 	switch budget := file.Budget.(type) {
-	case nil:
-		if charges {
-			return nil, fmt.Errorf("%w: %s: a judge charging the budget needs a budget", ErrInvalid, id)
-		}
 	case int64:
 		checked.Budget = float64(budget)
 	case float64:

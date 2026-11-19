@@ -12,7 +12,6 @@ type Check struct {
 	ID      string
 	Command string
 	Size    Size
-	Exit    Exit
 	Needs   []string
 }
 
@@ -22,10 +21,9 @@ func ParseCheck(id string, data []byte) (Check, error) {
 		return Check{}, fmt.Errorf("%w: check id %q", ErrInvalid, id)
 	}
 	var file struct {
-		Command string            `toml:"command"`
-		Size    string            `toml:"size"`
-		Exit    map[string]string `toml:"exit"`
-		Needs   []string          `toml:"needs"`
+		Command string   `toml:"command"`
+		Size    string   `toml:"size"`
+		Needs   []string `toml:"needs"`
 	}
 	meta, err := toml.Decode(string(data), &file)
 	if err != nil {
@@ -41,14 +39,10 @@ func ParseCheck(id string, data []byte) (Check, error) {
 	if !slices.Contains([]Size{Small, Medium, Large}, size) {
 		return Check{}, fmt.Errorf("%w: check %s: size %q", ErrInvalid, id, file.Size)
 	}
-	exit, err := parseExit(file.Exit, []Outcome{TaskFailure, WorkflowFailure})
-	if err != nil {
-		return Check{}, fmt.Errorf("check %s: %w", id, err)
-	}
 	for _, need := range file.Needs {
 		if !ids.MatchString(need) || need == id {
 			return Check{}, fmt.Errorf("%w: check %s: needs %q", ErrInvalid, id, need)
 		}
 	}
-	return Check{ID: id, Command: file.Command, Size: size, Exit: exit, Needs: file.Needs}, nil
+	return Check{ID: id, Command: file.Command, Size: size, Needs: file.Needs}, nil
 }
