@@ -138,7 +138,7 @@ Feature: Guard a transition
     When I run "shampoo guard edit"
     Then the check "test" has run twice
 
-  @skip
+  @sha:059f465d16fc
   Scenario: Violations burning a budget fast stop the guard
     Given budget settings with a fast burn of 2 times over the latest 2 runs
     And a check "lint" that exits 1
@@ -149,7 +149,7 @@ Feature: Guard a transition
     When I run "shampoo guard edit"
     Then the exit code is 3
 
-  @skip
+  @sha:17a7fd440fb7
   Scenario: A budget burnt through the window is reported
     Given budget settings with a window of 2 runs and a slow burn of 1 time over the window
     And a check "lint" that exits 1
@@ -159,7 +159,7 @@ Feature: Guard a transition
     Then the exit code is 1
     And stderr contains "no-todo burns its budget"
 
-  @skip
+  @sha:98e6ba68126e
   Scenario: A merged task is summarized into statistics
     Given a branch "task-a"
     And a check "lint" that exits 0
