@@ -1,3 +1,2 @@
 command = "scripts/check-exceptions.sh"
 size = "small"
-exit = { 1 = "task-failure", other = "workflow-failure" }

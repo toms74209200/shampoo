@@ -2,3 +2,5 @@ rule = "Every module the code depends on is in the project's allowlist, with its
 check = "dependencies"
 transitions = ["edit", "task", "pr"]
 paths = ["**.go", "go.mod", "go.sum", "scripts/check-dependencies.sh", "scripts/allowed-modules.txt"]
+judge = { exit = { 1 = "task-failure", other = "workflow-failure" } }
+budget = 0.1

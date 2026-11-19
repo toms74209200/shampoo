@@ -1,3 +1,2 @@
 command = "scripts/lint.sh"
 size = "small"
-exit = { 1 = "task-failure", other = "workflow-failure" }

@@ -1,3 +1,2 @@
 command = "uv run --directory tests/acceptance pytest"
 size = "medium"
-exit = { 1 = "task-failure", other = "workflow-failure" }

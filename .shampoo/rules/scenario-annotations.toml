@@ -2,3 +2,5 @@ rule = "Every scenario whose @sha is missing or does not match its content carri
 check = "scenarios"
 transitions = ["edit", "task", "pr"]
 paths = ["features/**"]
+judge = { exit = { 1 = "task-failure", other = "workflow-failure" } }
+budget = 0.1

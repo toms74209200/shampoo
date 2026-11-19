@@ -3,3 +3,4 @@ check = "small-tests"
 transitions = ["edit", "task", "pr"]
 paths = ["**.go", "go.mod", "go.sum", "scripts/trace-exec.sh", "scripts/judge-side-effects.sh"]
 judge = { command = "scripts/judge-side-effects.sh out/traces", exit = { 1 = "task-failure", other = "workflow-failure" } }
+budget = 0.1

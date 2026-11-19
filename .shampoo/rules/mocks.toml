@@ -2,3 +2,5 @@ rule = "Mocks are prohibited. Fakes stand in for what has side effects."
 check = "lint"
 transitions = ["edit", "task", "pr"]
 paths = ["**.go", "go.mod", "go.sum", "scripts/lint.sh", "scripts/golangci-lint.sh", ".golangci.yml"]
+judge = { exit = { 1 = "task-failure", other = "workflow-failure" } }
+budget = 0.1

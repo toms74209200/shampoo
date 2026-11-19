@@ -8,7 +8,7 @@ Feature: Guard a transition
   Background:
     Given a git repository with a commit
 
-  @skip
+  @sha:fefade2e2479
   Scenario: A passing check lets the edit through
     Given a check "lint" that exits 0
     And a rule guarding edit with check "lint"
@@ -16,7 +16,7 @@ Feature: Guard a transition
     When I run "shampoo guard edit"
     Then the exit code is 0
 
-  @skip
+  @sha:0cbc8fed24a4
   Scenario: A violation sends the edit back
     Given a check "lint" that prints "found TODO" and exits 1
     And a rule "no-todo" guarding edit with check "lint"
@@ -26,7 +26,7 @@ Feature: Guard a transition
     And stderr contains "no-todo"
     And stderr contains "found TODO"
 
-  @skip
+  @sha:7e7b2cd6655c
   Scenario: A misbehaving check is a workflow failure
     Given a check "lint" that exits 2
     And a rule guarding edit with check "lint" judging exit 2 as a workflow failure
@@ -34,7 +34,7 @@ Feature: Guard a transition
     When I run "shampoo guard edit"
     Then the exit code is 2
 
-  @skip
+  @sha:9043b0b89519
   Scenario: A judge command deciding a violation sends the edit back
     Given a check "test" that exits 0
     And a rule "coverage" guarding edit with check "test" whose judge prints "too low" and exits 1
@@ -44,7 +44,7 @@ Feature: Guard a transition
     And stderr contains "coverage"
     And stderr contains "too low"
 
-  @skip
+  @sha:bd5660afc27d
   Scenario: A judge charging its budget lets the edit through
     Given a check "test" that exits 0
     And a rule guarding edit with check "test" whose judge exits 3 charging its budget
@@ -52,7 +52,7 @@ Feature: Guard a transition
     When I run "shampoo guard edit"
     Then the exit code is 0
 
-  @skip
+  @sha:62697e11cb9a
   Scenario: A rule whose paths miss the change is not checked
     Given a check "lint" that exits 1
     And a rule guarding edit for paths "**.go" with check "lint"
@@ -60,7 +60,7 @@ Feature: Guard a transition
     When I run "shampoo guard edit"
     Then the exit code is 0
 
-  @skip
+  @sha:b7d57b6bd7cf
   Scenario: A rule guarding another transition is not checked
     Given a check "lint" that exits 1
     And a rule guarding pr with check "lint"
@@ -68,7 +68,7 @@ Feature: Guard a transition
     When I run "shampoo guard edit"
     Then the exit code is 0
 
-  @skip
+  @sha:5491bdd775c8
   Scenario: Rules pointing to the same check share one run
     Given a check "test" that records that it ran
     And a rule guarding edit with check "test"
@@ -77,7 +77,7 @@ Feature: Guard a transition
     When I run "shampoo guard edit"
     Then the check "test" has run once
 
-  @skip
+  @sha:b417c4a066bf
   Scenario: A check runs after the checks it needs
     Given a check "build" that records that it ran
     And a check "acceptance" that needs "build" and records that it ran
@@ -86,7 +86,7 @@ Feature: Guard a transition
     When I run "shampoo guard edit"
     Then the checks ran in the order "build", "acceptance"
 
-  @skip
+  @sha:f7d07e2c75ec
   Scenario: A violation within its budget does not stop the checks after it
     Given a check "build" that exits 1
     And a rule guarding edit with check "build"
@@ -97,7 +97,7 @@ Feature: Guard a transition
     Then the exit code is 1
     And the check "acceptance" has run once
 
-  @skip
+  @sha:d3c9f18f1743
   Scenario: A violation exceeding a zero budget stops the checks after it
     Given a check "build" that exits 1
     And a rule guarding edit with check "build" and a zero budget
@@ -108,7 +108,7 @@ Feature: Guard a transition
     Then the exit code is 3
     And the check "acceptance" has not run
 
-  @skip
+  @sha:0f83e4f59d23
   Scenario: Every rule on a check is judged before stopping
     Given a check "lint" that exits 1
     And a rule "strict" guarding edit with check "lint" and a zero budget
@@ -119,7 +119,7 @@ Feature: Guard a transition
     And stderr contains "strict"
     And stderr contains "lenient"
 
-  @skip
+  @sha:8a0d183c5d4b
   Scenario: Nothing changed since the last pass runs no check
     Given a check "test" that records that it ran
     And a rule guarding edit with check "test"
@@ -128,7 +128,7 @@ Feature: Guard a transition
     When I run "shampoo guard edit"
     Then the check "test" has run once
 
-  @skip
+  @sha:9a63ec93bf2f
   Scenario: A change after the last pass is checked
     Given a check "test" that records that it ran
     And a rule guarding edit with check "test"
