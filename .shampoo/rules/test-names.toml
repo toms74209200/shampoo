@@ -2,3 +2,5 @@ rule = "Every test is named `when <target> with <given conditions> then returns 
 check = "test-names"
 transitions = ["edit", "task", "pr"]
 paths = ["**_test.go", "scripts/check-test-names.sh", "tools/**"]
+judge = { exit = { 1 = "task-failure", other = "workflow-failure" } }
+budget = 0.1

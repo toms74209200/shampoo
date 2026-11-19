@@ -2,3 +2,5 @@ rule = "Exceptions other than `//nolint:<linter> // <reason>` are prohibited."
 check = "exceptions"
 transitions = ["edit", "task", "pr"]
 paths = ["**.go", ".golangci.yml", "scripts/check-exceptions.sh"]
+judge = { exit = { 1 = "task-failure", other = "workflow-failure" } }
+budget = 0.1

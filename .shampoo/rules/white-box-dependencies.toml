@@ -2,3 +2,5 @@ rule = "A white-box test depends on its target only. If the target is a function
 check = "white-box"
 transitions = ["edit", "task", "pr"]
 paths = ["**.go", "scripts/check-white-box.sh", "tools/**"]
+judge = { exit = { 1 = "task-failure", other = "workflow-failure" } }
+budget = 0.1

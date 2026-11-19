@@ -2,3 +2,5 @@ rule = "The code passes golangci-lint with .golangci.yml."
 check = "lint"
 transitions = ["edit", "task", "pr"]
 paths = ["**.go", "go.mod", "go.sum", "scripts/lint.sh", "scripts/golangci-lint.sh", ".golangci.yml"]
+judge = { exit = { 1 = "task-failure", other = "workflow-failure" } }
+budget = 0.1

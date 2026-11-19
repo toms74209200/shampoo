@@ -1,3 +1,2 @@
 command = "scripts/check-scenario-commit.sh --rev <commit>"
 size = "small"
-exit = { 1 = "task-failure", other = "workflow-failure" }

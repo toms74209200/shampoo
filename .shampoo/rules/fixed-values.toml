@@ -2,3 +2,5 @@ rule = "Literal values in tests appear only in the cases of a parameterized test
 check = "fixed-values"
 transitions = ["edit", "task", "pr"]
 paths = ["**_test.go", "scripts/check-fixed-values.sh", "tools/**"]
+judge = { exit = { 1 = "task-failure", other = "workflow-failure" } }
+budget = 0.1

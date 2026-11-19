@@ -1,3 +1,2 @@
 command = "scripts/check-commit.sh --rev <commit>"
 size = "small"
-exit = { 1 = "task-failure", other = "workflow-failure" }
