@@ -140,8 +140,8 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 
 ## 7. What a project provides
 A project provides these in `.shampoo/`, one file per item, named by its id:
-- **Rules** (`.shampoo/rules/`), each with the transitions it guards, the paths whose changes start it, and the id of its check; optionally a judge, a command applied to the check's output, with the mapping of the judge's exit codes; a rule without a check states why, as `unchecked`; a rule's budget gives its limit (§3.1)
-- **Checks** (`.shampoo/checks/`), each with its command, its test size, the mapping of its exit codes to pass / task failure / workflow failure / budget, and the checks it needs
+- **Rules** (`.shampoo/rules/`), each with the transitions it guards, the paths whose changes start it, and the id of its check; optionally a judge, a command applied to the check's output, with the mapping of the judge's exit codes, which may charge the rule's budget; a rule without a check states why, as `unchecked`; a rule's budget gives its limit (§3.1)
+- **Checks** (`.shampoo/checks/`), each with its command, its test size, the mapping of its exit codes to pass / task failure / workflow failure, and the checks it needs. Only a judge charges a budget: a budget belongs to one rule, while a check may be shared
 - **Policies** (`.shampoo/policies/`), each with its code example (§5.2)
 - **Task sources**: where tasks come from (for jeer: clusters of mismatches against the oracle)
 
