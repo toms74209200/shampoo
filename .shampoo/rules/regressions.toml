@@ -1,6 +1,4 @@
 rule = "Every scenario with a matching @sha and no @skip passes (docs/design.md §5.1)."
-check = "uv run --directory tests/acceptance pytest"
+check = "acceptance"
 transitions = ["task", "pr"]
 paths = ["**.go", "go.mod", "go.sum", "tests/acceptance/**"]
-size = "medium"
-exit = { 1 = "task-failure", other = "workflow-failure" }

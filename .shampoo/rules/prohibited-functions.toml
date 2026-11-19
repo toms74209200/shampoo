@@ -5,8 +5,6 @@ Each of these is prohibited as a function, and is written inline where it is use
 - A call one level down, or an entry point that passes values on
 - A name for a condition used in one place
 - A conversion whose result type carries nothing new: `string -> string`, `string -> int`, `int -> int`, `User -> User`'''
-check = "scripts/check-functions.sh"
+check = "functions"
 transitions = ["edit", "task", "pr"]
 paths = ["**.go", "scripts/check-functions.sh", "tools/**"]
-size = "small"
-exit = { 1 = "task-failure", other = "workflow-failure" }

@@ -1,6 +1,5 @@
 rule = "Side effects, as defined by test sizes, are statements in the packages designated for them."
-check = "scripts/judge-side-effects.sh out/traces"
+check = "small-tests"
 transitions = ["edit", "task", "pr"]
 paths = ["**.go", "go.mod", "go.sum", "scripts/trace-exec.sh", "scripts/judge-side-effects.sh"]
-size = "small"
-exit = { 1 = "task-failure", other = "workflow-failure" }
+judge = { command = "scripts/judge-side-effects.sh out/traces", exit = { 1 = "task-failure", other = "workflow-failure" } }
