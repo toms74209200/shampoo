@@ -2,4 +2,3 @@ rule = "A commit that changes scenario content changes no production code (docs/
 check = "scenario-commit"
 transitions = ["pr"]
 judge = { exit = { 1 = "task-failure", other = "workflow-failure" } }
-budget = 0.1

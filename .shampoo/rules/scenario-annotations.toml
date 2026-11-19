@@ -3,4 +3,3 @@ check = "scenarios"
 transitions = ["edit", "task", "pr"]
 paths = ["features/**"]
 judge = { exit = { 1 = "task-failure", other = "workflow-failure" } }
-budget = 0.1

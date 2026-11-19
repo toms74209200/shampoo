@@ -3,4 +3,3 @@ check = "test-helpers"
 transitions = ["edit", "task", "pr"]
 paths = ["**_test.go", "scripts/check-test-helpers.sh", "tools/**"]
 judge = { exit = { 1 = "task-failure", other = "workflow-failure" } }
-budget = 0.1

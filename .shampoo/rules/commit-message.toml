@@ -2,4 +2,3 @@ rule = "Every commit message follows docs/development.md §3.2."
 check = "commit-message"
 transitions = ["pr"]
 judge = { exit = { 1 = "task-failure", other = "workflow-failure" } }
-budget = 0.1
