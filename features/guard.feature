@@ -137,3 +137,35 @@ Feature: Guard a transition
     And a changed file "README.md"
     When I run "shampoo guard edit"
     Then the check "test" has run twice
+
+  @skip
+  Scenario: Violations burning a budget fast stop the guard
+    Given budget settings with a fast burn of 2 times over the latest 2 runs
+    And a check "lint" that exits 1
+    And a rule guarding edit with check "lint"
+    And a changed file "main.go"
+    And "shampoo guard edit" has run
+    And a changed file "main.go"
+    When I run "shampoo guard edit"
+    Then the exit code is 3
+
+  @skip
+  Scenario: A budget burnt through the window is reported
+    Given budget settings with a window of 2 runs and a slow burn of 1 time over the window
+    And a check "lint" that exits 1
+    And a rule "no-todo" guarding edit with check "lint"
+    And a changed file "main.go"
+    When I run "shampoo guard edit"
+    Then the exit code is 1
+    And stderr contains "no-todo burns its budget"
+
+  @skip
+  Scenario: A merged task is summarized into statistics
+    Given a branch "task-a"
+    And a check "lint" that exits 0
+    And a rule guarding edit with check "lint"
+    And a changed file "main.go"
+    And "shampoo guard edit" has passed
+    And the branch "task-a" is committed and merged
+    When I run "shampoo guard edit"
+    Then the statistics have a line for task "task-a"
