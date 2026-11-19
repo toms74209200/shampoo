@@ -1,0 +1,14 @@
+[project]
+name = "acceptance"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-bdd>=8.1.0",
+]
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers"

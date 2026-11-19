@@ -13,6 +13,7 @@ The devcontainer runs `make setup` on creation, which enables the git hooks in `
 | `make lint` | golangci-lint, including format checks |
 | `make fmt` | Apply formatters |
 | `make test-small` | Small tests (`-tags=small`) |
+| `make test-acceptance` | Acceptance tests in `tests/acceptance` (pytest-bdd, run with uv) |
 | `make build` | Build the binary |
 
 golangci-lint is pinned in the Makefile and run through `go run`, so local runs and CI use the same version regardless of what the environment has installed.
@@ -117,7 +118,9 @@ Each workflow starts from the changes it checks, as in earlier repositories:
 | Workflow | Starts when | Checks |
 |---|---|---|
 | `on-pullrequest-commit.yml` | Every PR, since every PR has commits | The message of each commit |
-| `on-pullrequest-go.yml` | Go-related files change (its `paths`) | Applies the formatter and commits the result, then lint; small tests |
+| `on-pullrequest-go.yml` | Go-related files change (its `paths`) | Applies the formatter and commits the result, then lint; small, medium and acceptance tests; coverage |
+| `on-pullrequest-python.yml` | Acceptance tests change | Acceptance tests |
+| `on-pullrequest-features.yml` | Feature specs change | Scenario annotations, statically (design doc §5.1) |
 
 The `job-*.yml` workflows hold the steps, and the `on-*.yml` workflows decide when they run.
 
