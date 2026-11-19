@@ -18,11 +18,10 @@ type Rule interface{ rule() }
 type Checked struct {
 	ID          string
 	Statement   string
-	Command     string
+	Check       string
+	Judge       Judge
 	Transitions []Transition
 	Paths       Paths
-	Size        Size
-	Exit        Exit
 	Budget      float64
 }
 
@@ -35,19 +34,34 @@ type Unchecked struct {
 func (Checked) rule()   {}
 func (Unchecked) rule() {}
 
+type Judge interface{ judge() }
+
+type ByCheck struct{}
+
+type Judged struct {
+	Command string
+	Exit    Exit
+}
+
+func (ByCheck) judge() {}
+func (Judged) judge()  {}
+
 func Parse(id string, data []byte) (Rule, error) {
-	if !regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`).MatchString(id) {
+	ids := regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+	if !ids.MatchString(id) {
 		return nil, fmt.Errorf("%w: id %q", ErrInvalid, id)
 	}
 	var file struct {
-		Rule        string            `toml:"rule"`
-		Check       string            `toml:"check"`
-		Transitions []string          `toml:"transitions"`
-		Paths       []string          `toml:"paths"`
-		Size        string            `toml:"size"`
-		Exit        map[string]string `toml:"exit"`
-		Unchecked   string            `toml:"unchecked"`
-		Budget      any               `toml:"budget"`
+		Rule        string   `toml:"rule"`
+		Check       string   `toml:"check"`
+		Transitions []string `toml:"transitions"`
+		Paths       []string `toml:"paths"`
+		Judge       *struct {
+			Command string            `toml:"command"`
+			Exit    map[string]string `toml:"exit"`
+		} `toml:"judge"`
+		Unchecked string `toml:"unchecked"`
+		Budget    any    `toml:"budget"`
 	}
 	meta, err := toml.Decode(string(data), &file)
 	if err != nil {
@@ -60,24 +74,21 @@ func Parse(id string, data []byte) (Rule, error) {
 		return nil, fmt.Errorf("%w: %s: no rule", ErrInvalid, id)
 	}
 	if meta.IsDefined("unchecked") {
-		if slices.ContainsFunc([]string{"check", "transitions", "paths", "size", "exit", "budget"}, func(key string) bool { return meta.IsDefined(key) }) || file.Unchecked == "" {
+		if slices.ContainsFunc([]string{"check", "transitions", "paths", "judge", "budget"}, func(key string) bool { return meta.IsDefined(key) }) || file.Unchecked == "" {
 			return nil, fmt.Errorf("%w: %s: an unchecked rule has a reason and no check", ErrInvalid, id)
 		}
 		return Unchecked{ID: id, Statement: file.Rule, Reason: file.Unchecked}, nil
 	}
-	if file.Check == "" || len(file.Transitions) == 0 {
-		return nil, fmt.Errorf("%w: %s: a rule has a check and its transitions, or a reason for having none", ErrInvalid, id)
+	if !ids.MatchString(file.Check) || len(file.Transitions) == 0 {
+		return nil, fmt.Errorf("%w: %s: a rule has the id of its check and its transitions, or a reason for having none", ErrInvalid, id)
 	}
-	checked := Checked{ID: id, Statement: file.Rule, Command: file.Check, Size: Size(file.Size)}
+	checked := Checked{ID: id, Statement: file.Rule, Check: file.Check, Judge: ByCheck{}}
 	for _, name := range file.Transitions {
 		transition, err := ParseTransition(name)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", id, err)
 		}
 		checked.Transitions = append(checked.Transitions, transition)
-	}
-	if !slices.Contains([]Size{Small, Medium, Large}, checked.Size) {
-		return nil, fmt.Errorf("%w: %s: size %q", ErrInvalid, id, file.Size)
 	}
 	for _, glob := range file.Paths {
 		if glob == "" || strings.ContainsAny(glob, "[]!+") {
@@ -99,15 +110,22 @@ func Parse(id string, data []byte) (Rule, error) {
 		}
 		checked.Paths.patterns = append(checked.Paths.patterns, regexp.MustCompile("^"+expr.String()+"$"))
 	}
-	exit, err := parseExit(file.Exit, []Outcome{TaskFailure, WorkflowFailure, Budget})
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", id, err)
+	charges := false
+	if file.Judge != nil {
+		if file.Judge.Command == "" {
+			return nil, fmt.Errorf("%w: %s: a judge has a command", ErrInvalid, id)
+		}
+		exit, err := parseExit(file.Judge.Exit, []Outcome{TaskFailure, WorkflowFailure, Budget})
+		if err != nil {
+			return nil, fmt.Errorf("%s: judge: %w", id, err)
+		}
+		checked.Judge = Judged{Command: file.Judge.Command, Exit: exit}
+		charges = exit.other == Budget || slices.Contains(slices.Collect(maps.Values(exit.codes)), Budget)
 	}
-	checked.Exit = exit
 	switch budget := file.Budget.(type) {
 	case nil:
-		if checked.Exit.other == Budget || slices.Contains(slices.Collect(maps.Values(checked.Exit.codes)), Budget) {
-			return nil, fmt.Errorf("%w: %s: an exit charging the budget needs a budget", ErrInvalid, id)
+		if charges {
+			return nil, fmt.Errorf("%w: %s: a judge charging the budget needs a budget", ErrInvalid, id)
 		}
 	case int64:
 		checked.Budget = float64(budget)
