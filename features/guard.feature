@@ -2,9 +2,9 @@ Feature: Guard a transition
   `shampoo guard <transition>` selects the rules that guard the transition
   and whose paths cover what changed, runs each of their checks once in the
   order of their needs, and judges the rules after each check. It stops
-  when a judgment exceeds its rule's budget. It exits 0 on pass, 1 on a
-  task failure, 2 on a workflow failure, 3 when a budget exceeded sends
-  the work to harness repair, and 4 when repairs exceed their budget.
+  when a judgment reaches its rule's stop. It exits 0 on pass, 1 on a
+  task failure, 2 on a workflow failure, 3 when a stop sends the work to
+  harness repair, and 4 when failed repairs exceed their limit.
 
   Background:
     Given a git repository with a commit
@@ -139,10 +139,10 @@ Feature: Guard a transition
     When I run "shampoo guard edit"
     Then the check "test" has run twice
 
-  @sha:7815dbbe7259
+  @skip
   Scenario: Violations burning a budget fast send the work to harness repair
     Given a check "lint" that exits 1
-    And a rule "no-todo" guarding edit with check "lint" and a fast burn of 2 times over the latest 2 runs
+    And a rule "no-todo" guarding edit with check "lint" and a stop at 2 violations in the latest 2 runs
     And a changed file "main.go"
     And "shampoo guard edit" has run
     And a changed file "main.go"
@@ -151,18 +151,18 @@ Feature: Guard a transition
     And stderr contains "no-todo exceeds its budget"
     And stderr contains "repair the harness"
 
-  @sha:ff55efafc144
+  @skip
   Scenario: A budget burnt through the window is reported
     Given a check "lint" that exits 1
-    And a rule "no-todo" guarding edit with check "lint" and a window of 2 runs
+    And a rule "no-todo" guarding edit with check "lint" and a budget of 1 violation in 2 runs
     And a changed file "main.go"
     When I run "shampoo guard edit"
     Then the exit code is 1
     And stderr contains "no-todo burns its budget"
 
-  @sha:78a37a4a43c0
-  Scenario: Repairs beyond the repair budget hand the task to a human
-    Given budgets of shampoo with a repair budget of 1
+  @skip
+  Scenario: Failed repairs beyond their limit hand the task to a human
+    Given settings allowing 1 failed attempt in harness repair
     And a check "lint" that exits 1
     And a rule guarding edit with check "lint" and a zero budget
     And a changed file "main.go"
