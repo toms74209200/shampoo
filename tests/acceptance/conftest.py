@@ -55,7 +55,7 @@ def run_shampoo(workspace: Path, shampoo_binary: Path, command: str):
     )
 
 
-@given("a git repository with a commit")
+@given("a git repository with a commit", target_fixture="default_branch")
 def given_git_repository(workspace):
     git = ["git", "-C", str(workspace)]
     subprocess.run([*git, "init", "-q"], check=True)
@@ -64,6 +64,8 @@ def given_git_repository(workspace):
     (workspace / "README.md").write_text(secrets.token_hex(8) + "\n")
     subprocess.run([*git, "add", "-A"], check=True)
     subprocess.run([*git, "commit", "-q", "-m", "init"], check=True)
+    head = subprocess.run([*git, "rev-parse", "--abbrev-ref", "HEAD"], check=True, capture_output=True, text=True)
+    return head.stdout.strip()
 
 
 @given(parsers.parse('a changed file "{path}"'))
@@ -81,6 +83,25 @@ def given_command_passed(workspace, shampoo_binary, command):
         f"precondition failed: {command} exited {result.returncode}: "
         f"stdout={result.stdout!r}, stderr={result.stderr!r}"
     )
+
+
+@given(parsers.parse('"{command}" has run'))
+def given_command_ran(workspace, shampoo_binary, command):
+    run_shampoo(workspace, shampoo_binary, command)
+
+
+@given(parsers.parse('a branch "{name}"'))
+def given_branch(workspace, name):
+    subprocess.run(["git", "-C", str(workspace), "checkout", "-q", "-b", name], check=True)
+
+
+@given(parsers.parse('the branch "{name}" is committed and merged'))
+def given_branch_merged(workspace, default_branch, name):
+    git = ["git", "-C", str(workspace)]
+    subprocess.run([*git, "add", "-A"], check=True)
+    subprocess.run([*git, "commit", "-q", "-m", name], check=True)
+    subprocess.run([*git, "checkout", "-q", default_branch], check=True)
+    subprocess.run([*git, "merge", "-q", "--no-ff", "-m", f"Merge {name}", name], check=True)
 
 
 @when(parsers.parse('I run "{command}"'))
