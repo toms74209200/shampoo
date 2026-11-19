@@ -1,5 +1,3 @@
-GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
-
 .PHONY: all setup build check lint check-exceptions check-dependencies check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names check-fixed-values check-functions check-white-box check-scenarios fmt test-small test-medium test-acceptance test-tools help
 
 all: check build
@@ -13,8 +11,7 @@ build: ## Build the binary
 check: lint check-exceptions check-dependencies test-small check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names check-fixed-values check-functions check-white-box check-scenarios test-tools ## Run all checks guarding a commit
 
 lint: ## Run linters and format checks
-	$(GOLANGCI_LINT) run --build-tags small,medium,large
-	cd tools && $(GOLANGCI_LINT) run --build-tags small,medium,large
+	scripts/lint.sh
 
 check-exceptions: ## Check that no exception other than nolint is used
 	scripts/check-exceptions.sh
@@ -50,13 +47,11 @@ check-scenarios: ## Check that every scenario without a matching @sha carries @s
 	scripts/check-scenarios.sh
 
 fmt: ## Apply formatters
-	$(GOLANGCI_LINT) fmt
-	cd tools && $(GOLANGCI_LINT) fmt
+	scripts/golangci-lint.sh fmt
+	cd tools && ../scripts/golangci-lint.sh fmt
 
 test-small: ## Run small tests once, recording coverage and system calls
-	strace -qq -o /dev/null true
-	rm -rf out/traces && mkdir -p out/traces
-	TZ= CGO_ENABLED=0 TRACE_DIR=$(CURDIR)/out/traces go test -tags=small -exec $(CURDIR)/scripts/trace-exec.sh -coverpkg=./... -coverprofile=out/small.cover ./...
+	scripts/test-small.sh
 
 test-medium: ## Run medium tests, recording coverage
 	mkdir -p out

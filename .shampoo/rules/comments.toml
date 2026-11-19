@@ -1,5 +1,5 @@
 rule = "Comments are prohibited in all code, test code included. Directives are not comments and are allowed: `//go:` directives, build constraints, `// Code generated`, and `//nolint:<linter> // <reason>`."
-check = "make check-comments"
+check = "scripts/check-comments.sh"
 transitions = ["edit", "task", "pr"]
 paths = ["**.go", "scripts/check-comments.sh", "tools/**"]
 size = "small"

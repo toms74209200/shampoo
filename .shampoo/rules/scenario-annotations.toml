@@ -1,5 +1,5 @@
 rule = "Every scenario whose @sha is missing or does not match its content carries @skip (docs/design.md §5.1)."
-check = "make check-scenarios"
+check = "scripts/check-scenarios.sh"
 transitions = ["edit", "task", "pr"]
 paths = ["features/**"]
 size = "small"

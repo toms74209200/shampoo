@@ -1,5 +1,5 @@
 rule = "Every test is named `when <target> with <given conditions> then returns <expected>`."
-check = "make check-test-names"
+check = "scripts/check-test-names.sh"
 transitions = ["edit", "task", "pr"]
 paths = ["**_test.go", "scripts/check-test-names.sh", "tools/**"]
 size = "small"

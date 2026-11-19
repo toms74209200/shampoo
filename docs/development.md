@@ -16,7 +16,7 @@ The devcontainer runs `make setup` on creation, which enables the git hooks in `
 | `make test-acceptance` | Acceptance tests in `tests/acceptance` (pytest-bdd, run with uv) |
 | `make build` | Build the binary |
 
-golangci-lint is pinned in the Makefile and run through `go run`, so local runs and CI use the same version regardless of what the environment has installed.
+golangci-lint is pinned in `scripts/golangci-lint.sh`, which installs that version, so local runs and CI use the same version regardless of what the environment has installed.
 
 ## 2. Checks
 | Hook | Runs |
@@ -24,7 +24,7 @@ golangci-lint is pinned in the Makefile and run through `go run`, so local runs 
 | `pre-commit` | `make check` |
 | `commit-msg` | `scripts/check-commit.sh --msg-file` |
 
-Checks report by exit code: 0 pass, 1 task failure (the work is wrong), anything else a workflow failure (the check itself misbehaved), following design doc §3. `scripts/check-commit.sh` exits 1 on a rule violation and 2 on its own errors.
+Checks report by exit code: 0 pass, 1 task failure (the work is wrong), anything else a workflow failure (the check itself misbehaved), following design doc §3. `scripts/check-commit.sh` exits 1 on a rule violation and 2 on its own errors. A rule's check calls a script or tool directly, not a make target: make exits 2 whenever a recipe fails, which would turn every task failure into a workflow failure.
 
 Lint findings have no warnings: a finding fails the check. A false positive passes only through `//nolint:<linter> // <reason>`; `nolintlint` rejects a directive without a specific linter or a reason, so exceptions stay countable from the code.
 
@@ -128,7 +128,7 @@ Rules for CI:
 - **A run's results belong to the commit that started it.** A run may change the code before checking it (apply a formatter, generate, build, bundle) and may push what it produced; those commits are its output, covered by its results
 - **Changes made by automation arrive as PRs.** Whatever makes them, an agent, a scheduled workflow or a bot, opens its own PR rather than pushing to another PR's branch, and that PR runs CI like any other. A PR opened with the workflow token starts no workflows, so automation uses a token that does (e.g. a GitHub App's)
 - **Nothing skips CI.** Commit messages cannot skip it (§3.2)
-- **Tool versions are pinned in the Makefile, and CI runs `make`**, so local runs and CI judge the same way
+- **Tool versions are pinned in the scripts that run them, and CI runs `make`**, whose targets call those scripts, so local runs and CI judge the same way
 
 No check is required by the ruleset. GitHub's required checks are a fixed list on the head commit, while the checks a PR needs depend on its changes, and the commits CI pushes run no checks of their own. A human merges until shampoo does; shampoo then decides from the changed paths which checks must have passed, on the commit that started them (design doc §10).
 
