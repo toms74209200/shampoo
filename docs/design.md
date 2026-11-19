@@ -49,11 +49,10 @@ stateDiagram-v2
 Triggers do not add a schedule: an observed trigger creates a task, which enters the machine at Editing like any other.
 
 ## 3. Budgets
-Transitions are governed by budgets, in the manner of SRE error budgets. When to retry, escape, stop product work, or fix a check is decided by which budget is exceeded, not by ad hoc rules.
+Transitions are governed by budgets, in the manner of SRE error budgets. When to escape, stop product work, or fix a check is decided by which budget is exceeded, not by ad hoc rules.
 
 | Budget | Charged by | When exceeded |
 |---|---|---|
-| Retry | Each failed attempt at a transition | Escape to harness repair |
 | Workflow failure | Failures caused by the harness rather than the work: tool crashes, oracle nondeterminism, flaky tests | Stop product work; repair the harness |
 | Time | A check's run time, against its test size's time limit [2] | Reorganize the check |
 | False positive | Exceptions to a check | Fix the check |
@@ -71,7 +70,7 @@ Budgets work as SRE error budgets do: urgency comes from how fast a budget is co
 - **A rule's budget is part of the rule.** Its unit is a violation of the rule, and its window is counted in runs of the rule's check, not in time: there are no calendar-based runs. A check run on every edit, such as small tests, moves through its window fast, so a failure that persists over a few runs burns quickly. The rule gives its limit as counts, how many violations it allows in how many latest runs, such as 2 in 20: the share is the limit and the runs are the window
 - **A limit of zero violations tolerates nothing**: any charge acts at once, whatever the rate, for what stops everything when it fails, such as a deploy
 - **Actions follow the burn rate**, the share of the limit consumed over the share of the window elapsed, so that budgets of different rules compare on one scale. A fast burn escapes or stops work; a slow burn, through the window, leads to review or a task. A rule writes both in counts: its budget (2 in 20 runs by default), whose use in full is the slow burn and is reported, and its stop (2 in the latest 5 runs by default), the fast burn that sends the work to harness repair. shampoo computes burn rates from the counts to compare rules
-- **The budgets shampoo charges itself** (retry, workflow failure, time, human review, repair) belong to no rule, and are counted the same way over the transitions they govern. A project sets their limits in `.shampoo/settings.toml`, by the states of the state machine (§2) they belong to: `max-failed-attempts` of a state is how many failed attempts it allows before the state machine moves on, such as `[state-machine.harness-repair]` before a human
+- **The budgets shampoo charges itself** (workflow failure, time, human review, repair) belong to no rule, and are counted the same way over the transitions they govern. A project sets their limits in `.shampoo/settings.toml`, by the states of the state machine (§2) they belong to: `max-failed-attempts` of a state is how many failed attempts it allows before the state machine moves on, such as `[state-machine.harness-repair]` before a human
 
 Budgets come in four kinds. Each is attached where it is counted, by default where it always applies, with a default limit that a project overrides:
 
@@ -79,7 +78,7 @@ Budgets come in four kinds. Each is attached where it is counted, by default whe
 |---|---|---|---|---|
 | Rate | Violations in the latest runs of the check | Rule | Every rule | 2 in 20 runs |
 | Stock | Open items at a time, such as exceptions to a check | Rule | Rules that allow exceptions, when they declare it | 3 |
-| Count | Charges within a unit, such as failed attempts in one transition | Transition (retry), task (repair), milestone (workflow failure) | Always, by shampoo | 3 |
+| Count | Charges within a unit, such as entries into harness repair in one task | Task (repair), milestone (workflow failure) | Always, by shampoo | 3 |
 | Time | One run's duration, against the limit of its test size [2] | Check | Every check | Its size's limit |
 
 Budgets are kept apart from rules only when one turns out to be shared.
@@ -126,7 +125,7 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 - **A commit that changes scenario content changes no production code**
 - **A scenario with a matching `@sha` and no `@skip` that fails is a regression**: a task failure, sent back
 - **Acceptance coverage shows what skipped scenarios leave untested.** Acceptance tests run against a binary built with `-cover`
-- **When a spec change missed something** (e.g. a format change also breaks another command's tests), the implementation cannot satisfy both, exhausts its retry budget, and escapes. The repair is another spec-change task. An implementation agent that finds the spec wrong does not edit it; it escapes and proposes the spec change
+- **When a spec change missed something** (e.g. a format change also breaks another command's tests), the implementation cannot satisfy both, so its violations exceed the rule's budget and send it to harness repair. The repair is another spec-change task. An implementation agent that finds the spec wrong does not edit it; it escapes and proposes the spec change
 
 ### 5.2 Rules and policies
 | Term | Definition |
@@ -230,13 +229,13 @@ The orchestrator is level-triggered rather than event-driven. It does not react 
 The flow of one task:
 1. The orchestrator takes a task, creates a worktree, and launches a headless session
 2. On every tool call, the PostToolUse hook calls `shampoo guard edit`; on failure the agent gets the reason and fixes it
-3. When the agent tries to stop, the Stop hook calls `shampoo guard task`. On failure with retry budget left, the agent is sent back with the reason. On pass, or when the budget is exhausted, the stop is allowed and the outcome is recorded in the ledger
+3. When the agent tries to stop, the Stop hook calls `shampoo guard task`. On a violation, the agent is sent back with the reason; the rules' budgets and the repair budget decide when it stops being sent back. On pass, the stop is allowed. Every judgment is recorded in the ledger
 4. The orchestrator sees the ended session and the recorded outcome: on pass it pushes the branch and opens a PR with auto-merge; on escape it creates a harness-repair task
 5. CI runs `shampoo guard pr`. On pass, the orchestrator merges. On failure, the orchestrator launches a new session in the same worktree with the failure reason
 
 ## 12. State and ledger
 - **State** is derived from git and GitHub (a branch per task in its own worktree, the PR, whether it is merged). There is no separate state file to drift
-- **Ledger**: JSON Lines in the git common directory, shared by all worktrees and not tracked. Each judgment at a transition is appended as one line: task (its branch), transition, rule, check, outcome, the check's duration. Rate, retry, workflow-failure and time budgets are counted from it. A line is written in one append, so worktrees writing at once do not interleave lines, and a broken last line is skipped
+- **Ledger**: JSON Lines in the git common directory, shared by all worktrees and not tracked. Each judgment at a transition is appended as one line: task (its branch), transition, rule, check, outcome, the check's duration. Rate, repair, workflow-failure and time budgets are counted from it. A line is written in one append, so worktrees writing at once do not interleave lines, and a broken last line is skipped
 - **Statistics**: a separate JSON Lines file beside the ledger, one line per merged task: attempts per transition, violations per rule, run time per check. It is the evidence for tuning budgets and for drift (§3.2)
 - **Compaction is automatic**: when a guard starts, the tasks whose branch is merged are summarized into statistics, and their lines leave the ledger, except the latest runs of each check within the window (§3.1). The ledger stays the size of the windows and the open tasks
 - **JSON Lines rather than SQLite**: SQLite in Go needs cgo, which complicates cross-building and distributing one static binary, or a pure-Go port with many dependencies. The ledger only appends and reads the latest lines
