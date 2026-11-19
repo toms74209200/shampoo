@@ -1,5 +1,7 @@
+import json
 import secrets
 import shlex
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -127,6 +129,21 @@ def given_rule_judge_budget(workspace, transition, check_id, code):
     )
 
 
+def write_budgets(workspace: Path, text: str) -> None:
+    (workspace / ".shampoo").mkdir(parents=True, exist_ok=True)
+    (workspace / ".shampoo" / "budgets.toml").write_text(text)
+
+
+@given(parsers.parse("budget settings with a fast burn of {burn:d} times over the latest {count:d} runs"))
+def given_fast_burn(workspace, burn, count):
+    write_budgets(workspace, f"fast = {{ runs = {count}, burn = {burn} }}\n")
+
+
+@given(parsers.parse("budget settings with a window of {window:d} runs and a slow burn of {burn:d} time over the window"))
+def given_slow_burn(workspace, window, burn):
+    write_budgets(workspace, f"window = {window}\nslow = {{ burn = {burn} }}\n")
+
+
 def runs(runs_log: Path) -> list[str]:
     return runs_log.read_text().splitlines() if runs_log.exists() else []
 
@@ -146,3 +163,16 @@ def then_check_not_run(runs_log, check_id):
 @then(parsers.parse('the checks ran in the order "{first}", "{second}"'))
 def then_checks_order(runs_log, first, second):
     assert runs(runs_log) == [first, second], f"expected {[first, second]}, got {runs(runs_log)}"
+
+
+@then(parsers.parse('the statistics have a line for task "{task}"'))
+def then_statistics_line(workspace, task):
+    common = subprocess.run(
+        ["git", "-C", str(workspace), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    stats = Path(common) / "shampoo" / "stats.jsonl"
+    lines = [json.loads(line) for line in stats.read_text().splitlines()] if stats.exists() else []
+    assert any(line.get("task") == task for line in lines), f"expected a line for {task}, got {lines}"
