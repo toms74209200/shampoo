@@ -3,4 +3,3 @@ check = "comments"
 transitions = ["edit", "task", "pr"]
 paths = ["**.go", "scripts/check-comments.sh", "tools/**"]
 judge = { exit = { 1 = "task-failure", other = "workflow-failure" } }
-budget = 0.1

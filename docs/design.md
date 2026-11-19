@@ -72,6 +72,15 @@ Budgets work as SRE error budgets do: urgency comes from how fast a budget is co
 - **Actions follow the burn rate**, the share of the limit consumed over the share of the window elapsed, so that budgets of different rules compare on one scale. A fast burn escapes or stops work; a slow burn, through the window, leads to review or a task. The window's length and the burn rates that act are shared by all rules, until one needs its own
 - **The budgets shampoo charges itself** (retry, workflow failure, time, human review) belong to no rule, and are counted the same way over the transitions they govern
 
+Budgets come in four kinds. Each is attached where it is counted, by default where it always applies, with a default limit that a project overrides:
+
+| Kind | Counts | Attached to | By default | Default limit |
+|---|---|---|---|---|
+| Rate | Violations as a share of the check's runs | Rule | Every rule | 0.1 |
+| Stock | Open items at a time, such as exceptions to a check | Rule | Rules that allow exceptions, when they declare it | 3 |
+| Count | Charges within a unit, such as failed attempts in one transition | Transition (retry), milestone (workflow failure) | Always, by shampoo | 3 |
+| Time | One run's duration, against the limit of its test size [2] | Check | Every check | Its size's limit |
+
 Budgets are kept apart from rules only when one turns out to be shared.
 
 ### 3.2 Drift
