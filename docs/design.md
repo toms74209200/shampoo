@@ -58,6 +58,7 @@ Transitions are governed by budgets, in the manner of SRE error budgets. When to
 | Time | A check's run time, against its test size's time limit [2] | Reorganize the check |
 | False positive | Exceptions to a check | Fix the check |
 | Human review | Exceptions and workflow changes awaiting asynchronous human review | Stop until reviewed |
+| Repair | Each entry into harness repair within a task | Hand the task to a human |
 
 Charging the right budget requires telling a task failure (the check found a problem in the work) from a workflow failure (the harness misbehaved). Every check reports which one it is.
 
@@ -69,8 +70,8 @@ Initial values are guesses and are adjusted from observation.
 Budgets work as SRE error budgets do: urgency comes from how fast a budget is consumed, not from each failure on its own.
 - **A rule's budget is part of the rule.** Its unit is a violation of the rule, and its window is counted in runs of the rule's check, not in time: there are no calendar-based runs. A check run on every edit, such as small tests, moves through its window fast, so a failure that persists over a few runs burns quickly. The rule gives its limit: the share of its check's runs it may violate
 - **A limit of zero tolerates nothing**: any charge acts at once, whatever the rate, for what stops everything when it fails, such as a deploy
-- **Actions follow the burn rate**, the share of the limit consumed over the share of the window elapsed, so that budgets of different rules compare on one scale. A fast burn escapes or stops work; a slow burn, through the window, leads to review or a task. The window's length and the burn rates that act are shared by all rules, until one needs its own. They are set in `.shampoo/budgets.toml`, defaulting to a window of 20 runs, a fast burn of 4 times over the latest 5 runs, which stops the guard, and a slow burn of 1 time over the window, which is reported
-- **The budgets shampoo charges itself** (retry, workflow failure, time, human review) belong to no rule, and are counted the same way over the transitions they govern
+- **Actions follow the burn rate**, the share of the limit consumed over the share of the window elapsed, so that budgets of different rules compare on one scale. A fast burn escapes or stops work; a slow burn, through the window, leads to review or a task. The window's length and the burn rates that act are attributes of each rule, like its limit, with defaults shared by all rules: a window of 20 runs, a fast burn of 4 times over the latest 5 runs and a slow burn of 1 time over the window. A fast burn sends the work to harness repair; a slow burn is reported
+- **The budgets shampoo charges itself** (retry, workflow failure, time, human review, repair) belong to no rule, and are counted the same way over the transitions they govern. A project sets their limits in `.shampoo/budgets.toml`
 
 Budgets come in four kinds. Each is attached where it is counted, by default where it always applies, with a default limit that a project overrides:
 
@@ -78,7 +79,7 @@ Budgets come in four kinds. Each is attached where it is counted, by default whe
 |---|---|---|---|---|
 | Rate | Violations as a share of the check's runs | Rule | Every rule | 0.1 |
 | Stock | Open items at a time, such as exceptions to a check | Rule | Rules that allow exceptions, when they declare it | 3 |
-| Count | Charges within a unit, such as failed attempts in one transition | Transition (retry), milestone (workflow failure) | Always, by shampoo | 3 |
+| Count | Charges within a unit, such as failed attempts in one transition | Transition (retry), task (repair), milestone (workflow failure) | Always, by shampoo | 3 |
 | Time | One run's duration, against the limit of its test size [2] | Check | Every check | Its size's limit |
 
 Budgets are kept apart from rules only when one turns out to be shared.
@@ -152,7 +153,7 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 A project provides these in `.shampoo/`, one file per item, named by its id:
 - **Rules** (`.shampoo/rules/`), each with the transitions it guards, the paths whose changes start it, the id of its check, its judge and its budget (§3.1); a rule without a check states why, as `unchecked`
 - **Checks** (`.shampoo/checks/`), each with its command, its test size and the checks it needs
-- **Budget settings** (`.shampoo/budgets.toml`), optional: the window and the burn rates that act (§3.1)
+- **Budgets of shampoo** (`.shampoo/budgets.toml`), optional: the limits of the budgets shampoo charges itself, such as repair (§3)
 - **Policies** (`.shampoo/policies/`), each with its code example (§5.2)
 - **Task sources**: where tasks come from (for jeer: clusters of mismatches against the oracle)
 
