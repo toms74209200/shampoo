@@ -22,6 +22,14 @@ type Checked struct {
 	Transitions []Transition
 	Paths       Paths
 	Budget      float64
+	Window      int
+	Fast        Burn
+	Slow        Burn
+}
+
+type Burn struct {
+	Runs int
+	Rate float64
 }
 
 type Unchecked struct {
@@ -63,7 +71,16 @@ func Parse(id string, data []byte) (Rule, error) {
 		} `toml:"judge"`
 		Unchecked string `toml:"unchecked"`
 		Budget    any    `toml:"budget"`
+		Window    int    `toml:"window"`
+		Fast      struct {
+			Runs int     `toml:"runs"`
+			Burn float64 `toml:"burn"`
+		} `toml:"fast"`
+		Slow struct {
+			Burn float64 `toml:"burn"`
+		} `toml:"slow"`
 	}
+	file.Window, file.Fast.Runs, file.Fast.Burn, file.Slow.Burn = 20, 5, 4, 1
 	meta, err := toml.Decode(string(data), &file)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s: %v", ErrInvalid, id, err)
@@ -75,7 +92,7 @@ func Parse(id string, data []byte) (Rule, error) {
 		return nil, fmt.Errorf("%w: %s: no rule", ErrInvalid, id)
 	}
 	if meta.IsDefined("unchecked") {
-		if slices.ContainsFunc([]string{"check", "transitions", "paths", "judge", "budget"}, func(key string) bool { return meta.IsDefined(key) }) || file.Unchecked == "" {
+		if slices.ContainsFunc([]string{"check", "transitions", "paths", "judge", "budget", "window", "fast", "slow"}, func(key string) bool { return meta.IsDefined(key) }) || file.Unchecked == "" {
 			return nil, fmt.Errorf("%w: %s: an unchecked rule has a reason and no check", ErrInvalid, id)
 		}
 		return Unchecked{ID: id, Statement: file.Rule, Reason: file.Unchecked}, nil
@@ -138,5 +155,11 @@ func Parse(id string, data []byte) (Rule, error) {
 	if checked.Budget < 0 || checked.Budget > 1 {
 		return nil, fmt.Errorf("%w: %s: budget %v is not a share between 0 and 1", ErrInvalid, id, checked.Budget)
 	}
+	if file.Window < 1 || file.Fast.Runs < 1 || file.Fast.Burn <= 0 || file.Slow.Burn <= 0 {
+		return nil, fmt.Errorf("%w: %s: windows hold at least one run, and burn rates are positive", ErrInvalid, id)
+	}
+	checked.Window = file.Window
+	checked.Fast = Burn{Runs: min(file.Fast.Runs, file.Window), Rate: file.Fast.Burn}
+	checked.Slow = Burn{Runs: file.Window, Rate: file.Slow.Burn}
 	return checked, nil
 }
