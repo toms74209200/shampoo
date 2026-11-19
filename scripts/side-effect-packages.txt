@@ -1,1 +1,2 @@
 github.com/toms74209200/shampoo/internal/files
+github.com/toms74209200/shampoo/internal/git
