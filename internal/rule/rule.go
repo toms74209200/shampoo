@@ -6,7 +6,6 @@ import (
 	"maps"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -69,7 +68,7 @@ func Parse(id string, data []byte) (Rule, error) {
 	if file.Check == "" || len(file.Transitions) == 0 {
 		return nil, fmt.Errorf("%w: %s: a rule has a check and its transitions, or a reason for having none", ErrInvalid, id)
 	}
-	checked := Checked{ID: id, Statement: file.Rule, Command: file.Check, Size: Size(file.Size), Exit: Exit{codes: map[int]Outcome{}}}
+	checked := Checked{ID: id, Statement: file.Rule, Command: file.Check, Size: Size(file.Size)}
 	for _, name := range file.Transitions {
 		transition, err := ParseTransition(name)
 		if err != nil {
@@ -100,24 +99,11 @@ func Parse(id string, data []byte) (Rule, error) {
 		}
 		checked.Paths.patterns = append(checked.Paths.patterns, regexp.MustCompile("^"+expr.String()+"$"))
 	}
-	for key, value := range file.Exit {
-		outcome := Outcome(value)
-		if !slices.Contains([]Outcome{TaskFailure, WorkflowFailure, Budget}, outcome) {
-			return nil, fmt.Errorf("%w: %s: exit outcome %q", ErrInvalid, id, value)
-		}
-		if key == "other" {
-			checked.Exit.other = outcome
-			continue
-		}
-		code, err := strconv.Atoi(key)
-		if err != nil || code <= 0 {
-			return nil, fmt.Errorf("%w: %s: exit code %q", ErrInvalid, id, key)
-		}
-		checked.Exit.codes[code] = outcome
+	exit, err := parseExit(file.Exit, []Outcome{TaskFailure, WorkflowFailure, Budget})
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", id, err)
 	}
-	if checked.Exit.other == "" {
-		return nil, fmt.Errorf("%w: %s: exit has no other", ErrInvalid, id)
-	}
+	checked.Exit = exit
 	switch budget := file.Budget.(type) {
 	case nil:
 		if checked.Exit.other == Budget || slices.Contains(slices.Collect(maps.Values(checked.Exit.codes)), Budget) {

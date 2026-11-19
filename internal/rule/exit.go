@@ -1,5 +1,11 @@
 package rule
 
+import (
+	"fmt"
+	"slices"
+	"strconv"
+)
+
 type Outcome string
 
 const (
@@ -22,4 +28,27 @@ func (e Exit) Outcome(code int) Outcome {
 		return outcome
 	}
 	return e.other
+}
+
+func parseExit(entries map[string]string, outcomes []Outcome) (Exit, error) {
+	exit := Exit{codes: map[int]Outcome{}}
+	for key, value := range entries {
+		outcome := Outcome(value)
+		if !slices.Contains(outcomes, outcome) {
+			return Exit{}, fmt.Errorf("%w: exit outcome %q", ErrInvalid, value)
+		}
+		if key == "other" {
+			exit.other = outcome
+			continue
+		}
+		code, err := strconv.Atoi(key)
+		if err != nil || code <= 0 {
+			return Exit{}, fmt.Errorf("%w: exit code %q", ErrInvalid, key)
+		}
+		exit.codes[code] = outcome
+	}
+	if exit.other == "" {
+		return Exit{}, fmt.Errorf("%w: exit has no other", ErrInvalid)
+	}
+	return exit, nil
 }
