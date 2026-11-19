@@ -3,7 +3,8 @@ Feature: Guard a transition
   and whose paths cover what changed, runs each of their checks once in the
   order of their needs, and judges the rules after each check. It stops
   when a judgment exceeds its rule's budget. It exits 0 on pass, 1 on a
-  task failure, 2 on a workflow failure and 3 on a budget exceeded.
+  task failure, 2 on a workflow failure, 3 when a budget exceeded sends
+  the work to harness repair, and 4 when repairs exceed their budget.
 
   Background:
     Given a git repository with a commit
@@ -138,26 +139,37 @@ Feature: Guard a transition
     When I run "shampoo guard edit"
     Then the check "test" has run twice
 
-  @sha:059f465d16fc
-  Scenario: Violations burning a budget fast stop the guard
-    Given budget settings with a fast burn of 2 times over the latest 2 runs
-    And a check "lint" that exits 1
-    And a rule guarding edit with check "lint"
+  @skip
+  Scenario: Violations burning a budget fast send the work to harness repair
+    Given a check "lint" that exits 1
+    And a rule "no-todo" guarding edit with check "lint" and a fast burn of 2 times over the latest 2 runs
     And a changed file "main.go"
     And "shampoo guard edit" has run
     And a changed file "main.go"
     When I run "shampoo guard edit"
     Then the exit code is 3
+    And stderr contains "no-todo exceeds its budget"
+    And stderr contains "repair the harness"
 
-  @sha:17a7fd440fb7
+  @skip
   Scenario: A budget burnt through the window is reported
-    Given budget settings with a window of 2 runs and a slow burn of 1 time over the window
-    And a check "lint" that exits 1
-    And a rule "no-todo" guarding edit with check "lint"
+    Given a check "lint" that exits 1
+    And a rule "no-todo" guarding edit with check "lint" and a window of 2 runs
     And a changed file "main.go"
     When I run "shampoo guard edit"
     Then the exit code is 1
     And stderr contains "no-todo burns its budget"
+
+  @skip
+  Scenario: Repairs beyond the repair budget hand the task to a human
+    Given budgets of shampoo with a repair budget of 1
+    And a check "lint" that exits 1
+    And a rule guarding edit with check "lint" and a zero budget
+    And a changed file "main.go"
+    And "shampoo guard edit" has run
+    And a changed file "main.go"
+    When I run "shampoo guard edit"
+    Then the exit code is 4
 
   @sha:98e6ba68126e
   Scenario: A merged task is summarized into statistics
