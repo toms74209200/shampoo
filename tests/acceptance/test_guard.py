@@ -29,7 +29,7 @@ def write_rule(
     transition: str,
     check_id: str,
     judge: str = f"{{ exit = {VIOLATION} }}",
-    budget: str = "0.5",
+    budget: str = "{ violations = 5, runs = 10 }",
     extra: str = "",
 ) -> None:
     rules = workspace / ".shampoo" / "rules"
@@ -84,12 +84,12 @@ def given_named_rule(workspace, rule_id, transition, check_id):
 
 @given(parsers.parse('a rule guarding {transition:w} with check "{check_id}" and a zero budget'))
 def given_rule_zero_budget(workspace, transition, check_id):
-    write_rule(workspace, new_id(), transition, check_id, budget="0")
+    write_rule(workspace, new_id(), transition, check_id, budget="{ violations = 0, runs = 1 }")
 
 
 @given(parsers.parse('a rule "{rule_id}" guarding {transition:w} with check "{check_id}" and a zero budget'))
 def given_named_rule_zero_budget(workspace, rule_id, transition, check_id):
-    write_rule(workspace, rule_id, transition, check_id, budget="0")
+    write_rule(workspace, rule_id, transition, check_id, budget="{ violations = 0, runs = 1 }")
 
 
 @given(parsers.parse('a rule guarding {transition:w} with check "{check_id}" judging exit {code:d} as a workflow failure'))
@@ -131,22 +131,28 @@ def given_rule_judge_budget(workspace, transition, check_id, code):
 
 @given(
     parsers.parse(
-        'a rule "{rule_id}" guarding {transition:w} with check "{check_id}" and a fast burn of {burn:d} times over the latest {count:d} runs'
+        'a rule "{rule_id}" guarding {transition:w} with check "{check_id}" and a stop at {violations:d} violations in the latest {count:d} runs'
     )
 )
-def given_rule_fast_burn(workspace, rule_id, transition, check_id, burn, count):
-    write_rule(workspace, rule_id, transition, check_id, extra=f"fast = {{ runs = {count}, burn = {burn} }}\n")
+def given_rule_stop(workspace, rule_id, transition, check_id, violations, count):
+    write_rule(workspace, rule_id, transition, check_id, extra=f"stop = {{ violations = {violations}, runs = {count} }}\n")
 
 
-@given(parsers.parse('a rule "{rule_id}" guarding {transition:w} with check "{check_id}" and a window of {window:d} runs'))
-def given_rule_window(workspace, rule_id, transition, check_id, window):
-    write_rule(workspace, rule_id, transition, check_id, extra=f"window = {window}\n")
+@given(
+    parsers.parse(
+        'a rule "{rule_id}" guarding {transition:w} with check "{check_id}" and a budget of {violations:d} violation in {count:d} runs'
+    )
+)
+def given_rule_budget_counts(workspace, rule_id, transition, check_id, violations, count):
+    write_rule(workspace, rule_id, transition, check_id, budget=f"{{ violations = {violations}, runs = {count} }}")
 
 
-@given(parsers.parse("budgets of shampoo with a repair budget of {count:d}"))
-def given_repair_budget(workspace, count):
+@given(parsers.parse("settings allowing {count:d} failed attempt in harness repair"))
+def given_repair_limit(workspace, count):
     (workspace / ".shampoo").mkdir(parents=True, exist_ok=True)
-    (workspace / ".shampoo" / "budgets.toml").write_text(f"repair = {count}\n")
+    (workspace / ".shampoo" / "settings.toml").write_text(
+        f'[state-machine.harness-repair]\nmax-failed-attempts = {count}\n'
+    )
 
 
 def runs(runs_log: Path) -> list[str]:
