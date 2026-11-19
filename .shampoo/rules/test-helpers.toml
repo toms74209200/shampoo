@@ -1,5 +1,5 @@
 rule = "Test helpers are prohibited. A test file declares only `Test`, `Fuzz` and `Example` functions, and does not call `t.Helper()`."
-check = "make check-test-helpers"
+check = "scripts/check-test-helpers.sh"
 transitions = ["edit", "task", "pr"]
 paths = ["**_test.go", "scripts/check-test-helpers.sh", "tools/**"]
 size = "small"

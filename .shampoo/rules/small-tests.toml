@@ -1,6 +1,6 @@
 rule = "Every small test passes."
-check = "make test-small"
+check = "scripts/test-small.sh"
 transitions = ["edit", "task", "pr"]
-paths = ["**.go", "go.mod", "go.sum", "Makefile"]
+paths = ["**.go", "go.mod", "go.sum", "scripts/test-small.sh", "scripts/trace-exec.sh"]
 size = "small"
 exit = { 1 = "task-failure", other = "workflow-failure" }

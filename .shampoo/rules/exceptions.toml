@@ -1,5 +1,5 @@
 rule = "Exceptions other than `//nolint:<linter> // <reason>` are prohibited."
-check = "make check-exceptions"
+check = "scripts/check-exceptions.sh"
 transitions = ["edit", "task", "pr"]
 paths = ["**.go", ".golangci.yml", "scripts/check-exceptions.sh"]
 size = "small"
