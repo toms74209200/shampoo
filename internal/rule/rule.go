@@ -21,15 +21,13 @@ type Checked struct {
 	Judge       Judge
 	Transitions []Transition
 	Paths       Paths
-	Budget      float64
-	Window      int
-	Fast        Burn
-	Slow        Burn
+	Budget      Count
+	Stop        Count
 }
 
-type Burn struct {
-	Runs int
-	Rate float64
+type Count struct {
+	Violations int
+	Runs       int
 }
 
 type Unchecked struct {
@@ -70,17 +68,16 @@ func Parse(id string, data []byte) (Rule, error) {
 			Exit    map[string]string `toml:"exit"`
 		} `toml:"judge"`
 		Unchecked string `toml:"unchecked"`
-		Budget    any    `toml:"budget"`
-		Window    int    `toml:"window"`
-		Fast      struct {
-			Runs int     `toml:"runs"`
-			Burn float64 `toml:"burn"`
-		} `toml:"fast"`
-		Slow struct {
-			Burn float64 `toml:"burn"`
-		} `toml:"slow"`
+		Budget    struct {
+			Violations int `toml:"violations"`
+			Runs       int `toml:"runs"`
+		} `toml:"budget"`
+		Stop struct {
+			Violations int `toml:"violations"`
+			Runs       int `toml:"runs"`
+		} `toml:"stop"`
 	}
-	file.Window, file.Fast.Runs, file.Fast.Burn, file.Slow.Burn = 20, 5, 4, 1
+	file.Budget.Violations, file.Budget.Runs, file.Stop.Violations, file.Stop.Runs = 2, 20, 2, 5
 	meta, err := toml.Decode(string(data), &file)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s: %v", ErrInvalid, id, err)
@@ -92,7 +89,7 @@ func Parse(id string, data []byte) (Rule, error) {
 		return nil, fmt.Errorf("%w: %s: no rule", ErrInvalid, id)
 	}
 	if meta.IsDefined("unchecked") {
-		if slices.ContainsFunc([]string{"check", "transitions", "paths", "judge", "budget", "window", "fast", "slow"}, func(key string) bool { return meta.IsDefined(key) }) || file.Unchecked == "" {
+		if slices.ContainsFunc([]string{"check", "transitions", "paths", "judge", "budget", "stop"}, func(key string) bool { return meta.IsDefined(key) }) || file.Unchecked == "" {
 			return nil, fmt.Errorf("%w: %s: an unchecked rule has a reason and no check", ErrInvalid, id)
 		}
 		return Unchecked{ID: id, Statement: file.Rule, Reason: file.Unchecked}, nil
@@ -142,24 +139,10 @@ func Parse(id string, data []byte) (Rule, error) {
 		}
 		checked.Judge = ByCommand{Command: file.Judge.Command, Exit: exit}
 	}
-	switch budget := file.Budget.(type) {
-	case nil:
-		checked.Budget = 0.1
-	case int64:
-		checked.Budget = float64(budget)
-	case float64:
-		checked.Budget = budget
-	default:
-		return nil, fmt.Errorf("%w: %s: budget %v is not a number", ErrInvalid, id, budget)
+	if file.Budget.Runs < 1 || file.Budget.Violations < 0 || file.Budget.Violations > file.Budget.Runs || file.Stop.Runs < 1 || file.Stop.Violations < 1 || file.Stop.Violations > file.Stop.Runs {
+		return nil, fmt.Errorf("%w: %s: a budget allows from none to all of at least one run, and a stop takes from one to all of at least one run", ErrInvalid, id)
 	}
-	if checked.Budget < 0 || checked.Budget > 1 {
-		return nil, fmt.Errorf("%w: %s: budget %v is not a share between 0 and 1", ErrInvalid, id, checked.Budget)
-	}
-	if file.Window < 1 || file.Fast.Runs < 1 || file.Fast.Burn <= 0 || file.Slow.Burn <= 0 {
-		return nil, fmt.Errorf("%w: %s: windows hold at least one run, and burn rates are positive", ErrInvalid, id)
-	}
-	checked.Window = file.Window
-	checked.Fast = Burn{Runs: min(file.Fast.Runs, file.Window), Rate: file.Fast.Burn}
-	checked.Slow = Burn{Runs: file.Window, Rate: file.Slow.Burn}
+	checked.Budget = Count{Violations: file.Budget.Violations, Runs: file.Budget.Runs}
+	checked.Stop = Count{Violations: file.Stop.Violations, Runs: file.Stop.Runs}
 	return checked, nil
 }

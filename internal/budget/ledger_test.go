@@ -4,7 +4,6 @@ package budget
 
 import (
 	"crypto/rand"
-	"math"
 	"reflect"
 	"testing"
 
@@ -32,28 +31,25 @@ func TestParseLedger(t *testing.T) {
 	}
 }
 
-func TestBurnRate(t *testing.T) {
+func TestViolations(t *testing.T) {
 	target := rand.Text()
 	other := rand.Text()
 	tests := []struct {
 		name  string
 		runs  int
 		lines []Line
-		limit float64
-		want  float64
+		want  int
 	}{
-		{name: "when BurnRate with violations in the latest runs then returns their share over the limit", runs: 2, lines: []Line{{Rule: target, Outcome: rule.Outcome("task-failure")}, {Rule: target, Outcome: rule.Outcome("pass")}, {Rule: other, Outcome: rule.Outcome("task-failure")}, {Rule: target, Outcome: rule.Outcome("budget")}}, limit: 0.5, want: 1},
-		{name: "when BurnRate with fewer runs than its window then returns the missing runs as non-violations", runs: 4, lines: []Line{{Rule: target, Outcome: rule.Outcome("task-failure")}}, limit: 0.5, want: 0.5},
-		{name: "when BurnRate with a workflow failure then returns no burn", runs: 2, lines: []Line{{Rule: target, Outcome: rule.Outcome("workflow-failure")}}, limit: 0.1, want: 0},
-		{name: "when BurnRate with a violation against a zero limit then returns infinity", runs: 2, lines: []Line{{Rule: target, Outcome: rule.Outcome("task-failure")}}, limit: 0, want: math.Inf(1)},
-		{name: "when BurnRate with no violation against a zero limit then returns no burn", runs: 2, lines: []Line{{Rule: target, Outcome: rule.Outcome("pass")}}, limit: 0, want: 0},
+		{name: "when Violations with violations in the latest runs then returns their count", runs: 2, lines: []Line{{Rule: target, Outcome: rule.Outcome("task-failure")}, {Rule: target, Outcome: rule.Outcome("pass")}, {Rule: other, Outcome: rule.Outcome("task-failure")}, {Rule: target, Outcome: rule.Outcome("budget")}}, want: 1},
+		{name: "when Violations with fewer runs than asked then returns the violations there are", runs: 4, lines: []Line{{Rule: target, Outcome: rule.Outcome("task-failure")}}, want: 1},
+		{name: "when Violations with a workflow failure then returns zero", runs: 2, lines: []Line{{Rule: target, Outcome: rule.Outcome("workflow-failure")}}, want: 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := BurnRate(tt.lines, target, tt.runs, tt.limit)
+			got := Violations(tt.lines, target, tt.runs)
 
 			if got != tt.want {
-				t.Errorf("got %v, want %v", got, tt.want)
+				t.Errorf("got %d, want %d", got, tt.want)
 			}
 		})
 	}

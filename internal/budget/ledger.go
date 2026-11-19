@@ -3,7 +3,6 @@ package budget
 import (
 	"bytes"
 	"encoding/json"
-	"math"
 	"slices"
 
 	"github.com/toms74209200/shampoo/internal/rule"
@@ -38,7 +37,7 @@ func ParseLedger(data []byte) []Line {
 	return lines
 }
 
-func BurnRate(lines []Line, ruleID string, runs int, limit float64) float64 {
+func Violations(lines []Line, ruleID string, runs int) int {
 	violations, seen := 0, 0
 	for _, line := range slices.Backward(lines) {
 		if seen == runs {
@@ -52,13 +51,7 @@ func BurnRate(lines []Line, ruleID string, runs int, limit float64) float64 {
 			violations++
 		}
 	}
-	if violations == 0 {
-		return 0
-	}
-	if limit == 0 {
-		return math.Inf(1)
-	}
-	return float64(violations) / float64(runs) / limit
+	return violations
 }
 
 func Repairs(lines []Line, task string) int {

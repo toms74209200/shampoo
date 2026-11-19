@@ -7,16 +7,21 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-var ErrInvalid = errors.New("invalid budgets of shampoo")
+var ErrInvalid = errors.New("invalid settings")
 
 type Settings struct {
-	Repair int
+	RepairAttempts int
 }
 
 func ParseSettings(data []byte) (Settings, error) {
-	file := struct {
-		Repair int `toml:"repair"`
-	}{Repair: 3}
+	var file struct {
+		StateMachine struct {
+			HarnessRepair struct {
+				MaxFailedAttempts int `toml:"max-failed-attempts"`
+			} `toml:"harness-repair"`
+		} `toml:"state-machine"`
+	}
+	file.StateMachine.HarnessRepair.MaxFailedAttempts = 3
 	meta, err := toml.Decode(string(data), &file)
 	if err != nil {
 		return Settings{}, fmt.Errorf("%w: %v", ErrInvalid, err)
@@ -24,8 +29,8 @@ func ParseSettings(data []byte) (Settings, error) {
 	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
 		return Settings{}, fmt.Errorf("%w: unknown fields %v", ErrInvalid, undecoded)
 	}
-	if file.Repair < 0 {
-		return Settings{}, fmt.Errorf("%w: repair %d is negative", ErrInvalid, file.Repair)
+	if file.StateMachine.HarnessRepair.MaxFailedAttempts < 0 {
+		return Settings{}, fmt.Errorf("%w: max-failed-attempts %d is negative", ErrInvalid, file.StateMachine.HarnessRepair.MaxFailedAttempts)
 	}
-	return Settings{Repair: file.Repair}, nil
+	return Settings{RepairAttempts: file.StateMachine.HarnessRepair.MaxFailedAttempts}, nil
 }
