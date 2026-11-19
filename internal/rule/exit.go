@@ -14,6 +14,7 @@ const (
 	WorkflowFailure Outcome = "workflow-failure"
 	Budget          Outcome = "budget"
 	Exceeded        Outcome = "budget-exceeded"
+	Handed          Outcome = "repair-exceeded"
 )
 
 type Exit struct {

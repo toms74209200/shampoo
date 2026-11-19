@@ -24,6 +24,7 @@ type Summary struct {
 	Attempts   map[string]int   `json:"attempts"`
 	Violations map[string]int   `json:"violations"`
 	Millis     map[string]int64 `json:"millis"`
+	Repairs    int              `json:"repairs"`
 }
 
 func ParseLedger(data []byte) []Line {
@@ -37,16 +38,16 @@ func ParseLedger(data []byte) []Line {
 	return lines
 }
 
-func (b Burn) Of(lines []Line, ruleID string, limit float64) float64 {
-	violations, runs := 0, 0
+func BurnRate(lines []Line, ruleID string, runs int, limit float64) float64 {
+	violations, seen := 0, 0
 	for _, line := range slices.Backward(lines) {
-		if runs == b.Runs {
+		if seen == runs {
 			break
 		}
 		if line.Rule != ruleID {
 			continue
 		}
-		runs++
+		seen++
 		if line.Outcome == rule.TaskFailure || line.Outcome == rule.Budget {
 			violations++
 		}
@@ -57,7 +58,17 @@ func (b Burn) Of(lines []Line, ruleID string, limit float64) float64 {
 	if limit == 0 {
 		return math.Inf(1)
 	}
-	return float64(violations) / float64(b.Runs) / limit
+	return float64(violations) / float64(runs) / limit
+}
+
+func Repairs(lines []Line, task string) int {
+	repairs := 0
+	for _, line := range lines {
+		if line.Task == task && line.Outcome == rule.Exceeded {
+			repairs++
+		}
+	}
+	return repairs
 }
 
 type Compaction struct {
@@ -98,6 +109,10 @@ func Compact(lines []Line, open []string, window int) Compaction {
 		if !attempted[line.Run] {
 			attempted[line.Run] = true
 			summaries[at].Attempts[line.Transition]++
+		}
+		if line.Outcome == rule.Exceeded {
+			summaries[at].Repairs++
+			continue
 		}
 		if !timed[[2]string{line.Run, line.Check}] {
 			timed[[2]string{line.Run, line.Check}] = true

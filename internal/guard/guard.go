@@ -63,10 +63,16 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 	if err != nil {
 		return rule.WorkflowFailure, "", err
 	}
+	window := 0
+	for _, r := range rules {
+		if checked, ok := r.(rule.Checked); ok {
+			window = max(window, checked.Window)
+		}
+	}
 	ledgerPath := filepath.Join(repo.CommonDir, "shampoo", "ledger.jsonl")
 	var compaction budget.Compaction
 	err = files.Update(ledgerPath, func(data []byte) ([]byte, error) {
-		compaction = budget.Compact(budget.ParseLedger(data), append(unmerged, branch), settings.Window)
+		compaction = budget.Compact(budget.ParseLedger(data), append(unmerged, branch), window)
 		var kept []byte
 		for _, line := range compaction.Kept {
 			encoded, err := json.Marshal(line)
@@ -156,16 +162,34 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 			if verdict != rule.WorkflowFailure && (outcome == rule.TaskFailure || outcome == rule.WorkflowFailure) {
 				verdict = outcome
 			}
-			if burn := settings.Slow.Of(lines, checked.ID, checked.Budget); burn >= settings.Slow.Rate {
-				report += fmt.Sprintf("%s burns its budget: %.1f times over the latest %d runs\n", checked.ID, burn, settings.Slow.Runs)
+			if outcome != rule.TaskFailure && outcome != rule.Budget {
+				continue
 			}
-			if burn := settings.Fast.Of(lines, checked.ID, checked.Budget); burn >= settings.Fast.Rate {
-				report += fmt.Sprintf("%s exceeds its budget: %.1f times over the latest %d runs\n", checked.ID, burn, settings.Fast.Runs)
+			if burn := budget.BurnRate(lines, checked.ID, checked.Slow.Runs, checked.Budget); burn >= checked.Slow.Rate {
+				report += fmt.Sprintf("%s burns its budget: %.1f times over the latest %d runs\n", checked.ID, burn, checked.Slow.Runs)
+			}
+			if burn := budget.BurnRate(lines, checked.ID, checked.Fast.Runs, checked.Budget); burn >= checked.Fast.Rate {
+				report += fmt.Sprintf("%s exceeds its budget: %.1f times over the latest %d runs\n", checked.ID, burn, checked.Fast.Runs)
 				exceeded = true
 			}
 		}
 		if exceeded {
-			return rule.Exceeded, report, nil
+			repair := budget.Line{Run: run, Task: branch, Transition: string(transition), Outcome: rule.Exceeded}
+			encoded, err := json.Marshal(repair)
+			if err != nil {
+				return rule.WorkflowFailure, report, err
+			}
+			err = files.Update(ledgerPath, func(data []byte) ([]byte, error) {
+				return append(append(data, encoded...), '\n'), nil
+			})
+			if err != nil {
+				return rule.WorkflowFailure, report, err
+			}
+			lines = append(lines, repair)
+			if repairs := budget.Repairs(lines, branch); repairs > settings.Repair {
+				return rule.Handed, report + fmt.Sprintf("repairs in %s exceed their budget of %d: hand the task to a human\n", branch, settings.Repair), nil
+			}
+			return rule.Exceeded, report + "repair the harness: find whether the work or the check causes the repeated violations, before going on with the task\n", nil
 		}
 	}
 	if verdict == rule.Pass {

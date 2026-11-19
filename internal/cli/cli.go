@@ -19,7 +19,7 @@ func Run(args []string, stderr io.Writer) int {
 		code, message = 2, fmt.Sprintf("shampoo guard: %s is not implemented yet\n", transition)
 	} else {
 		outcome, report, err := guard.Run("", transition)
-		code, message = map[rule.Outcome]int{rule.TaskFailure: 1, rule.WorkflowFailure: 2, rule.Exceeded: 3}[outcome], report
+		code, message = map[rule.Outcome]int{rule.TaskFailure: 1, rule.WorkflowFailure: 2, rule.Exceeded: 3, rule.Handed: 4}[outcome], report
 		if err != nil {
 			message += fmt.Sprintf("shampoo guard: %v\n", err)
 		}

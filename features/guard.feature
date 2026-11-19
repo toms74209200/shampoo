@@ -139,7 +139,7 @@ Feature: Guard a transition
     When I run "shampoo guard edit"
     Then the check "test" has run twice
 
-  @skip
+  @sha:7815dbbe7259
   Scenario: Violations burning a budget fast send the work to harness repair
     Given a check "lint" that exits 1
     And a rule "no-todo" guarding edit with check "lint" and a fast burn of 2 times over the latest 2 runs
@@ -151,7 +151,7 @@ Feature: Guard a transition
     And stderr contains "no-todo exceeds its budget"
     And stderr contains "repair the harness"
 
-  @skip
+  @sha:ff55efafc144
   Scenario: A budget burnt through the window is reported
     Given a check "lint" that exits 1
     And a rule "no-todo" guarding edit with check "lint" and a window of 2 runs
@@ -160,7 +160,7 @@ Feature: Guard a transition
     Then the exit code is 1
     And stderr contains "no-todo burns its budget"
 
-  @skip
+  @sha:78a37a4a43c0
   Scenario: Repairs beyond the repair budget hand the task to a human
     Given budgets of shampoo with a repair budget of 1
     And a check "lint" that exits 1
