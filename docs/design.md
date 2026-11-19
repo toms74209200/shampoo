@@ -69,7 +69,7 @@ Initial values are guesses and are adjusted from observation.
 Budgets work as SRE error budgets do: urgency comes from how fast a budget is consumed, not from each failure on its own.
 - **A rule's budget is part of the rule.** Its unit is a violation of the rule, and its window is counted in runs of the rule's check, not in time: there are no calendar-based runs. A check run on every edit, such as small tests, moves through its window fast, so a failure that persists over a few runs burns quickly. The rule gives its limit: the share of its check's runs it may violate
 - **A limit of zero tolerates nothing**: any charge acts at once, whatever the rate, for what stops everything when it fails, such as a deploy
-- **Actions follow the burn rate**, the share of the limit consumed over the share of the window elapsed, so that budgets of different rules compare on one scale. A fast burn escapes or stops work; a slow burn, through the window, leads to review or a task. The window's length and the burn rates that act are shared by all rules, until one needs its own
+- **Actions follow the burn rate**, the share of the limit consumed over the share of the window elapsed, so that budgets of different rules compare on one scale. A fast burn escapes or stops work; a slow burn, through the window, leads to review or a task. The window's length and the burn rates that act are shared by all rules, until one needs its own. They are set in `.shampoo/budgets.toml`, defaulting to a window of 20 runs, a fast burn of 4 times over the latest 5 runs, which stops the guard, and a slow burn of 1 time over the window, which is reported
 - **The budgets shampoo charges itself** (retry, workflow failure, time, human review) belong to no rule, and are counted the same way over the transitions they govern
 
 Budgets come in four kinds. Each is attached where it is counted, by default where it always applies, with a default limit that a project overrides:
@@ -152,6 +152,7 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 A project provides these in `.shampoo/`, one file per item, named by its id:
 - **Rules** (`.shampoo/rules/`), each with the transitions it guards, the paths whose changes start it, the id of its check, its judge and its budget (§3.1); a rule without a check states why, as `unchecked`
 - **Checks** (`.shampoo/checks/`), each with its command, its test size and the checks it needs
+- **Budget settings** (`.shampoo/budgets.toml`), optional: the window and the burn rates that act (§3.1)
 - **Policies** (`.shampoo/policies/`), each with its code example (§5.2)
 - **Task sources**: where tasks come from (for jeer: clusters of mismatches against the oracle)
 
@@ -190,7 +191,7 @@ Implementation language: Go. The core is concurrent coordination (the reconcilia
                  ▼
  ┌──────────────────────────────┐      ┌────────────┐
  │ guard (shampoo guard)        │─────▶│ ledger     │
- │ checks → classify → decide   │      │ (SQLite)   │
+ │ checks → classify → decide   │      │ (JSONL)    │
  └──────────────────────────────┘      └────────────┘
                  │                            │
                  ▼                            ▼
@@ -234,7 +235,10 @@ The flow of one task:
 
 ## 12. State and ledger
 - **State** is derived from git and GitHub (a branch per task in its own worktree, the PR, whether it is merged). There is no separate state file to drift
-- **Ledger**: SQLite (WAL mode) in the git common directory, shared by all worktrees and not tracked. Each transition attempt is recorded: task, transition, check, outcome, duration. Retry, workflow-failure, and time budgets are counted from it, and it is kept as the evidence for tuning budgets
+- **Ledger**: JSON Lines in the git common directory, shared by all worktrees and not tracked. Each judgment at a transition is appended as one line: task (its branch), transition, rule, check, outcome, the check's duration. Rate, retry, workflow-failure and time budgets are counted from it. A line is written in one append, so worktrees writing at once do not interleave lines, and a broken last line is skipped
+- **Statistics**: a separate JSON Lines file beside the ledger, one line per merged task: attempts per transition, violations per rule, run time per check. It is the evidence for tuning budgets and for drift (§3.2)
+- **Compaction is automatic**: when a guard starts, the tasks whose branch is merged are summarized into statistics, and their lines leave the ledger, except the latest runs of each check within the window (§3.1). The ledger stays the size of the windows and the open tasks
+- **JSON Lines rather than SQLite**: SQLite in Go needs cgo, which complicates cross-building and distributing one static binary, or a pure-Go port with many dependencies. The ledger only appends and reads the latest lines
 - **Not in the ledger**: false-positive exceptions are counted from the code itself; the freeze flag is a labeled issue on GitHub, so CI can enforce it too; PR failures come from GitHub's check history
 
 ## 13. Bootstrapping
