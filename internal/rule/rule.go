@@ -71,9 +71,9 @@ func Parse(id string, data []byte) (Rule, error) {
 	}
 	checked := Checked{ID: id, Statement: file.Rule, Command: file.Check, Size: Size(file.Size), Exit: Exit{codes: map[int]Outcome{}}}
 	for _, name := range file.Transitions {
-		transition := Transition(name)
-		if !slices.Contains([]Transition{Edit, Task, PR, Milestone}, transition) {
-			return nil, fmt.Errorf("%w: %s: transition %q", ErrInvalid, id, name)
+		transition, err := ParseTransition(name)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", id, err)
 		}
 		checked.Transitions = append(checked.Transitions, transition)
 	}
