@@ -106,6 +106,15 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 	if err != nil {
 		return rule.WorkflowFailure, "", err
 	}
+	attemptPath := filepath.Join(repo.GitDir, "shampoo", string(transition)+"-attempt.json")
+	attemptData, err := files.Optional(attemptPath)
+	if err != nil {
+		return rule.WorkflowFailure, "", err
+	}
+	var last attempt
+	if err := json.Unmarshal(attemptData, &last); err == nil && last.Tree == tree {
+		return last.Verdict, last.Report, nil
+	}
 	passed, err := repo.Passed(transition)
 	if err != nil {
 		return rule.WorkflowFailure, "", err
@@ -118,6 +127,7 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 	run := rand.Text()
 	verdict := rule.Pass
 	report := ""
+checks:
 	for _, check := range order {
 		started := time.Now()
 		code, output, err := shell.Run(repo.Root, check.Command)
@@ -186,10 +196,13 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 				return rule.WorkflowFailure, report, err
 			}
 			lines = append(lines, repair)
+			verdict = rule.Exceeded
+			report += "repair the harness: find whether the work or the check causes the repeated violations, before going on with the task\n"
 			if repairs := budget.Repairs(lines, branch); repairs > settings.RepairAttempts {
-				return rule.Handed, report + fmt.Sprintf("failed repairs in %s exceed their limit of %d: hand the task to a human\n", branch, settings.RepairAttempts), nil
+				verdict = rule.Handed
+				report += fmt.Sprintf("failed repairs in %s exceed their limit of %d: hand the task to a human\n", branch, settings.RepairAttempts)
 			}
-			return rule.Exceeded, report + "repair the harness: find whether the work or the check causes the repeated violations, before going on with the task\n", nil
+			break checks
 		}
 	}
 	if verdict == rule.Pass {
@@ -197,5 +210,18 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 			return rule.WorkflowFailure, report, err
 		}
 	}
+	encoded, err := json.Marshal(attempt{Tree: tree, Verdict: verdict, Report: report})
+	if err != nil {
+		return rule.WorkflowFailure, report, err
+	}
+	if err := files.Update(attemptPath, func([]byte) ([]byte, error) { return encoded, nil }); err != nil {
+		return rule.WorkflowFailure, report, err
+	}
 	return verdict, report, nil
+}
+
+type attempt struct {
+	Tree    string       `json:"tree"`
+	Verdict rule.Outcome `json:"verdict"`
+	Report  string       `json:"report"`
 }

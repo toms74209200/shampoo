@@ -15,7 +15,7 @@ import (
 type Repository struct {
 	Root      string
 	CommonDir string
-	gitDir    string
+	GitDir    string
 }
 
 func Open(dir string) (Repository, error) {
@@ -29,11 +29,11 @@ func Open(dir string) (Repository, error) {
 	if len(lines) != 3 {
 		return Repository{}, fmt.Errorf("git rev-parse: unexpected output %q", out)
 	}
-	return Repository{Root: lines[0], gitDir: lines[1], CommonDir: lines[2]}, nil
+	return Repository{Root: lines[0], GitDir: lines[1], CommonDir: lines[2]}, nil
 }
 
 func (r Repository) Snapshot() (string, error) {
-	env := append(os.Environ(), "GIT_INDEX_FILE="+filepath.Join(r.gitDir, "shampoo-index"))
+	env := append(os.Environ(), "GIT_INDEX_FILE="+filepath.Join(r.GitDir, "shampoo-index"))
 	add := exec.Command("git", "add", "--all")
 	add.Dir = r.Root
 	add.Env = env
