@@ -1,9 +1,13 @@
 package guard
 
 import (
+	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"time"
 
+	"github.com/toms74209200/shampoo/internal/budget"
 	"github.com/toms74209200/shampoo/internal/files"
 	"github.com/toms74209200/shampoo/internal/git"
 	"github.com/toms74209200/shampoo/internal/rule"
@@ -43,6 +47,55 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 	if err != nil {
 		return rule.WorkflowFailure, "", err
 	}
+	settingsData, err := files.Optional(filepath.Join(repo.Root, ".shampoo", "budgets.toml"))
+	if err != nil {
+		return rule.WorkflowFailure, "", err
+	}
+	settings, err := budget.ParseSettings(settingsData)
+	if err != nil {
+		return rule.WorkflowFailure, "", err
+	}
+	branch, err := repo.Branch()
+	if err != nil {
+		return rule.WorkflowFailure, "", err
+	}
+	unmerged, err := repo.Unmerged()
+	if err != nil {
+		return rule.WorkflowFailure, "", err
+	}
+	ledgerPath := filepath.Join(repo.CommonDir, "shampoo", "ledger.jsonl")
+	var compaction budget.Compaction
+	err = files.Update(ledgerPath, func(data []byte) ([]byte, error) {
+		compaction = budget.Compact(budget.ParseLedger(data), append(unmerged, branch), settings.Window)
+		var kept []byte
+		for _, line := range compaction.Kept {
+			encoded, err := json.Marshal(line)
+			if err != nil {
+				return nil, err
+			}
+			kept = append(append(kept, encoded...), '\n')
+		}
+		return kept, nil
+	})
+	if err != nil {
+		return rule.WorkflowFailure, "", err
+	}
+	if len(compaction.Summaries) > 0 {
+		err = files.Update(filepath.Join(repo.CommonDir, "shampoo", "stats.jsonl"), func(data []byte) ([]byte, error) {
+			for _, summary := range compaction.Summaries {
+				encoded, err := json.Marshal(summary)
+				if err != nil {
+					return nil, err
+				}
+				data = append(append(data, encoded...), '\n')
+			}
+			return data, nil
+		})
+		if err != nil {
+			return rule.WorkflowFailure, "", err
+		}
+	}
+	lines := compaction.Kept
 	tree, err := repo.Snapshot()
 	if err != nil {
 		return rule.WorkflowFailure, "", err
@@ -56,13 +109,16 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 		return rule.WorkflowFailure, "", err
 	}
 	selected, order := config.Plan(transition, changed)
+	run := rand.Text()
 	verdict := rule.Pass
 	report := ""
 	for _, check := range order {
+		started := time.Now()
 		code, output, err := shell.Run(repo.Root, check.Command)
 		if err != nil {
 			return rule.WorkflowFailure, report, fmt.Errorf("check %s: %w", check.ID, err)
 		}
+		millis := time.Since(started).Milliseconds()
 		exceeded := false
 		for _, checked := range selected {
 			if checked.Check != check.ID {
@@ -82,14 +138,29 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 				outcome = judge.Exit.Outcome(judgeCode)
 				detail = fmt.Sprintf("judge: %s exited %d\n%s", judge.Command, judgeCode, judgeOutput)
 			}
+			line := budget.Line{Run: run, Task: branch, Transition: string(transition), Rule: checked.ID, Check: check.ID, Outcome: outcome, Millis: millis}
+			encoded, err := json.Marshal(line)
+			if err != nil {
+				return rule.WorkflowFailure, report, err
+			}
+			err = files.Update(ledgerPath, func(data []byte) ([]byte, error) {
+				return append(append(data, encoded...), '\n'), nil
+			})
+			if err != nil {
+				return rule.WorkflowFailure, report, err
+			}
+			lines = append(lines, line)
 			if outcome != rule.Pass {
 				report += fmt.Sprintf("%s: %s\n%s, %s", checked.ID, checked.Statement, outcome, detail)
 			}
 			if verdict != rule.WorkflowFailure && (outcome == rule.TaskFailure || outcome == rule.WorkflowFailure) {
 				verdict = outcome
 			}
-			if (outcome == rule.TaskFailure || outcome == rule.Budget) && checked.Budget == 0 {
-				report += fmt.Sprintf("%s: exceeds its budget of 0\n", checked.ID)
+			if burn := settings.Slow.Of(lines, checked.ID, checked.Budget); burn >= settings.Slow.Rate {
+				report += fmt.Sprintf("%s burns its budget: %.1f times over the latest %d runs\n", checked.ID, burn, settings.Slow.Runs)
+			}
+			if burn := settings.Fast.Of(lines, checked.ID, checked.Budget); burn >= settings.Fast.Rate {
+				report += fmt.Sprintf("%s exceeds its budget: %.1f times over the latest %d runs\n", checked.ID, burn, settings.Fast.Runs)
 				exceeded = true
 			}
 		}

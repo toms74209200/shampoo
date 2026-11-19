@@ -13,22 +13,23 @@ import (
 )
 
 type Repository struct {
-	Root   string
-	gitDir string
+	Root      string
+	CommonDir string
+	gitDir    string
 }
 
 func Open(dir string) (Repository, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel", "--absolute-git-dir")
+	cmd := exec.Command("git", "rev-parse", "--path-format=absolute", "--show-toplevel", "--absolute-git-dir", "--git-common-dir")
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {
 		return Repository{}, fmt.Errorf("git rev-parse: %w", err)
 	}
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	if len(lines) != 2 {
+	if len(lines) != 3 {
 		return Repository{}, fmt.Errorf("git rev-parse: unexpected output %q", out)
 	}
-	return Repository{Root: lines[0], gitDir: lines[1]}, nil
+	return Repository{Root: lines[0], gitDir: lines[1], CommonDir: lines[2]}, nil
 }
 
 func (r Repository) Snapshot() (string, error) {
@@ -89,4 +90,24 @@ func (r Repository) Record(transition rule.Transition, tree string) error {
 		return fmt.Errorf("git update-ref: %w: %s", err, out)
 	}
 	return nil
+}
+
+func (r Repository) Branch() (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd.Dir = r.Root
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("git rev-parse --abbrev-ref: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+func (r Repository) Unmerged() ([]string, error) {
+	cmd := exec.Command("git", "branch", "--no-merged", "HEAD", "--format=%(refname:short)")
+	cmd.Dir = r.Root
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("git branch --no-merged: %w", err)
+	}
+	return strings.Fields(string(out)), nil
 }
