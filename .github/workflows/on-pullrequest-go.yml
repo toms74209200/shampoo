@@ -31,6 +31,9 @@ jobs:
   medium-test:
     needs: [small-test]
     uses: ./.github/workflows/job-test-medium-go.yml
+  acceptance-test:
+    needs: [small-test]
+    uses: ./.github/workflows/job-test-acceptance.yml
   coverage:
     needs: [small-test, medium-test, lint]
     uses: ./.github/workflows/job-coverage-go.yml
