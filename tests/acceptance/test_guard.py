@@ -30,7 +30,7 @@ def write_rule(
     check_id: str,
     judge: str = f"{{ exit = {VIOLATION} }}",
     budget: str = "0.5",
-    paths: str = "",
+    extra: str = "",
 ) -> None:
     rules = workspace / ".shampoo" / "rules"
     rules.mkdir(parents=True, exist_ok=True)
@@ -38,7 +38,7 @@ def write_rule(
         f'rule = "{rule_id} holds."\n'
         f'check = "{check_id}"\n'
         f'transitions = ["{transition}"]\n'
-        f"{paths}"
+        f"{extra}"
         f"judge = {judge}\n"
         f"budget = {budget}\n"
     )
@@ -105,7 +105,7 @@ def given_rule_workflow_failure(workspace, transition, check_id, code):
 
 @given(parsers.parse('a rule guarding {transition:w} for paths "{paths}" with check "{check_id}"'))
 def given_rule_paths(workspace, transition, paths, check_id):
-    write_rule(workspace, new_id(), transition, check_id, paths=f'paths = ["{paths}"]\n')
+    write_rule(workspace, new_id(), transition, check_id, extra=f'paths = ["{paths}"]\n')
 
 
 @given(
@@ -129,19 +129,24 @@ def given_rule_judge_budget(workspace, transition, check_id, code):
     )
 
 
-def write_budgets(workspace: Path, text: str) -> None:
+@given(
+    parsers.parse(
+        'a rule "{rule_id}" guarding {transition:w} with check "{check_id}" and a fast burn of {burn:d} times over the latest {count:d} runs'
+    )
+)
+def given_rule_fast_burn(workspace, rule_id, transition, check_id, burn, count):
+    write_rule(workspace, rule_id, transition, check_id, extra=f"fast = {{ runs = {count}, burn = {burn} }}\n")
+
+
+@given(parsers.parse('a rule "{rule_id}" guarding {transition:w} with check "{check_id}" and a window of {window:d} runs'))
+def given_rule_window(workspace, rule_id, transition, check_id, window):
+    write_rule(workspace, rule_id, transition, check_id, extra=f"window = {window}\n")
+
+
+@given(parsers.parse("budgets of shampoo with a repair budget of {count:d}"))
+def given_repair_budget(workspace, count):
     (workspace / ".shampoo").mkdir(parents=True, exist_ok=True)
-    (workspace / ".shampoo" / "budgets.toml").write_text(text)
-
-
-@given(parsers.parse("budget settings with a fast burn of {burn:d} times over the latest {count:d} runs"))
-def given_fast_burn(workspace, burn, count):
-    write_budgets(workspace, f"fast = {{ runs = {count}, burn = {burn} }}\n")
-
-
-@given(parsers.parse("budget settings with a window of {window:d} runs and a slow burn of {burn:d} time over the window"))
-def given_slow_burn(workspace, window, burn):
-    write_budgets(workspace, f"window = {window}\nslow = {{ burn = {burn} }}\n")
+    (workspace / ".shampoo" / "budgets.toml").write_text(f"repair = {count}\n")
 
 
 def runs(runs_log: Path) -> list[str]:
