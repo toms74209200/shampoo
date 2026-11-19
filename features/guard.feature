@@ -181,3 +181,14 @@ Feature: Guard a transition
     And the branch "task-a" is committed and merged
     When I run "shampoo guard edit"
     Then the statistics have a line for task "task-a"
+
+  @skip
+  @sha:c4a489b31d31
+  Scenario: An unchanged tree after a failure is not checked again
+    Given a check "lint" that records that it ran and exits 1
+    And a rule guarding edit with check "lint"
+    And a changed file "main.go"
+    And "shampoo guard edit" has run
+    When I run "shampoo guard edit"
+    Then the exit code is 1
+    And the check "lint" has run once

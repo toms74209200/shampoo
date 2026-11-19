@@ -67,6 +67,11 @@ def given_check_records(workspace, runs_log, check_id):
     write_check(workspace, check_id, record(runs_log, check_id))
 
 
+@given(parsers.parse('a check "{check_id}" that records that it ran and exits {code:d}'))
+def given_check_records_exits(workspace, runs_log, check_id, code):
+    write_check(workspace, check_id, f"{record(runs_log, check_id)}; exit {code}")
+
+
 @given(parsers.parse('a check "{check_id}" that needs "{needed}" and records that it ran'))
 def given_check_needs(workspace, runs_log, check_id, needed):
     write_check(workspace, check_id, record(runs_log, check_id), f'needs = ["{needed}"]\n')
