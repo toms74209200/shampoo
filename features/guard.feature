@@ -182,7 +182,6 @@ Feature: Guard a transition
     When I run "shampoo guard edit"
     Then the statistics have a line for task "task-a"
 
-  @skip
   @sha:c4a489b31d31
   Scenario: An unchanged tree after a failure is not checked again
     Given a check "lint" that records that it ran and exits 1
