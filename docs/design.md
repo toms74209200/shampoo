@@ -122,7 +122,8 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 | Term | Definition |
 |---|---|
 | Rule | A categorical constraint on the work: it must hold. Its violation fails the transition and sends the work back |
-| Check | The implementation of rules: a deterministic executable that judges the work at a transition, reporting pass, task failure or workflow failure (§3, §7) |
+| Check | The implementation of rules: a deterministic executable run at a transition, leaving results for judges (§7) |
+| Judge | A rule's decision on its check's results: pass, task failure, workflow failure or a charge to the rule's budget (§3, §7) |
 | Policy | Guidance that the harness puts into the agent's context. No check detects its violations; it takes effect only as far as the agent follows it |
 
 - **The harness puts policies into the context at fixed times**: all policies when the orchestrator starts a task, and all of them again after the context is compacted. The agent does not choose whether to load them
@@ -140,17 +141,20 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 
 ## 7. What a project provides
 A project provides these in `.shampoo/`, one file per item, named by its id:
-- **Rules** (`.shampoo/rules/`), each with the transitions it guards, the paths whose changes start it, and the id of its check; optionally a judge, a command applied to the check's output, with the mapping of the judge's exit codes, which may charge the rule's budget; a rule without a check states why, as `unchecked`; a rule's budget gives its limit (§3.1)
-- **Checks** (`.shampoo/checks/`), each with its command, its test size, the mapping of its exit codes to pass / task failure / workflow failure, and the checks it needs. Only a judge charges a budget: a budget belongs to one rule, while a check may be shared
+- **Rules** (`.shampoo/rules/`), each with the transitions it guards, the paths whose changes start it, the id of its check, its judge and its budget (§3.1); a rule without a check states why, as `unchecked`
+- **Checks** (`.shampoo/checks/`), each with its command, its test size and the checks it needs
 - **Policies** (`.shampoo/policies/`), each with its code example (§5.2)
 - **Task sources**: where tasks come from (for jeer: clusters of mismatches against the oracle)
 
-A guard runs them in three steps:
-1. **Rules trigger.** It selects the rules that guard the transition and whose paths cover what changed
-2. **Checks run once each, in order.** It collects the checks the selected rules point to, with the checks they need, and runs each once, after the checks it needs have passed. Rules that point to the same check share its run, as small tests are run once for every rule judging their results. A check whose needed check failed is not run
-3. **Each rule is judged.** A rule with a judge applies it to its check's output, and the judge's exit code decides; a rule without one is decided by its check's exit code
+A check runs; a judge decides. A check only leaves results (its exit code, its output, the files it writes). A judge maps them to pass, task failure, workflow failure or a charge to its rule's budget: either the check's exit code through a mapping, or a command run on the check's results, through a mapping of that command's exit code.
 
-Sharing and order are separate: rules share a check when they judge the same run, and a check needs another when it must run after it, as lint runs after the formatter is applied.
+A guard:
+1. Selects the rules that guard the transition and whose paths cover what changed
+2. Runs their checks once each, in the order of `needs`. Rules pointing to the same check share its run
+3. After each check, judges every selected rule pointing to it
+4. Stops when a judgment exceeds its rule's budget: the remaining checks are not run
+
+`needs` only orders checks; it stops nothing.
 
 The state machine (§2) is shampoo's own. Its transitions are bound to Claude Code hooks, CI and GitHub, so a project names them (`edit`, `task`, `pr`, `milestone`) and does not define them.
 
