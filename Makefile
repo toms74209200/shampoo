@@ -11,8 +11,7 @@ build: ## Build the binary
 check: lint check-exceptions check-dependencies test-small check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names check-fixed-values check-functions check-white-box check-scenarios test-tools ## Run all checks guarding a commit
 
 lint: ## Run linters and format checks
-	scripts/golangci-lint.sh run --build-tags small,medium,large
-	cd tools && ../scripts/golangci-lint.sh run --build-tags small,medium,large
+	scripts/lint.sh
 
 check-exceptions: ## Check that no exception other than nolint is used
 	scripts/check-exceptions.sh
