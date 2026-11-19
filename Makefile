@@ -51,9 +51,7 @@ fmt: ## Apply formatters
 	cd tools && ../scripts/golangci-lint.sh fmt
 
 test-small: ## Run small tests once, recording coverage and system calls
-	strace -qq -o /dev/null true
-	rm -rf out/traces && mkdir -p out/traces
-	TZ= CGO_ENABLED=0 TRACE_DIR=$(CURDIR)/out/traces go test -tags=small -exec $(CURDIR)/scripts/trace-exec.sh -coverpkg=./... -coverprofile=out/small.cover ./...
+	scripts/test-small.sh
 
 test-medium: ## Run medium tests, recording coverage
 	mkdir -p out
