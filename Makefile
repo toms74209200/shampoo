@@ -1,6 +1,6 @@
 GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 
-.PHONY: all setup build check lint check-exceptions check-dependencies check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names check-fixed-values check-functions check-white-box check-scenarios fmt test-small test-medium test-tools help
+.PHONY: all setup build check lint check-exceptions check-dependencies check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names check-fixed-values check-functions check-white-box check-scenarios fmt test-small test-medium test-acceptance test-tools help
 
 all: check build
 
@@ -61,6 +61,9 @@ test-small: ## Run small tests once, recording coverage and system calls
 test-medium: ## Run medium tests, recording coverage
 	mkdir -p out
 	go test -tags=medium -timeout 300s -coverpkg=./... -coverprofile=out/medium.cover ./...
+
+test-acceptance: ## Run acceptance tests against a binary built from the working tree
+	uv run --directory tests/acceptance pytest
 
 test-tools: ## Run small tests of the checks in tools
 	go -C tools test -tags=small ./...
