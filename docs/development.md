@@ -16,7 +16,7 @@ The devcontainer runs `make setup` on creation, which enables the git hooks in `
 | `make test-acceptance` | Acceptance tests in `tests/acceptance` (pytest-bdd, run with uv) |
 | `make build` | Build the binary |
 
-golangci-lint is pinned in the Makefile and run through `go run`, so local runs and CI use the same version regardless of what the environment has installed.
+golangci-lint is pinned in `scripts/golangci-lint.sh`, which installs that version, so local runs and CI use the same version regardless of what the environment has installed.
 
 ## 2. Checks
 | Hook | Runs |
