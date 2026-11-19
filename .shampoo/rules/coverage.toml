@@ -3,4 +3,4 @@ check = "small-tests"
 transitions = ["pr"]
 paths = ["**.go", "go.mod", "go.sum", "scripts/judge-coverage.sh", "scripts/coverage-baseline.txt"]
 judge = { command = "scripts/judge-coverage.sh <base> out/small.cover", exit = { 3 = "budget", other = "workflow-failure" } }
-budget = 0.1
+budget = { violations = 2, runs = 20 }
