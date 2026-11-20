@@ -11,6 +11,7 @@ import (
 	"github.com/toms74209200/shampoo/internal/files"
 	"github.com/toms74209200/shampoo/internal/git"
 	"github.com/toms74209200/shampoo/internal/rule"
+	"github.com/toms74209200/shampoo/internal/settings"
 	"github.com/toms74209200/shampoo/internal/shell"
 )
 
@@ -51,7 +52,7 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 	if err != nil {
 		return rule.WorkflowFailure, "", err
 	}
-	settings, err := budget.ParseSettings(settingsData)
+	options, err := settings.Parse(settingsData)
 	if err != nil {
 		return rule.WorkflowFailure, "", err
 	}
@@ -208,9 +209,9 @@ checks:
 			lines = append(lines, repair)
 			verdict = rule.Exceeded
 			report += "repair the harness: find whether the work or the check causes the repeated violations, before going on with the task\n"
-			if repairs := budget.Repairs(lines, branch); repairs > settings.RepairAttempts {
+			if repairs := budget.Repairs(lines, branch); repairs > options.RepairAttempts {
 				verdict = rule.Handed
-				report += fmt.Sprintf("failed repairs in %s exceed their limit of %d: hand the task to a human\n", branch, settings.RepairAttempts)
+				report += fmt.Sprintf("failed repairs in %s exceed their limit of %d: hand the task to a human\n", branch, options.RepairAttempts)
 			}
 			break checks
 		}

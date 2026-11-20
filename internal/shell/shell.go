@@ -5,8 +5,8 @@ import (
 	"os/exec"
 )
 
-func Run(dir, command string) (int, []byte, error) {
-	cmd := exec.Command("sh", "-c", command)
+func Run(dir, command string, args ...string) (int, []byte, error) {
+	cmd := exec.Command("sh", append([]string{"-c", command, "sh"}, args...)...)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	var exit *exec.ExitError

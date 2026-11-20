@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/toms74209200/shampoo/internal/rule"
+	"github.com/toms74209200/shampoo/internal/task"
 )
 
 type Repository struct {
@@ -128,4 +129,14 @@ func (r Repository) Base() (string, error) {
 		return strings.TrimSpace(string(out)) + "^{tree}", nil
 	}
 	return "", errors.New("git: no default branch among origin/HEAD, main and master")
+}
+
+func (r Repository) AddWorktree(t task.Task) (string, error) {
+	path := filepath.Join(r.CommonDir, "shampoo", "worktrees", t.ID)
+	cmd := exec.Command("git", "worktree", "add", "-q", "-b", "task/"+t.ID, path, "HEAD")
+	cmd.Dir = r.Root
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return "", fmt.Errorf("git worktree add: %w: %s", err, out)
+	}
+	return path, nil
 }

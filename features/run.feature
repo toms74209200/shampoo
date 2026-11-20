@@ -7,7 +7,6 @@ Feature: Run a task
   Background:
     Given a git repository with a commit
 
-  @skip
   @sha:63ad2f2fce36
   Scenario: An agent works on a task in its own worktree
     Given a task "add-readme" with the definition of done "Add a README"
@@ -18,7 +17,6 @@ Feature: Run a task
     And the agent worked on the branch "task/add-readme"
     And the agent worked outside the repository's own working tree
 
-  @skip
   @sha:2b8cea74ab8e
   Scenario: A task whose guard passes is done
     Given a task "add-readme" with the definition of done "Add a README"
@@ -29,7 +27,6 @@ Feature: Run a task
     When I run "shampoo run"
     Then the exit code is 0
 
-  @skip
   @sha:97c09c72e46c
   Scenario: A task whose guard finds a violation is sent back
     Given a task "add-readme" with the definition of done "Add a README"
