@@ -236,3 +236,23 @@ type attempt struct {
 	Verdict rule.Outcome `json:"verdict"`
 	Report  string       `json:"report"`
 }
+
+func Last(dir string, transition rule.Transition) (rule.Outcome, error) {
+	repo, err := git.Open(dir)
+	if err != nil {
+		return "", err
+	}
+	tree, err := repo.Snapshot()
+	if err != nil {
+		return "", err
+	}
+	data, err := files.Optional(filepath.Join(repo.GitDir, "shampoo", string(transition)+"-attempt.json"))
+	if err != nil {
+		return "", err
+	}
+	var last attempt
+	if err := json.Unmarshal(data, &last); err != nil || last.Tree != tree {
+		return "", nil
+	}
+	return last.Verdict, nil
+}

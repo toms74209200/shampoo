@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/toms74209200/shampoo/internal/rule"
-	"github.com/toms74209200/shampoo/internal/task"
 )
 
 type Repository struct {
@@ -113,30 +112,31 @@ func (r Repository) Unmerged() ([]string, error) {
 	return strings.Fields(string(out)), nil
 }
 
-func (r Repository) Base() (string, error) {
+func (r Repository) DefaultBranch() (string, error) {
 	for _, ref := range []string{"refs/remotes/origin/HEAD", "refs/heads/main", "refs/heads/master"} {
-		exists := exec.Command("git", "rev-parse", "--quiet", "--verify", ref)
-		exists.Dir = r.Root
-		if exists.Run() != nil {
+		cmd := exec.Command("git", "rev-parse", "--quiet", "--verify", "--symbolic-full-name", ref)
+		cmd.Dir = r.Root
+		out, err := cmd.Output()
+		if err != nil {
 			continue
 		}
-		base := exec.Command("git", "merge-base", "HEAD", ref)
-		base.Dir = r.Root
-		out, err := base.Output()
-		if err != nil {
-			return "", fmt.Errorf("git merge-base %s: %w", ref, err)
-		}
-		return strings.TrimSpace(string(out)) + "^{tree}", nil
+		name := strings.TrimSpace(string(out))
+		name = strings.TrimPrefix(strings.TrimPrefix(name, "refs/remotes/origin/"), "refs/heads/")
+		return name, nil
 	}
 	return "", errors.New("git: no default branch among origin/HEAD, main and master")
 }
 
-func (r Repository) AddWorktree(t task.Task) (string, error) {
-	path := filepath.Join(r.CommonDir, "shampoo", "worktrees", t.ID)
-	cmd := exec.Command("git", "worktree", "add", "-q", "-b", "task/"+t.ID, path, "HEAD")
-	cmd.Dir = r.Root
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("git worktree add: %w: %s", err, out)
+func (r Repository) Base() (string, error) {
+	branch, err := r.DefaultBranch()
+	if err != nil {
+		return "", err
 	}
-	return path, nil
+	cmd := exec.Command("git", "merge-base", "HEAD", branch)
+	cmd.Dir = r.Root
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("git merge-base %s: %w", branch, err)
+	}
+	return strings.TrimSpace(string(out)) + "^{tree}", nil
 }
