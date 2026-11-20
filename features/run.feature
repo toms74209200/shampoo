@@ -8,6 +8,7 @@ Feature: Run a task
     Given a git repository with a commit
 
   @skip
+  @sha:63ad2f2fce36
   Scenario: An agent works on a task in its own worktree
     Given a task "add-readme" with the definition of done "Add a README"
     And an agent that records where it works
@@ -18,6 +19,7 @@ Feature: Run a task
     And the agent worked outside the repository's own working tree
 
   @skip
+  @sha:2b8cea74ab8e
   Scenario: A task whose guard passes is done
     Given a task "add-readme" with the definition of done "Add a README"
     And an agent that changes "README.md"
@@ -28,6 +30,7 @@ Feature: Run a task
     Then the exit code is 0
 
   @skip
+  @sha:97c09c72e46c
   Scenario: A task whose guard finds a violation is sent back
     Given a task "add-readme" with the definition of done "Add a README"
     And an agent that changes "README.md"
