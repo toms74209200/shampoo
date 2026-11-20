@@ -95,6 +95,13 @@ def given_branch(workspace, name):
     subprocess.run(["git", "-C", str(workspace), "checkout", "-q", "-b", name], check=True)
 
 
+@given("the changes are committed")
+def given_changes_committed(workspace):
+    git = ["git", "-C", str(workspace)]
+    subprocess.run([*git, "add", "-A"], check=True)
+    subprocess.run([*git, "commit", "-q", "-m", "changes"], check=True)
+
+
 @given(parsers.parse('the branch "{name}" is committed and merged'))
 def given_branch_merged(workspace, default_branch, name):
     git = ["git", "-C", str(workspace)]
