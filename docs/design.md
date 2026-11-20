@@ -82,6 +82,7 @@ Budgets work as SRE error budgets do: urgency comes from how fast a budget is co
   | The others | 2 in 20 runs | 2 in the latest 5 runs |
 - **The budgets shampoo charges itself** (workflow failure, time, human review, repair) belong to no rule, and are counted the same way over the transitions they govern. A project sets their limits in `.shampoo/settings.toml`, by the states of the state machine (§2) they belong to: `max-failed-attempts` of a state is how many failed attempts it allows before the state machine moves on, such as `[state-machine.harness-repair]` before a human
 - **The time budget is counted by check**, over the check's latest runs at any transition, since its run time does not depend on the transition. A run longer than its test size's limit is a charge; the limits are 60 seconds for small, 300 for medium and 900 for large [2], and a project overrides them as `max-seconds` in `[test-sizes.<size>]`. Its budget is 2 charges in 20 runs and its stop 2 in the latest 5 runs by default, so that one run slowed by the machine does not stop the work; a project overrides them as `budget` and `stop` in `[time-budget]`, written as a rule's counts, such as `stop = { violations = 1, runs = 1 }`. Reaching the stop sends the work to harness repair, to reorganize the check
+- **The exceptions of a check are the violations it lets pass**, through the tool's own exception with a written reason, such as `//nolint:<linter> // <reason>`. The tool does not report them, so only the check that runs it can count them: a rule that allows exceptions declares the file its check writes them to, one line per exception, and its limit, `exceptions = { file = "out/exceptions/lint.txt", limit = 3 }`, 3 by default. The count is a stock: the lines in the file after the check's latest run. More exceptions than the limit send the work to harness repair, to fix the check rather than add exceptions; a declared file the check did not write is a workflow failure
 
 Budgets come in four kinds. Each is attached where it is counted, by default where it always applies, with a default limit that a project overrides:
 
@@ -95,7 +96,7 @@ Budgets come in four kinds. Each is attached where it is counted, by default whe
 Budgets are kept apart from rules only when one turns out to be shared.
 
 ### 3.2 Drift
-What no rule catches can still pile up: each run within every limit, the process slowly worsening. The ledger records process metrics per task and PR: rework (failed guard attempts until merge), each check's run time, open exceptions, the share of pure code, escapes and workflow failures.
+What no rule catches can still pile up: each run within every limit, the process slowly worsening. The ledger records process metrics per task and PR: rework (failed guard attempts until merge), each check's run time, open exceptions (§3.1), the share of pure code, escapes and workflow failures.
 - **Each metric is watched against its own history**, on control charts (EWMA, CUSUM) that catch a small shift that persists, which a threshold per run misses
 - **The whole is watched too**: an outcome metric, rework until merge, and the metrics' joint shift (a multivariate chart such as Hotelling's T²). Metrics can each stay within bounds while worsening together, and improving one can worsen the whole
 - **A drift creates a task** to review its cause; the metric that shifted points to where to look
@@ -164,7 +165,7 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 
 ## 7. What a project provides
 A project provides these in `.shampoo/`, one file per item, named by its id:
-- **Rules** (`.shampoo/rules/`), each with the transitions it guards, the paths whose changes start it, the id of its check, its judge and its budget (§3.1); a rule without a check states why, as `unchecked`
+- **Rules** (`.shampoo/rules/`), each with the transitions it guards, the paths whose changes start it, the id of its check, its judge, its budget and, if it allows exceptions, where its check writes them (§3.1); a rule without a check states why, as `unchecked`
 - **Checks** (`.shampoo/checks/`), each with its command, its test size and the checks it needs
 - **Settings** (`.shampoo/settings.toml`), optional: shampoo's own settings by bounded context, such as the limits of the state machine (§3.1)
 - **Policies** (`.shampoo/policies/`), each with its code example, and whether it is used in review (§5.2)
@@ -259,11 +260,11 @@ The flow of one task:
 
 ## 12. State and ledger
 - **State** is derived from git and GitHub (a branch per task in its own worktree, the PR, whether it is merged). There is no separate state file to drift
-- **Ledger**: JSON Lines in the git common directory, shared by all worktrees and not tracked. Each judgment at a transition is appended as one line: task (its branch), transition, rule, check, outcome, the check's duration. Rate, repair, workflow-failure and time budgets are counted from it. A line is written in one append, so worktrees writing at once do not interleave lines, and a broken last line is skipped
+- **Ledger**: JSON Lines in the git common directory, shared by all worktrees and not tracked. Each judgment at a transition is appended as one line: task (its branch), transition, rule, check, outcome, the check's duration and, for a rule that allows exceptions, their count. Rate, repair, workflow-failure and time budgets are counted from it. A line is written in one append, so worktrees writing at once do not interleave lines, and a broken last line is skipped
 - **Statistics**: a separate JSON Lines file beside the ledger, one line per merged task: attempts per transition, violations per rule, findings per policy, run time per check. It is the evidence for tuning budgets and for drift (§3.2)
 - **Compaction is automatic**: when a guard starts, the tasks whose branch is merged are summarized into statistics, and their lines leave the ledger, except the latest runs of each check within the window (§3.1). The ledger stays the size of the windows and the open tasks
 - **JSON Lines rather than SQLite**: SQLite in Go needs cgo, which complicates cross-building and distributing one static binary, or a pure-Go port with many dependencies. The ledger only appends and reads the latest lines
-- **Not in the ledger**: false-positive exceptions are counted from the code itself; the freeze flag is a labeled issue on GitHub, so CI can enforce it too; PR failures come from GitHub's check history
+- **Not in the ledger**: the freeze flag is a labeled issue on GitHub, so CI can enforce it too; PR failures come from GitHub's check history
 
 ## 13. Bootstrapping
 shampoo cannot be built by shampoo before it exists. It is built with a human in the loop up to the point where it can run HOOTL, and from then on its own changes go through shampoo.
