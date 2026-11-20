@@ -9,6 +9,7 @@ Feature: Count the exceptions of a check
     And a changed file "main.go"
 
   @skip
+  @sha:1afb465104b5
   Scenario: Exceptions within the default limit let the work through
     Given a check "lint" that writes 3 exceptions to "out/exceptions.txt"
     And a rule guarding edit with check "lint" and its exceptions in "out/exceptions.txt"
@@ -16,6 +17,7 @@ Feature: Count the exceptions of a check
     Then the exit code is 0
 
   @skip
+  @sha:6b39c42a36c0
   Scenario: Exceptions over the default limit send the work to harness repair
     Given a check "lint" that writes 4 exceptions to "out/exceptions.txt"
     And a rule guarding edit with check "lint" and its exceptions in "out/exceptions.txt"
@@ -25,6 +27,7 @@ Feature: Count the exceptions of a check
     And stderr contains "fix the check"
 
   @skip
+  @sha:aebd0f14c824
   Scenario: A rule's limit overrides the default
     Given a check "lint" that writes 2 exceptions to "out/exceptions.txt"
     And a rule guarding edit with check "lint" and its exceptions in "out/exceptions.txt" limited to 1
@@ -32,6 +35,7 @@ Feature: Count the exceptions of a check
     Then the exit code is 3
 
   @skip
+  @sha:ec5e1953f652
   Scenario: A check that does not write its exceptions is a workflow failure
     Given a check "lint" that exits 0
     And a rule guarding edit with check "lint" and its exceptions in "out/exceptions.txt"
