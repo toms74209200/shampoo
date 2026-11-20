@@ -42,14 +42,6 @@ func Next(dir string) (next.Action, error) {
 	if err != nil {
 		return next.Action{}, err
 	}
-	if options.Tasks == "" {
-		return next.Action{}, errors.New("next: no task source; set [orchestrator] tasks in .shampoo/settings.toml")
-	}
-	if !strings.Contains(options.Tasks, "://") {
-		if _, err := os.Stat(filepath.Join(repo.Root, options.Tasks)); err != nil {
-			return next.Action{}, fmt.Errorf("next: task source: %w", err)
-		}
-	}
 	branch, err := repo.Branch()
 	if err != nil {
 		return next.Action{}, err
@@ -62,7 +54,8 @@ func Next(dir string) (next.Action, error) {
 	if err != nil {
 		return next.Action{}, err
 	}
-	state := next.Observation{Source: options.Tasks, Branch: branch, Default: branch == defaultBranch, Verdict: verdict}
+	_, missing := os.Stat(filepath.Join(repo.Root, options.Tasks))
+	state := next.Observation{Source: options.Tasks, SourceFound: missing == nil, Branch: branch, Default: branch == defaultBranch, Verdict: verdict, MaxOpen: options.MaxOpen, Requirements: options.Requirements}
 	gh := func(args ...string) ([]byte, error) {
 		cmd := exec.Command("gh", args...)
 		cmd.Dir = repo.Root
@@ -74,43 +67,30 @@ func Next(dir string) (next.Action, error) {
 		}
 		return out, nil
 	}
-	if state.Default {
-		list, err := gh("issue", "list", "--label", options.QuestionLabel, "--state", "open", "--limit", "1000", "--json", "url")
-		if err != nil {
-			return next.Action{}, fmt.Errorf("next: %w", err)
-		}
-		var questions []struct {
-			URL string `json:"url"`
-		}
-		if err := json.Unmarshal(list, &questions); err != nil {
-			return next.Action{}, fmt.Errorf("next: gh issue list: %w", err)
-		}
-		for _, question := range questions {
-			state.Questions = append(state.Questions, question.URL)
-		}
-		state.MaxOpen = options.MaxOpen
-		return next.Decide(next.Parse(state)), nil
+	list, err := gh("issue", "list", "--label", options.QuestionLabel, "--state", "open", "--limit", "1000", "--json", "url")
+	if err != nil {
+		return next.Action{}, fmt.Errorf("next: %w", err)
 	}
-	policies, err := Policies(repo.Root)
+	var questions []struct {
+		URL string `json:"url"`
+	}
+	if err := json.Unmarshal(list, &questions); err != nil {
+		return next.Action{}, fmt.Errorf("next: gh issue list: %w", err)
+	}
+	for _, question := range questions {
+		state.Questions = append(state.Questions, question.URL)
+	}
+	state.Policies, err = Policies(repo.Root)
 	if err != nil {
 		return next.Action{}, err
 	}
-	for _, p := range policies {
-		if p.Review {
-			state.Policies = append(state.Policies, p.ID)
-		}
-	}
-	state.Requirements = options.Requirements
 	recorded, err := files.Optional(filepath.Join(repo.GitDir, "shampoo", "review.json"))
 	if err != nil {
 		return next.Action{}, err
 	}
-	if recorded != nil {
-		var last next.Record
-		if err := json.Unmarshal(recorded, &last); err != nil {
-			return next.Action{}, fmt.Errorf("next: review: %w", err)
-		}
-		state.Record = &last
+	state.Record, err = next.ParseRecord(recorded)
+	if err != nil {
+		return next.Action{}, fmt.Errorf("next: %w", err)
 	}
 	state.Tree, err = repo.Snapshot()
 	if err != nil {
@@ -149,22 +129,21 @@ func Next(dir string) (next.Action, error) {
 		for _, file := range pr.Files {
 			changed = append(changed, file.Path)
 		}
+		var sources []workflow.Source
 		for _, suffix := range []string{".yml", ".yaml"} {
 			found, err := files.Read(filepath.Join(repo.Root, ".github", "workflows"), suffix)
 			if err != nil && !errors.Is(err, fs.ErrNotExist) {
 				return next.Action{}, err
 			}
 			for _, file := range found {
-				parsed, err := workflow.Parse(".github/workflows/"+file.Name+suffix, file.Data)
-				if err != nil {
-					return next.Action{}, err
-				}
-				if parsed.Expects(pr.BaseRefName, changed) {
-					state.PullRequest.Expected = append(state.PullRequest.Expected, parsed.Name)
-				}
+				sources = append(sources, workflow.Source{Path: ".github/workflows/" + file.Name + suffix, Data: file.Data})
 			}
 		}
-		list, err := gh("run", "list", "--branch", branch, "--limit", "200", "--json", "workflowName,headSha,status,conclusion,url,createdAt")
+		state.PullRequest.Expected, err = workflow.Expected(sources, pr.BaseRefName, changed)
+		if err != nil {
+			return next.Action{}, err
+		}
+		list, err = gh("run", "list", "--branch", branch, "--limit", "200", "--json", "workflowName,headSha,status,conclusion,url,createdAt")
 		if err != nil {
 			return next.Action{}, fmt.Errorf("next: %w", err)
 		}
@@ -192,6 +171,8 @@ func Next(dir string) (next.Action, error) {
 			return next.Action{}, fmt.Errorf("next: %w", err)
 		}
 		parsed = next.Merged(s)
+	case next.NoSource:
+		return next.Action{}, fmt.Errorf("next: the task source %q is not set or not found; set [orchestrator] tasks in .shampoo/settings.toml", s.Source)
 	case next.Stalled:
 		return next.Action{}, fmt.Errorf("next: %s has waited for its checks since %s, longer than [orchestrator] max-wait-minutes (%d)", s.Branch, s.Since.Format(time.RFC3339), int(s.MaxWait.Minutes()))
 	default:
@@ -296,9 +277,6 @@ func Review(dir string, input io.Reader) error {
 	}
 	run := rand.Text()
 	lines := []budget.Line{{Run: run, Task: branch, Transition: "review", Outcome: rule.Pass}}
-	if len(findings) > 0 {
-		lines = nil
-	}
 	for _, finding := range findings {
 		lines = append(lines, budget.Line{Run: run, Task: branch, Transition: "review", Policy: finding.Policy, Outcome: rule.Finding})
 	}

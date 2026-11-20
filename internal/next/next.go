@@ -1,22 +1,27 @@
 package next
 
 import (
+	"encoding/json"
+	"fmt"
 	"slices"
+	"strings"
 	"time"
 
+	"github.com/toms74209200/shampoo/internal/policy"
 	"github.com/toms74209200/shampoo/internal/review"
 	"github.com/toms74209200/shampoo/internal/rule"
 )
 
 type Observation struct {
 	Source       string
+	SourceFound  bool
 	Branch       string
 	Default      bool
 	Questions    []string
 	MaxOpen      int
 	Verdict      rule.Outcome
 	Tree         string
-	Policies     []string
+	Policies     []policy.Policy
 	Requirements map[string]any
 	Record       *Record
 	PullRequest  *PullRequest
@@ -50,6 +55,8 @@ type Run struct {
 
 //sumtype:decl
 type State interface{ state() }
+
+type NoSource struct{ Source string }
 
 type Idle struct{ Source string }
 
@@ -89,6 +96,7 @@ type Passed struct{ Branch string }
 
 type Merged struct{ Branch string }
 
+func (NoSource) state()  {}
 func (Idle) state()      {}
 func (Blocked) state()   {}
 func (Editing) state()   {}
@@ -118,7 +126,21 @@ type Failure struct {
 	URL      string `json:"url"`
 }
 
+func ParseRecord(data []byte) (*Record, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+	var record Record
+	if err := json.Unmarshal(data, &record); err != nil {
+		return nil, fmt.Errorf("review record: %w", err)
+	}
+	return &record, nil
+}
+
 func Parse(o Observation) State {
+	if o.Source == "" || (!strings.Contains(o.Source, "://") && !o.SourceFound) {
+		return NoSource{Source: o.Source}
+	}
 	if o.Default && len(o.Questions) > o.MaxOpen {
 		return Blocked{Questions: o.Questions}
 	}
@@ -142,10 +164,16 @@ func Parse(o Observation) State {
 		return Editing{Branch: o.Branch}
 	}
 	if pr == nil || !pr.Pushed {
+		var marked []string
+		for _, p := range o.Policies {
+			if p.Review {
+				marked = append(marked, p.ID)
+			}
+		}
 		mine := o.Record != nil && o.Record.Branch == o.Branch
 		switch {
-		case !mine && len(o.Policies) > 0:
-			return Done{Branch: o.Branch, Policies: o.Policies, Requirements: o.Requirements}
+		case !mine && len(marked) > 0:
+			return Done{Branch: o.Branch, Policies: marked, Requirements: o.Requirements}
 		case mine && o.Record.Tree == o.Tree:
 			return Ready{Branch: o.Branch, Findings: o.Record.Findings}
 		}
@@ -180,6 +208,8 @@ func Parse(o Observation) State {
 
 func Decide(s State) Action {
 	switch s := s.(type) {
+	case NoSource:
+		return Action{Action: "set-task-source", Source: s.Source}
 	case Idle:
 		return Action{Action: "take-task", Source: s.Source}
 	case Blocked:
