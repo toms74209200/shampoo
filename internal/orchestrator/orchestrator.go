@@ -142,6 +142,7 @@ func Next(dir string) (next.Action, error) {
 		state.PullRequest = &next.PullRequest{State: pr.State}
 		for _, commit := range pr.Commits {
 			state.PullRequest.Commits = append(state.PullRequest.Commits, commit.Oid)
+			state.PullRequest.Latest = commit.CommittedDate
 		}
 		state.PullRequest.Pushed = slices.Contains(state.PullRequest.Commits, strings.TrimSpace(string(out)))
 		var changed []string
@@ -182,20 +183,20 @@ func Next(dir string) (next.Action, error) {
 			state.PullRequest.Runs = append(state.PullRequest.Runs, next.Run{Workflow: run.WorkflowName, Commit: run.HeadSha, Status: run.Status, Conclusion: run.Conclusion, URL: run.URL, Created: run.CreatedAt})
 		}
 	}
-	action := next.Decide(next.Parse(state))
-	switch action.Action {
-	case "merge":
+	state.Now = time.Now()
+	state.MaxWait = time.Duration(options.MaxWaitMinutes) * time.Minute
+	parsed := next.Parse(state)
+	switch s := parsed.(type) {
+	case next.Passed:
 		if _, err := gh("pr", "merge", strconv.Itoa(pr.Number), "--"+options.Merge); err != nil {
 			return next.Action{}, fmt.Errorf("next: %w", err)
 		}
-		action.Action = "merged"
-	case "wait":
-		latest := pr.Commits[len(pr.Commits)-1].CommittedDate
-		if limit := time.Duration(options.MaxWaitMinutes) * time.Minute; time.Since(latest) >= limit {
-			return next.Action{}, fmt.Errorf("next: %s has waited for its checks since %s, longer than [orchestrator] max-wait-minutes (%d)", branch, latest.Format(time.RFC3339), options.MaxWaitMinutes)
-		}
+		parsed = next.Merged(s)
+	case next.Stalled:
+		return next.Action{}, fmt.Errorf("next: %s has waited for its checks since %s, longer than [orchestrator] max-wait-minutes (%d)", s.Branch, s.Since.Format(time.RFC3339), int(s.MaxWait.Minutes()))
+	default:
 	}
-	return action, nil
+	return next.Decide(parsed), nil
 }
 
 func Policies(dir string) ([]policy.Policy, error) {
