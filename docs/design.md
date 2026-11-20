@@ -142,7 +142,7 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 
 ## 6. Non-goals
 - Project-specific checks: these come from the project (§7)
-- Replacing CI or the code host: shampoo drives GitHub and GitHub Actions rather than reimplementing them
+- Replacing CI or the code host: shampoo drives GitHub and GitHub Actions rather than reimplementing them. Where one of their mechanisms falls short for agentic coding, shampoo has its own instead of depending on it: auto-merge (§10)
 - What agent mechanisms or the development platform already do: shampoo takes on only what neither covers, for agentic coding, and most of it is managing the SDLC as a state machine (§2, §10)
 
 ---
@@ -170,7 +170,7 @@ A guard:
 The state machine (§2) is shampoo's own. Its transitions are bound to Claude Code hooks, CI and GitHub, so a project names them (`edit`, `task`, `pr`, `milestone`) and does not define them.
 
 ## 8. Commands
-- `shampoo next`: the orchestrator. Says what to do next from the current state (§11); whoever runs the agents calls it
+- `shampoo next`: the orchestrator. Says what to do next from the current state (§11), as one line of an action and its arguments, such as `open-pr task/add-readme`, readable by agents and by scripts that run them; merges what its own auto-merge allows. Whoever runs the agents calls it
 - `shampoo guard <transition>`: runs the guard for a transition (`edit`, `task`). Called by hooks
 
 ---
@@ -211,11 +211,11 @@ Each transition is split by what agent mechanisms (hooks, skills) do, what the d
 | PR opened (TaskDone → PR) | The agent opens it | Opens the PR | `shampoo next` says to, once the task guard passes |
 | PR checks | | The repository's own CI | |
 | PR checks fail (PR → Editing) | An agent fixes them | | `shampoo next` says to, with the failure |
-| Merge (PR → Merged) | | Auto-merge | `shampoo next` decides what required checks cannot express (below) |
+| Merge (PR → Merged) | | Merges, when asked | shampoo's own auto-merge: `shampoo next` merges a PR once the checks its change calls for have passed (below). GitHub's auto-merge and required checks are not used |
 | Milestone | | A GitHub milestone, plus a manually dispatched workflow for large checks | |
 | Budget exceeded → HarnessRepair, repaired, repair budget exceeded → Human | | | All of it: the guard stops blocking and records the escape; `shampoo next` says to repair the harness |
 
-Which checks a PR needs depends on what it changes, since each workflow starts from the paths it checks. GitHub's required checks are a fixed list, and a required check whose workflow did not start waits forever; its auto-merge waits only on that list. So the merge is decided by the orchestrator:
+Which checks a PR needs depends on what it changes, since each workflow starts from the paths it checks. GitHub's required checks are a fixed list, and a required check whose workflow did not start waits forever; its auto-merge waits only on that list. So shampoo merges by its own auto-merge, when `shampoo next` is asked:
 - **Expected checks** are derived from the PR's changed paths, by the same rules as the workflows' path filters. The commit message check is always expected
 - **The results that count** are those of runs started by the PR's latest commit that no run pushed. A run may change the code before checking it and push what it produced; those commits, on top of it, are the run's output and are covered by its results
 - **A missing expected check means wait**, whatever the cause: a run not yet registered, one awaiting approval, or a commit that started none. Waiting past a time limit is a workflow failure
@@ -237,7 +237,7 @@ The flow of one task:
 2. On every tool call, the PostToolUse hook calls `shampoo guard edit`; on failure the agent gets the reason and fixes it
 3. When the agent tries to stop, the Stop hook calls `shampoo guard task`. On a violation, the agent is sent back with the reason; the rules' budgets and the repair budget decide when it stops being sent back. On pass, the stop is allowed. Every judgment is recorded in the ledger
 4. Asked again, `shampoo next` sees the recorded outcome: on pass it says to push the branch and open a PR; on escape, to repair the harness
-5. The PR's CI runs. Asked again, `shampoo next` says to merge once the checks the change calls for have passed, or to fix the failure, with its reason
+5. The PR's CI runs. Asked again, `shampoo next` merges the PR once the checks the change calls for have passed, or says to fix the failure, with its reason
 
 ## 12. State and ledger
 - **State** is derived from git and GitHub (a branch per task in its own worktree, the PR, whether it is merged). There is no separate state file to drift
