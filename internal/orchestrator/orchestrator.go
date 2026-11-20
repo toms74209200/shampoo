@@ -62,7 +62,7 @@ func Next(dir string) (next.Action, error) {
 	if err != nil {
 		return next.Action{}, err
 	}
-	state := next.State{Source: options.Tasks, Branch: branch, Default: branch == defaultBranch, Verdict: verdict}
+	state := next.Observation{Source: options.Tasks, Branch: branch, Default: branch == defaultBranch, Verdict: verdict}
 	gh := func(args ...string) ([]byte, error) {
 		cmd := exec.Command("gh", args...)
 		cmd.Dir = repo.Root
@@ -89,7 +89,7 @@ func Next(dir string) (next.Action, error) {
 			state.Questions = append(state.Questions, question.URL)
 		}
 		state.MaxOpen = options.MaxOpen
-		return next.Decide(state), nil
+		return next.Decide(next.Parse(state)), nil
 	}
 	policies, err := Policies(repo.Root)
 	if err != nil {
@@ -106,18 +106,15 @@ func Next(dir string) (next.Action, error) {
 		return next.Action{}, err
 	}
 	if recorded != nil {
-		var last reviewed
+		var last next.Record
 		if err := json.Unmarshal(recorded, &last); err != nil {
 			return next.Action{}, fmt.Errorf("next: review: %w", err)
 		}
-		tree, err := repo.Snapshot()
-		if err != nil {
-			return next.Action{}, err
-		}
-		state.Reviewed = true
-		if last.Tree == tree {
-			state.Findings = last.Findings
-		}
+		state.Record = &last
+	}
+	state.Tree, err = repo.Snapshot()
+	if err != nil {
+		return next.Action{}, err
 	}
 	var pr struct {
 		Number      int    `json:"number"`
@@ -185,7 +182,7 @@ func Next(dir string) (next.Action, error) {
 			state.PullRequest.Runs = append(state.PullRequest.Runs, next.Run{Workflow: run.WorkflowName, Commit: run.HeadSha, Status: run.Status, Conclusion: run.Conclusion, URL: run.URL, Created: run.CreatedAt})
 		}
 	}
-	action := next.Decide(state)
+	action := next.Decide(next.Parse(state))
 	switch action.Action {
 	case "merge":
 		if _, err := gh("pr", "merge", strconv.Itoa(pr.Number), "--"+options.Merge); err != nil {
@@ -199,11 +196,6 @@ func Next(dir string) (next.Action, error) {
 		}
 	}
 	return action, nil
-}
-
-type reviewed struct {
-	Tree     string           `json:"tree"`
-	Findings []review.Finding `json:"findings"`
 }
 
 func Policies(dir string) ([]policy.Policy, error) {
@@ -294,7 +286,7 @@ func Review(dir string, input io.Reader) error {
 	if err != nil {
 		return err
 	}
-	encoded, err := json.Marshal(reviewed{Tree: tree, Findings: findings})
+	encoded, err := json.Marshal(next.Record{Branch: branch, Tree: tree, Findings: findings})
 	if err != nil {
 		return err
 	}
