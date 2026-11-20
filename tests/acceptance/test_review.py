@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 from pytest_bdd import given, parsers, scenarios, then, when
 
@@ -8,26 +7,8 @@ from conftest import next_action, run_shampoo, write_settings
 scenarios("../../features/review.feature")
 
 
-def write_policy(workspace: Path, policy_id: str, review: bool) -> None:
-    policies = workspace / ".shampoo" / "policies"
-    policies.mkdir(parents=True, exist_ok=True)
-    (policies / f"{policy_id}.toml").write_text(
-        f'text = "{policy_id} is followed."\n' + ("review = true\n" if review else "")
-    )
-
-
 def findings_input(findings: list) -> str:
     return json.dumps({"findings": findings})
-
-
-@given(parsers.parse('a policy "{policy_id}"'))
-def given_policy(workspace, policy_id):
-    write_policy(workspace, policy_id, review=False)
-
-
-@given(parsers.parse('a policy "{policy_id}" for review'))
-def given_policy_for_review(workspace, policy_id):
-    write_policy(workspace, policy_id, review=True)
 
 
 @given(parsers.parse('settings requiring "{key}" "{value}" of the review'))

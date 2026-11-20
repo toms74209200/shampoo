@@ -254,3 +254,45 @@ def given_no_pull_request(fake_bin):
     gh = fake_bin / "gh"
     gh.write_text("#!/bin/sh\necho 'no pull requests found' >&2\nexit 1\n")
     gh.chmod(0o755)
+
+
+def write_policy(workspace: Path, policy_id: str, review: bool) -> None:
+    policies = workspace / ".shampoo" / "policies"
+    policies.mkdir(parents=True, exist_ok=True)
+    (policies / f"{policy_id}.toml").write_text(
+        f'text = "{policy_id} is followed."\n' + ("review = true\n" if review else "")
+    )
+
+
+@given(parsers.parse('a policy "{policy_id}"'))
+def given_policy(workspace, policy_id):
+    write_policy(workspace, policy_id, review=False)
+
+
+@given(parsers.parse('a policy "{policy_id}" for review'))
+def given_policy_for_review(workspace, policy_id):
+    write_policy(workspace, policy_id, review=True)
+
+
+@given(parsers.parse('a policy "{policy_id}" with the example "{example}"'))
+def given_policy_with_example(workspace, policy_id, example):
+    write_policy(workspace, policy_id, review=False)
+    with (workspace / ".shampoo" / "policies" / f"{policy_id}.toml").open("a") as f:
+        f.write(f"example = {json.dumps(example)}\n")
+
+
+@given(parsers.parse('a policy "{policy_id}" without a text'))
+def given_policy_without_text(workspace, policy_id):
+    policies = workspace / ".shampoo" / "policies"
+    policies.mkdir(parents=True, exist_ok=True)
+    (policies / f"{policy_id}.toml").write_text("review = true\n")
+
+
+@then(parsers.parse('stdout contains "{text}"'))
+def then_stdout_contains(run_result, text):
+    assert text in run_result["stdout"], f"expected {text!r} in stdout, got {run_result['stdout']!r}"
+
+
+@then("stdout is empty")
+def then_stdout_empty(run_result):
+    assert run_result["stdout"] == "", f"expected no stdout, got {run_result['stdout']!r}"
