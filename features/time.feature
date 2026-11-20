@@ -35,7 +35,6 @@ Feature: Charge a check's run time to its time budget
     And stderr contains "slow exceeds its time budget"
     And stderr contains "reorganize the check"
 
-  @skip
   @sha:cdc64a09cfe5
   Scenario: A project's stop overrides the default
     Given settings limiting small checks to 1 second
@@ -45,7 +44,6 @@ Feature: Charge a check's run time to its time budget
     Then the exit code is 3
     And stderr contains "slow exceeds its time budget"
 
-  @skip
   @sha:78e78afa9aab
   Scenario: A stop with more charges than runs is a workflow failure
     Given settings stopping the time budget at 2 runs over the limit in the latest 1 run
