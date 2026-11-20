@@ -62,7 +62,32 @@ func Next(dir string) (next.Action, error) {
 		return next.Action{}, err
 	}
 	state := next.State{Source: options.Tasks, Branch: branch, Default: branch == defaultBranch, Verdict: verdict}
+	gh := func(args ...string) ([]byte, error) {
+		cmd := exec.Command("gh", args...)
+		cmd.Dir = repo.Root
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		out, err := cmd.Output()
+		if err != nil {
+			return nil, fmt.Errorf("gh %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
+		}
+		return out, nil
+	}
 	if state.Default {
+		list, err := gh("issue", "list", "--label", options.QuestionLabel, "--state", "open", "--limit", "1000", "--json", "url")
+		if err != nil {
+			return next.Action{}, fmt.Errorf("next: %w", err)
+		}
+		var questions []struct {
+			URL string `json:"url"`
+		}
+		if err := json.Unmarshal(list, &questions); err != nil {
+			return next.Action{}, fmt.Errorf("next: gh issue list: %w", err)
+		}
+		for _, question := range questions {
+			state.Questions = append(state.Questions, question.URL)
+		}
+		state.MaxOpen = options.MaxOpen
 		return next.Decide(state), nil
 	}
 	policies, err := Policies(repo.Root)
@@ -92,17 +117,6 @@ func Next(dir string) (next.Action, error) {
 		if last.Tree == tree {
 			state.Findings = last.Findings
 		}
-	}
-	gh := func(args ...string) ([]byte, error) {
-		cmd := exec.Command("gh", args...)
-		cmd.Dir = repo.Root
-		var stderr bytes.Buffer
-		cmd.Stderr = &stderr
-		out, err := cmd.Output()
-		if err != nil {
-			return nil, fmt.Errorf("gh %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
-		}
-		return out, nil
 	}
 	var pr struct {
 		Number      int    `json:"number"`

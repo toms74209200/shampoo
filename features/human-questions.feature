@@ -8,14 +8,12 @@ Feature: Stop taking tasks while too many questions to a human are open
     Given a git repository with a commit
     And a task source "todo.md"
 
-  @skip
   @sha:bf8fde14148c
   Scenario: Open questions within the limit let a new task be taken
     Given 3 questions to a human are open
     When I run "shampoo next"
     Then the next action is "take-task"
 
-  @skip
   @sha:4360dbb16053
   Scenario: More open questions than the limit hand no new task
     Given 4 questions to a human are open
@@ -24,7 +22,6 @@ Feature: Stop taking tasks while too many questions to a human are open
     And the next action is "wait-for-human"
     And the next action names 4 questions
 
-  @skip
   @sha:b459ba145035
   Scenario: Answered questions are not counted
     Given 3 questions to a human are open
@@ -32,7 +29,6 @@ Feature: Stop taking tasks while too many questions to a human are open
     When I run "shampoo next"
     Then the next action is "take-task"
 
-  @skip
   @sha:79bce7a4e815
   Scenario: The settings override the label and the limit
     Given settings asking a human with the label "ask" and at most 0 open questions
@@ -40,7 +36,6 @@ Feature: Stop taking tasks while too many questions to a human are open
     When I run "shampoo next"
     Then the next action is "wait-for-human"
 
-  @skip
   @sha:20646b13e53c
   Scenario: A task already taken goes on
     Given 4 questions to a human are open

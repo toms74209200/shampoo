@@ -18,6 +18,8 @@ type State struct {
 	Requirements map[string]any
 	Reviewed     bool
 	Findings     []review.Finding
+	Questions    []string
+	MaxOpen      int
 }
 
 type PullRequest struct {
@@ -45,6 +47,7 @@ type Action struct {
 	Policies     []string         `json:"policies,omitempty"`
 	Requirements map[string]any   `json:"requirements,omitempty"`
 	Findings     []review.Finding `json:"findings,omitempty"`
+	Questions    []string         `json:"questions,omitempty"`
 }
 
 type Failure struct {
@@ -53,6 +56,9 @@ type Failure struct {
 }
 
 func Decide(s State) Action {
+	if s.Default && len(s.Questions) > s.MaxOpen {
+		return Action{Action: "wait-for-human", Questions: s.Questions}
+	}
 	if s.Default {
 		return Action{Action: "take-task", Source: s.Source}
 	}

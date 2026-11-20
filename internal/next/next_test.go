@@ -28,6 +28,9 @@ func TestDecide(t *testing.T) {
 		want  Action
 	}{
 		{name: "when Decide with the default branch then returns taking a task from the source", state: State{Source: source, Branch: branch, Default: true, Verdict: rule.Outcome("pass")}, want: Action{Action: "take-task", Source: source}},
+		{name: "when Decide with the default branch and open questions within the limit then returns taking a task", state: State{Source: source, Default: true, Questions: []string{url}, MaxOpen: 1}, want: Action{Action: "take-task", Source: source}},
+		{name: "when Decide with the default branch and more open questions than the limit then returns waiting for a human with them", state: State{Source: source, Default: true, Questions: []string{url, other}, MaxOpen: 1}, want: Action{Action: "wait-for-human", Questions: []string{url, other}}},
+		{name: "when Decide with a task branch and more open questions than the limit then returns going on with the task", state: State{Branch: branch, Questions: []string{url, other}, MaxOpen: 1}, want: Action{Action: "continue", Branch: branch}},
 		{name: "when Decide with a passed task guard then returns opening a pull request", state: State{Source: source, Branch: branch, Verdict: rule.Outcome("pass")}, want: Action{Action: "open-pr", Branch: branch}},
 		{name: "when Decide with a budget exceeded then returns repairing the harness", state: State{Source: source, Branch: branch, Verdict: rule.Outcome("budget-exceeded")}, want: Action{Action: "repair-harness", Branch: branch}},
 		{name: "when Decide with repairs beyond their limit then returns handing the task to a human", state: State{Source: source, Branch: branch, Verdict: rule.Outcome("repair-exceeded")}, want: Action{Action: "hand-to-human", Branch: branch}},
