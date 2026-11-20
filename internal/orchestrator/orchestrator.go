@@ -65,7 +65,7 @@ func Next(dir string) (next.Action, error) {
 	if state.Default {
 		return next.Decide(state), nil
 	}
-	policies, err := readPolicies(repo.Root)
+	policies, err := Policies(repo.Root)
 	if err != nil {
 		return next.Action{}, err
 	}
@@ -191,8 +191,12 @@ type reviewed struct {
 	Findings []review.Finding `json:"findings"`
 }
 
-func readPolicies(root string) ([]policy.Policy, error) {
-	sources, err := files.Read(filepath.Join(root, ".shampoo", "policies"), ".toml")
+func Policies(dir string) ([]policy.Policy, error) {
+	repo, err := git.Open(dir)
+	if err != nil {
+		return nil, err
+	}
+	sources, err := files.Read(filepath.Join(repo.Root, ".shampoo", "policies"), ".toml")
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, err
 	}
@@ -212,7 +216,7 @@ func Review(dir string, input io.Reader) error {
 	if err != nil {
 		return err
 	}
-	policies, err := readPolicies(repo.Root)
+	policies, err := Policies(repo.Root)
 	if err != nil {
 		return err
 	}

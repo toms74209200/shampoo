@@ -8,6 +8,7 @@ import (
 
 	"github.com/toms74209200/shampoo/internal/guard"
 	"github.com/toms74209200/shampoo/internal/orchestrator"
+	"github.com/toms74209200/shampoo/internal/policy"
 	"github.com/toms74209200/shampoo/internal/rule"
 )
 
@@ -23,12 +24,18 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		} else {
 			code, message = 2, fmt.Sprintf("shampoo next: %v\n", errors.Join(err, encodeErr))
 		}
+	} else if len(args) == 1 && args[0] == "policies" {
+		policies, err := orchestrator.Policies("")
+		if err != nil {
+			code, message = 2, fmt.Sprintf("shampoo policies: %v\n", err)
+		}
+		output = policy.Render(policies)
 	} else if len(args) == 1 && args[0] == "review" {
 		if err := orchestrator.Review("", stdin); err != nil {
 			code, message = 2, fmt.Sprintf("shampoo review: %v\n", err)
 		}
 	} else if len(args) != 2 || args[0] != "guard" {
-		code, message = 2, "usage: shampoo guard <transition> | shampoo next | shampoo review\n"
+		code, message = 2, "usage: shampoo guard <transition> | shampoo next | shampoo review | shampoo policies\n"
 	} else if transition, err := rule.ParseTransition(args[1]); err != nil {
 		code, message = 2, fmt.Sprintf("shampoo guard: %v\n", err)
 	} else if transition != rule.Edit && transition != rule.Task {
