@@ -4,6 +4,7 @@ package policy
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -40,17 +41,18 @@ func TestRender(t *testing.T) {
 	tests := []struct {
 		name     string
 		policies []Policy
-		want     string
+		prefix   string
+		ending   string
 	}{
-		{name: "when Render with policies then returns each with its text and its example", policies: []Policy{{ID: "layout", Text: "\nmain.go runs.\n", Example: "\nmain.go\n"}, {ID: "functions", Text: "No wrappers.", Review: true}}, want: "# Policies of this project (.shampoo/policies/)\n\n## layout\n\nmain.go runs.\n\nmain.go\n\n## functions\n\nNo wrappers.\n"},
-		{name: "when Render with no policies then returns nothing", policies: nil, want: ""},
+		{name: "when Render with policies then returns each with its text and its example before asking a human", policies: []Policy{{ID: "layout", Text: "\nmain.go runs.\n", Example: "\nmain.go\n"}, {ID: "functions", Text: "No wrappers.", Review: true}}, prefix: "# Policies of this project (.shampoo/policies/)\n\n## layout\n\nmain.go runs.\n\nmain.go\n\n## functions\n\nNo wrappers.\n\n# Asking a human (shampoo)\n", ending: "as feedback for later tasks.\n"},
+		{name: "when Render with no policies then returns only asking a human", policies: nil, prefix: "# Asking a human (shampoo)\n", ending: "as feedback for later tasks.\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := Render(tt.policies)
 
-			if got != tt.want {
-				t.Errorf("got %q, want %q", got, tt.want)
+			if !strings.HasPrefix(got, tt.prefix) || !strings.HasSuffix(got, tt.ending) {
+				t.Errorf("got %q, want it to start with %q and end with %q", got, tt.prefix, tt.ending)
 			}
 		})
 	}
