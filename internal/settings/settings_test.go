@@ -14,9 +14,12 @@ func TestParse(t *testing.T) {
 		want    Settings
 		wantErr bool
 	}{
-		{name: "when Parse with no settings then returns the defaults", data: "", want: Settings{RepairAttempts: 3}},
-		{name: "when Parse with failed attempts of harness repair then returns them", data: "[state-machine.harness-repair]\nmax-failed-attempts = 1\n", want: Settings{RepairAttempts: 1}},
-		{name: "when Parse with a task source then returns it", data: "[orchestrator]\ntasks = \"todo.md\"\n", want: Settings{RepairAttempts: 3, Tasks: "todo.md"}},
+		{name: "when Parse with no settings then returns the defaults", data: "", want: Settings{RepairAttempts: 3, MaxWaitMinutes: 60, Merge: "merge"}},
+		{name: "when Parse with failed attempts of harness repair then returns them", data: "[state-machine.harness-repair]\nmax-failed-attempts = 1\n", want: Settings{RepairAttempts: 1, MaxWaitMinutes: 60, Merge: "merge"}},
+		{name: "when Parse with a task source then returns it", data: "[orchestrator]\ntasks = \"todo.md\"\n", want: Settings{RepairAttempts: 3, Tasks: "todo.md", MaxWaitMinutes: 60, Merge: "merge"}},
+		{name: "when Parse with a wait limit and a merge method then returns them", data: "[orchestrator]\nmax-wait-minutes = 0\nmerge = \"squash\"\n", want: Settings{RepairAttempts: 3, MaxWaitMinutes: 0, Merge: "squash"}},
+		{name: "when Parse with a negative wait limit then returns an error", data: "[orchestrator]\nmax-wait-minutes = -1\n", wantErr: true},
+		{name: "when Parse with an unknown merge method then returns an error", data: "[orchestrator]\nmerge = \"fast-forward\"\n", wantErr: true},
 		{name: "when Parse with an agent of the orchestrator then returns an error", data: "[orchestrator]\nagent = \"claude -p\"\n", wantErr: true},
 		{name: "when Parse with invalid TOML then returns an error", data: "[state-machine", wantErr: true},
 		{name: "when Parse with a state not settable yet then returns an error", data: "[state-machine.editing]\nmax-failed-attempts = 3\n", wantErr: true},

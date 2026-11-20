@@ -1,12 +1,18 @@
 package orchestrator
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/toms74209200/shampoo/internal/files"
 	"github.com/toms74209200/shampoo/internal/git"
@@ -14,6 +20,7 @@ import (
 	"github.com/toms74209200/shampoo/internal/next"
 	"github.com/toms74209200/shampoo/internal/rule"
 	"github.com/toms74209200/shampoo/internal/settings"
+	"github.com/toms74209200/shampoo/internal/workflow"
 )
 
 func Next(dir string) (next.Action, error) {
@@ -49,12 +56,99 @@ func Next(dir string) (next.Action, error) {
 	if err != nil {
 		return next.Action{}, err
 	}
-	if branch != defaultBranch && verdict == rule.Pass {
-		view := exec.Command("gh", "pr", "view", branch, "--json", "state")
-		view.Dir = repo.Root
-		if view.Run() == nil {
-			return next.Action{}, fmt.Errorf("next: %s has a pull request; following its checks is not implemented yet", branch)
+	state := next.State{Source: options.Tasks, Branch: branch, Default: branch == defaultBranch, Verdict: verdict}
+	if state.Default {
+		return next.Decide(state), nil
+	}
+	gh := func(args ...string) ([]byte, error) {
+		cmd := exec.Command("gh", args...)
+		cmd.Dir = repo.Root
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		out, err := cmd.Output()
+		if err != nil {
+			return nil, fmt.Errorf("gh %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
+		}
+		return out, nil
+	}
+	var pr struct {
+		Number      int    `json:"number"`
+		State       string `json:"state"`
+		BaseRefName string `json:"baseRefName"`
+		Commits     []struct {
+			Oid           string    `json:"oid"`
+			CommittedDate time.Time `json:"committedDate"`
+		} `json:"commits"`
+		Files []struct {
+			Path string `json:"path"`
+		} `json:"files"`
+	}
+	view, err := gh("pr", "view", branch, "--json", "number,state,baseRefName,commits,files")
+	if err == nil {
+		if err := json.Unmarshal(view, &pr); err != nil {
+			return next.Action{}, fmt.Errorf("next: gh pr view: %w", err)
+		}
+		head := exec.Command("git", "rev-parse", "HEAD")
+		head.Dir = repo.Root
+		out, err := head.Output()
+		if err != nil {
+			return next.Action{}, fmt.Errorf("git rev-parse HEAD: %w", err)
+		}
+		state.PullRequest = &next.PullRequest{State: pr.State}
+		for _, commit := range pr.Commits {
+			state.PullRequest.Commits = append(state.PullRequest.Commits, commit.Oid)
+		}
+		state.PullRequest.Pushed = slices.Contains(state.PullRequest.Commits, strings.TrimSpace(string(out)))
+		var changed []string
+		for _, file := range pr.Files {
+			changed = append(changed, file.Path)
+		}
+		for _, suffix := range []string{".yml", ".yaml"} {
+			found, err := files.Read(filepath.Join(repo.Root, ".github", "workflows"), suffix)
+			if err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return next.Action{}, err
+			}
+			for _, file := range found {
+				parsed, err := workflow.Parse(".github/workflows/"+file.Name+suffix, file.Data)
+				if err != nil {
+					return next.Action{}, err
+				}
+				if parsed.Expects(pr.BaseRefName, changed) {
+					state.PullRequest.Expected = append(state.PullRequest.Expected, parsed.Name)
+				}
+			}
+		}
+		list, err := gh("run", "list", "--branch", branch, "--limit", "200", "--json", "workflowName,headSha,status,conclusion,url,createdAt")
+		if err != nil {
+			return next.Action{}, fmt.Errorf("next: %w", err)
+		}
+		var runs []struct {
+			WorkflowName string    `json:"workflowName"`
+			HeadSha      string    `json:"headSha"`
+			Status       string    `json:"status"`
+			Conclusion   string    `json:"conclusion"`
+			URL          string    `json:"url"`
+			CreatedAt    time.Time `json:"createdAt"`
+		}
+		if err := json.Unmarshal(list, &runs); err != nil {
+			return next.Action{}, fmt.Errorf("next: gh run list: %w", err)
+		}
+		for _, run := range runs {
+			state.PullRequest.Runs = append(state.PullRequest.Runs, next.Run{Workflow: run.WorkflowName, Commit: run.HeadSha, Status: run.Status, Conclusion: run.Conclusion, URL: run.URL, Created: run.CreatedAt})
 		}
 	}
-	return next.Decide(next.State{Source: options.Tasks, Branch: branch, Default: branch == defaultBranch, Verdict: verdict}), nil
+	action := next.Decide(state)
+	switch action.Action {
+	case "merge":
+		if _, err := gh("pr", "merge", strconv.Itoa(pr.Number), "--"+options.Merge); err != nil {
+			return next.Action{}, fmt.Errorf("next: %w", err)
+		}
+		action.Action = "merged"
+	case "wait":
+		latest := pr.Commits[len(pr.Commits)-1].CommittedDate
+		if limit := time.Duration(options.MaxWaitMinutes) * time.Minute; time.Since(latest) >= limit {
+			return next.Action{}, fmt.Errorf("next: %s has waited for its checks since %s, longer than [orchestrator] max-wait-minutes (%d)", branch, latest.Format(time.RFC3339), options.MaxWaitMinutes)
+		}
+	}
+	return action, nil
 }
