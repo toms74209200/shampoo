@@ -56,6 +56,24 @@ func Violations(lines []Line, ruleID string, transition rule.Transition, runs in
 	return violations
 }
 
+func Overruns(lines []Line, check string, limit int64, runs int) int {
+	overruns := 0
+	seen := map[string]bool{}
+	for _, line := range slices.Backward(lines) {
+		if len(seen) == runs && !seen[line.Run] {
+			break
+		}
+		if line.Check != check || seen[line.Run] {
+			continue
+		}
+		seen[line.Run] = true
+		if line.Millis > limit {
+			overruns++
+		}
+	}
+	return overruns
+}
+
 func Repairs(lines []Line, task string) int {
 	repairs := 0
 	for _, line := range lines {
