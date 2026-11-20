@@ -3,5 +3,5 @@ github.com/toms74209200/shampoo/internal/cli
 github.com/toms74209200/shampoo/internal/files
 github.com/toms74209200/shampoo/internal/git
 github.com/toms74209200/shampoo/internal/guard
-github.com/toms74209200/shampoo/internal/run
+github.com/toms74209200/shampoo/internal/orchestrator
 github.com/toms74209200/shampoo/internal/shell
