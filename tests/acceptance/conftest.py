@@ -67,13 +67,13 @@ def write_settings(workspace: Path, sections: dict) -> None:
     (workspace / ".shampoo" / "settings.toml").write_text(text)
 
 
-def run_shampoo(workspace: Path, shampoo_binary: Path, fake_bin: Path, command: str):
+def run_shampoo(workspace: Path, shampoo_binary: Path, fake_bin: Path, command: str, stdin: str = ""):
     args = command.split()
     assert args[0] == "shampoo"
     return subprocess.run(
         [str(shampoo_binary), *args[1:]],
         cwd=workspace,
-        stdin=subprocess.DEVNULL,
+        input=stdin,
         capture_output=True,
         text=True,
         timeout=300,
@@ -247,3 +247,10 @@ def then_next_action(run_result, action):
 def then_next_action_field(run_result, field, value):
     got = next_action(run_result).get(field)
     assert got == value, f"expected {field} {value!r}, got {got!r}"
+
+
+@given("no pull request is open")
+def given_no_pull_request(fake_bin):
+    gh = fake_bin / "gh"
+    gh.write_text("#!/bin/sh\necho 'no pull requests found' >&2\nexit 1\n")
+    gh.chmod(0o755)
