@@ -75,3 +75,30 @@ func TestExpects(t *testing.T) {
 		})
 	}
 }
+
+func TestExpected(t *testing.T) {
+	tests := []struct {
+		name    string
+		sources []Source
+		base    string
+		changed []string
+		want    []string
+		wantErr bool
+	}{
+		{name: "when Expected with workflows of matching and missing paths then returns the matching names", sources: []Source{{Path: "a.yml", Data: []byte("name: go\non:\n  pull_request:\n    paths: ['**.go']\n")}, {Path: "b.yml", Data: []byte("name: docs\non:\n  pull_request:\n    paths: ['docs/**']\n")}}, base: "master", changed: []string{"main.go"}, want: []string{"go"}},
+		{name: "when Expected with no workflows then returns none", sources: nil, base: "master", changed: []string{"main.go"}, want: nil},
+		{name: "when Expected with an invalid workflow then returns an error", sources: []Source{{Path: "a.yml", Data: []byte("on: [")}}, base: "master", changed: []string{"main.go"}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := Expected(tt.sources, tt.base, tt.changed)
+
+			if tt.wantErr && err == nil {
+				t.Errorf("got %v, want an error", got)
+			}
+			if !tt.wantErr && (err != nil || !reflect.DeepEqual(got, tt.want)) {
+				t.Errorf("got %v, %v, want %v", got, err, tt.want)
+			}
+		})
+	}
+}
