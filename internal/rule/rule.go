@@ -21,8 +21,8 @@ type Checked struct {
 	Judge       Judge
 	Transitions []Transition
 	Paths       Paths
-	Budget      Count
-	Stop        Count
+	Budget      map[Transition]Count
+	Stop        map[Transition]Count
 }
 
 type Count struct {
@@ -67,23 +67,20 @@ func Parse(id string, data []byte) (Rule, error) {
 			Command string            `toml:"command"`
 			Exit    map[string]string `toml:"exit"`
 		} `toml:"judge"`
-		Unchecked string `toml:"unchecked"`
-		Budget    struct {
-			Violations int `toml:"violations"`
-			Runs       int `toml:"runs"`
-		} `toml:"budget"`
-		Stop struct {
-			Violations int `toml:"violations"`
-			Runs       int `toml:"runs"`
-		} `toml:"stop"`
+		Unchecked string         `toml:"unchecked"`
+		Budget    map[string]any `toml:"budget"`
+		Stop      map[string]any `toml:"stop"`
 	}
-	file.Budget.Violations, file.Budget.Runs, file.Stop.Violations, file.Stop.Runs = 2, 20, 2, 5
 	meta, err := toml.Decode(string(data), &file)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s: %v", ErrInvalid, id, err)
 	}
-	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
+	undecoded := slices.DeleteFunc(meta.Undecoded(), func(key toml.Key) bool { return key[0] == "budget" || key[0] == "stop" })
+	if len(undecoded) > 0 {
 		return nil, fmt.Errorf("%w: %s: unknown fields %v", ErrInvalid, id, undecoded)
+	}
+	if (meta.IsDefined("budget") && file.Budget == nil) || (meta.IsDefined("stop") && file.Stop == nil) {
+		return nil, fmt.Errorf("%w: %s: a budget and a stop are counts", ErrInvalid, id)
 	}
 	if file.Rule == "" {
 		return nil, fmt.Errorf("%w: %s: no rule", ErrInvalid, id)
@@ -139,10 +136,59 @@ func Parse(id string, data []byte) (Rule, error) {
 		}
 		checked.Judge = ByCommand{Command: file.Judge.Command, Exit: exit}
 	}
-	if file.Budget.Runs < 1 || file.Budget.Violations < 0 || file.Budget.Violations > file.Budget.Runs || file.Stop.Runs < 1 || file.Stop.Violations < 1 || file.Stop.Violations > file.Stop.Runs {
-		return nil, fmt.Errorf("%w: %s: a budget allows from none to all of at least one run, and a stop takes from one to all of at least one run", ErrInvalid, id)
+	checked.Budget, err = parseCounts(file.Budget, checked.Transitions, 0, Count{Violations: 10, Runs: 20}, Count{Violations: 2, Runs: 20})
+	if err != nil {
+		return nil, fmt.Errorf("%s: budget: %w", id, err)
 	}
-	checked.Budget = Count{Violations: file.Budget.Violations, Runs: file.Budget.Runs}
-	checked.Stop = Count{Violations: file.Stop.Violations, Runs: file.Stop.Runs}
+	checked.Stop, err = parseCounts(file.Stop, checked.Transitions, 1, Count{Violations: 8, Runs: 10}, Count{Violations: 2, Runs: 5})
+	if err != nil {
+		return nil, fmt.Errorf("%s: stop: %w", id, err)
+	}
 	return checked, nil
+}
+
+func parseCounts(value map[string]any, transitions []Transition, least int, atEdit, elsewhere Count) (map[Transition]Count, error) {
+	counts := map[Transition]Count{}
+	for _, transition := range transitions {
+		counts[transition] = elsewhere
+	}
+	if _, ok := counts[Edit]; ok {
+		counts[Edit] = atEdit
+	}
+	_, hasViolations := value["violations"]
+	_, hasRuns := value["runs"]
+	if hasViolations || hasRuns {
+		count, err := parseCount(value, least)
+		if err != nil {
+			return nil, err
+		}
+		for transition := range counts {
+			counts[transition] = count
+		}
+		return counts, nil
+	}
+	for name, entry := range value {
+		if _, ok := counts[Transition(name)]; !ok {
+			return nil, fmt.Errorf("%w: %q is not a transition the rule guards", ErrInvalid, name)
+		}
+		table, ok := entry.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("%w: %s is not a count", ErrInvalid, name)
+		}
+		count, err := parseCount(table, least)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", name, err)
+		}
+		counts[Transition(name)] = count
+	}
+	return counts, nil
+}
+
+func parseCount(table map[string]any, least int) (Count, error) {
+	violations, hasViolations := table["violations"].(int64)
+	runs, hasRuns := table["runs"].(int64)
+	if !hasViolations || !hasRuns || len(table) != 2 || runs < 1 || violations < int64(least) || violations > runs {
+		return Count{}, fmt.Errorf("%w: a count has violations, from %d to all, in runs, at least one", ErrInvalid, least)
+	}
+	return Count{Violations: int(violations), Runs: int(runs)}, nil
 }
