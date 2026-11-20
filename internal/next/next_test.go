@@ -21,7 +21,7 @@ func TestParse(t *testing.T) {
 	url, older, other := rand.Text(), rand.Text(), rand.Text()
 	start := time.Now()
 	pr := func(state string, pushed bool, expected []string, runs ...Run) *PullRequest {
-		return &PullRequest{State: state, Pushed: pushed, Commits: []string{first, second}, Expected: expected, Runs: runs}
+		return &PullRequest{State: state, Pushed: pushed, Commits: []string{first, second}, Latest: start, Expected: expected, Runs: runs}
 	}
 	tests := []struct {
 		name        string
@@ -45,14 +45,15 @@ func TestParse(t *testing.T) {
 		{name: "when Parse with a task failure on an open pull request then returns editing", observation: Observation{Branch: branch, Verdict: rule.Outcome("task-failure"), PullRequest: pr("OPEN", true, nil)}, want: Editing{Branch: branch}},
 		{name: "when Parse with a merged pull request then returns merged", observation: Observation{Branch: branch, PullRequest: pr("MERGED", true, nil)}, want: Merged{Branch: branch}},
 		{name: "when Parse with a closed pull request then returns handed", observation: Observation{Branch: branch, Verdict: rule.Outcome("pass"), PullRequest: pr("CLOSED", true, nil)}, want: Handed{Branch: branch}},
-		{name: "when Parse with no run of an expected workflow then returns waiting", observation: Observation{Branch: branch, Verdict: rule.Outcome("pass"), PullRequest: pr("OPEN", true, []string{"go"})}, want: Waiting{Branch: branch}},
-		{name: "when Parse with an expected workflow running then returns waiting", observation: Observation{Branch: branch, Verdict: rule.Outcome("pass"), PullRequest: pr("OPEN", true, []string{"go"}, Run{Workflow: "go", Commit: second, Status: "in_progress", URL: url, Created: start})}, want: Waiting{Branch: branch}},
+		{name: "when Parse with no run of an expected workflow then returns waiting", observation: Observation{Branch: branch, Verdict: rule.Outcome("pass"), PullRequest: pr("OPEN", true, []string{"go"}), Now: start.Add(59 * time.Minute), MaxWait: time.Hour}, want: Waiting{Branch: branch}},
+		{name: "when Parse with no run of an expected workflow for the longest wait then returns stalled since the latest commit", observation: Observation{Branch: branch, Verdict: rule.Outcome("pass"), PullRequest: pr("OPEN", true, []string{"go"}), Now: start.Add(time.Hour), MaxWait: time.Hour}, want: Stalled{Branch: branch, Since: start, MaxWait: time.Hour}},
+		{name: "when Parse with an expected workflow running then returns waiting", observation: Observation{Branch: branch, Verdict: rule.Outcome("pass"), PullRequest: pr("OPEN", true, []string{"go"}, Run{Workflow: "go", Commit: second, Status: "in_progress", URL: url, Created: start}), Now: start, MaxWait: time.Hour}, want: Waiting{Branch: branch}},
 		{name: "when Parse with an expected workflow failed then returns failing with its run", observation: Observation{Branch: branch, Verdict: rule.Outcome("pass"), PullRequest: pr("OPEN", true, []string{"go", "commit"}, Run{Workflow: "go", Commit: second, Status: "completed", Conclusion: "failure", URL: url, Created: start})}, want: Failing{Branch: branch, Failures: []Failure{{Workflow: "go", URL: url}}}},
 		{name: "when Parse with every expected workflow passed then returns passed", observation: Observation{Branch: branch, Verdict: rule.Outcome("pass"), PullRequest: pr("OPEN", true, []string{"go", "docs", "lint"}, Run{Workflow: "go", Commit: second, Status: "completed", Conclusion: "success", Created: start}, Run{Workflow: "docs", Commit: second, Status: "completed", Conclusion: "skipped", Created: start}, Run{Workflow: "lint", Commit: second, Status: "completed", Conclusion: "neutral", Created: start})}, want: Passed{Branch: branch}},
 		{name: "when Parse with a run on an earlier commit then returns passed", observation: Observation{Branch: branch, Verdict: rule.Outcome("pass"), PullRequest: pr("OPEN", true, []string{"go"}, Run{Workflow: "go", Commit: first, Status: "completed", Conclusion: "success", Created: start})}, want: Passed{Branch: branch}},
 		{name: "when Parse with a later run that did not execute then returns passed by the earlier run", observation: Observation{Branch: branch, Verdict: rule.Outcome("pass"), PullRequest: pr("OPEN", true, []string{"go"}, Run{Workflow: "go", Commit: first, Status: "completed", Conclusion: "success", Created: start}, Run{Workflow: "go", Commit: second, Status: "completed", Conclusion: "action_required", Created: start.Add(time.Minute)})}, want: Passed{Branch: branch}},
 		{name: "when Parse with a failed run before a passed one then returns passed", observation: Observation{Branch: branch, Verdict: rule.Outcome("pass"), PullRequest: pr("OPEN", true, []string{"go"}, Run{Workflow: "go", Commit: second, Status: "completed", Conclusion: "success", URL: other, Created: start.Add(time.Minute)}, Run{Workflow: "go", Commit: first, Status: "completed", Conclusion: "failure", URL: older, Created: start})}, want: Passed{Branch: branch}},
-		{name: "when Parse with a run on a commit outside the pull request then returns waiting", observation: Observation{Branch: branch, Verdict: rule.Outcome("pass"), PullRequest: pr("OPEN", true, []string{"go"}, Run{Workflow: "go", Commit: elsewhere, Status: "completed", Conclusion: "success", Created: start})}, want: Waiting{Branch: branch}},
+		{name: "when Parse with a run on a commit outside the pull request then returns waiting", observation: Observation{Branch: branch, Verdict: rule.Outcome("pass"), PullRequest: pr("OPEN", true, []string{"go"}, Run{Workflow: "go", Commit: elsewhere, Status: "completed", Conclusion: "success", Created: start}), Now: start, MaxWait: time.Hour}, want: Waiting{Branch: branch}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -83,6 +84,7 @@ func TestDecide(t *testing.T) {
 		{name: "when Decide with ready then returns opening a pull request with the findings", state: Ready{Branch: branch, Findings: []review.Finding{{Policy: "functions", Comment: url}}}, want: Action{Action: "open-pr", Branch: branch, Findings: []review.Finding{{Policy: "functions", Comment: url}}}},
 		{name: "when Decide with failing then returns fixing the pull request", state: Failing{Branch: branch, Failures: []Failure{{Workflow: "go", URL: url}}}, want: Action{Action: "fix-pr", Branch: branch, Failures: []Failure{{Workflow: "go", URL: url}}}},
 		{name: "when Decide with waiting then returns waiting", state: Waiting{Branch: branch}, want: Action{Action: "wait", Branch: branch}},
+		{name: "when Decide with stalled then returns waiting", state: Stalled{Branch: branch}, want: Action{Action: "wait", Branch: branch}},
 		{name: "when Decide with passed then returns merging", state: Passed{Branch: branch}, want: Action{Action: "merge", Branch: branch}},
 		{name: "when Decide with merged then returns merged", state: Merged{Branch: branch}, want: Action{Action: "merged", Branch: branch}},
 	}
