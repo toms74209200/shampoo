@@ -111,3 +111,21 @@ func (r Repository) Unmerged() ([]string, error) {
 	}
 	return strings.Fields(string(out)), nil
 }
+
+func (r Repository) Base() (string, error) {
+	for _, ref := range []string{"refs/remotes/origin/HEAD", "refs/heads/main", "refs/heads/master"} {
+		exists := exec.Command("git", "rev-parse", "--quiet", "--verify", ref)
+		exists.Dir = r.Root
+		if exists.Run() != nil {
+			continue
+		}
+		base := exec.Command("git", "merge-base", "HEAD", ref)
+		base.Dir = r.Root
+		out, err := base.Output()
+		if err != nil {
+			return "", fmt.Errorf("git merge-base %s: %w", ref, err)
+		}
+		return strings.TrimSpace(string(out)) + "^{tree}", nil
+	}
+	return "", errors.New("git: no default branch among origin/HEAD, main and master")
+}
