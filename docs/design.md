@@ -145,7 +145,7 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 | Judge | A rule's decision on its check's results: pass, task failure, workflow failure or a charge to the rule's budget (§3, §7) |
 | Policy | Guidance that the harness puts into the agent's context. No check detects its violations; it takes effect only as far as the agent follows it, and, when marked for review, as far as a review finds them |
 
-- **The harness puts policies into the context at fixed times**: all policies when a task starts, and all of them again after the context is compacted. The agent does not choose whether to load them
+- **The harness puts policies into the context at fixed times**: all policies when a session starts or is cleared, and all of them again after the context is compacted. The agent does not choose whether to load them. The agent mechanism does it (a Claude Code `SessionStart` hook on `startup`, `clear` and `compact`, whose output enters the context), calling `shampoo policies`
 - **A policy may carry a code example**: written inline, a reference `path#L<start>-L<end>` at a fixed commit, or none
 - **Every rule passes on every code example.** A rule that fails on one contradicts the policy, and the rule is fixed
 - **A policy may be marked for review** (`review = true`). If any is, the state machine has the review phase (§2): before the PR, an agent reviews the task's change against the marked policies, without a human. Which agent does it is the agents' setup; the requirements on it, such as the model or that it is not the agent that did the work, are the project's, in `[state-machine.review.requirements]`, and shampoo hands them over as they are
@@ -184,6 +184,7 @@ The state machine (§2) is shampoo's own. Its transitions are bound to Claude Co
 ## 8. Commands
 - `shampoo next`: the orchestrator. Says what to do next from the current state (§11), as a JSON object naming the action and its details, such as `{"action": "open-pr", "branch": "task/add-readme"}`, readable by agents and by scripts that run them, and open to new fields without breaking either; merges what its own auto-merge allows. Whoever runs the agents calls it
 - `shampoo guard <transition>`: runs the guard for a transition (`edit`, `task`). Called by hooks
+- `shampoo policies`: prints every policy, its text and its code example, for the hook that puts them into the agent's context (§5.2)
 - `shampoo review`: records a review of the current tree, read as JSON from stdin: `{"findings": [{"policy": "<id>", "comment": "..."}]}`. Each finding names a policy marked for review. Called by the reviewing agent
 
 ---
@@ -218,7 +219,7 @@ Each transition is split by what agent mechanisms (hooks, skills) do, what the d
 
 | Transition | Agent mechanisms | Platform | shampoo |
 |---|---|---|---|
-| Task created → Editing | Launch the agent, in a worktree of its own | | `shampoo next` hands over the task source |
+| Task created → Editing | Launch the agent, in a worktree of its own. The `SessionStart` hook puts the policies into its context, again after compaction | | `shampoo next` hands over the task source; `shampoo policies` prints the policies for the hook |
 | Edit done (Editing → Editing) | The PostToolUse hook on every tool [3] calls `shampoo guard edit` | | Which rules judge, and how budgets count. The guard ignores which tool ran (agents also edit through Bash, Python, sed) and looks at files: what changed since the last passed guard, recorded as a git tree at each pass. If nothing changed, it does nothing |
 | Task done (Editing → TaskDone) | The Stop hook [3] calls `shampoo guard task`. Every stop is an attempt at task done: the agent either thinks it is done or is stuck, and in both cases the guard decides | | Same as edit done |
 | Review (TaskDone → Review → PR), when a policy is marked for review | An agent reviews, under the project's requirements | | `shampoo next` says to review, with the marked policies and the requirements, once the task guard passes; `shampoo review` records the findings for the reviewed tree. Then `shampoo next` gives the findings with the action to open the PR, while the tree is the reviewed one |
