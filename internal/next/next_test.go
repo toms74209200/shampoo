@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/toms74209200/shampoo/internal/review"
 	"github.com/toms74209200/shampoo/internal/rule"
 )
 
@@ -32,6 +33,8 @@ func TestDecide(t *testing.T) {
 		{name: "when Decide with repairs beyond their limit then returns handing the task to a human", state: State{Source: source, Branch: branch, Verdict: rule.Outcome("repair-exceeded")}, want: Action{Action: "hand-to-human", Branch: branch}},
 		{name: "when Decide with a task failure then returns going on with the task", state: State{Source: source, Branch: branch, Verdict: rule.Outcome("task-failure")}, want: Action{Action: "continue", Branch: branch}},
 		{name: "when Decide with no judgment of the current tree then returns going on with the task", state: State{Source: source, Branch: branch}, want: Action{Action: "continue", Branch: branch}},
+		{name: "when Decide with a passed task guard and policies for review then returns reviewing with them and the requirements", state: State{Branch: branch, Verdict: rule.Outcome("pass"), Policies: []string{"functions"}, Requirements: map[string]any{"model": source}}, want: Action{Action: "review", Branch: branch, Policies: []string{"functions"}, Requirements: map[string]any{"model": source}}},
+		{name: "when Decide with a reviewed task then returns opening a pull request with the findings", state: State{Branch: branch, Verdict: rule.Outcome("pass"), Policies: []string{"functions"}, Reviewed: true, Findings: []review.Finding{{Policy: "functions", Comment: url}}}, want: Action{Action: "open-pr", Branch: branch, Findings: []review.Finding{{Policy: "functions", Comment: url}}}},
 		{name: "when Decide with a passed guard on commits the pull request lacks then returns opening a pull request", state: State{Branch: branch, Verdict: rule.Outcome("pass"), PullRequest: pr("OPEN", false, nil)}, want: Action{Action: "open-pr", Branch: branch}},
 		{name: "when Decide with a task failure on an open pull request then returns going on with the task", state: State{Branch: branch, Verdict: rule.Outcome("task-failure"), PullRequest: pr("OPEN", true, nil)}, want: Action{Action: "continue", Branch: branch}},
 		{name: "when Decide with a merged pull request then returns merged", state: State{Branch: branch, PullRequest: pr("MERGED", true, nil)}, want: Action{Action: "merged", Branch: branch}},

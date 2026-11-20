@@ -4,15 +4,20 @@ import (
 	"slices"
 	"time"
 
+	"github.com/toms74209200/shampoo/internal/review"
 	"github.com/toms74209200/shampoo/internal/rule"
 )
 
 type State struct {
-	Source      string
-	Branch      string
-	Default     bool
-	Verdict     rule.Outcome
-	PullRequest *PullRequest
+	Source       string
+	Branch       string
+	Default      bool
+	Verdict      rule.Outcome
+	PullRequest  *PullRequest
+	Policies     []string
+	Requirements map[string]any
+	Reviewed     bool
+	Findings     []review.Finding
 }
 
 type PullRequest struct {
@@ -33,10 +38,13 @@ type Run struct {
 }
 
 type Action struct {
-	Action   string    `json:"action"`
-	Source   string    `json:"source,omitempty"`
-	Branch   string    `json:"branch,omitempty"`
-	Failures []Failure `json:"failures,omitempty"`
+	Action       string           `json:"action"`
+	Source       string           `json:"source,omitempty"`
+	Branch       string           `json:"branch,omitempty"`
+	Failures     []Failure        `json:"failures,omitempty"`
+	Policies     []string         `json:"policies,omitempty"`
+	Requirements map[string]any   `json:"requirements,omitempty"`
+	Findings     []review.Finding `json:"findings,omitempty"`
 }
 
 type Failure struct {
@@ -57,8 +65,11 @@ func Decide(s State) Action {
 	}
 	switch s.Verdict {
 	case rule.Pass:
+		if (pr == nil || !pr.Pushed) && len(s.Policies) > 0 && !s.Reviewed {
+			return Action{Action: "review", Branch: s.Branch, Policies: s.Policies, Requirements: s.Requirements}
+		}
 		if pr == nil || !pr.Pushed {
-			return Action{Action: "open-pr", Branch: s.Branch}
+			return Action{Action: "open-pr", Branch: s.Branch, Findings: s.Findings}
 		}
 	case rule.Exceeded:
 		return Action{Action: "repair-harness", Branch: s.Branch}
