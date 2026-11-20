@@ -11,7 +11,7 @@ elif [ ! -x out/shampoo ]; then
 	cat out/shampoo.build.log >&2
 	exit 1
 fi
-out/shampoo guard edit
+out/shampoo guard "${1:-edit}"
 case $? in
 0) exit 0 ;;
 1 | 3) exit 2 ;;
