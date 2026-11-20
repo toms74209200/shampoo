@@ -211,7 +211,6 @@ Feature: Guard a transition
     When I run "shampoo guard task"
     Then the check "lint" has run once
 
-  @skip
   @sha:065e5b2a73fd
   Scenario: Violations at edit do not count toward the stop at task
     Given a check "lint" that exits 1
@@ -223,7 +222,6 @@ Feature: Guard a transition
     When I run "shampoo guard task"
     Then the exit code is 1
 
-  @skip
   @sha:62568703dfe5
   Scenario: The default stop at edit lets a change fail on its way
     Given a check "lint" that exits 1
