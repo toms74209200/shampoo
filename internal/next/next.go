@@ -20,6 +20,8 @@ type Observation struct {
 	Requirements map[string]any
 	Record       *Record
 	PullRequest  *PullRequest
+	Now          time.Time
+	MaxWait      time.Duration
 }
 
 type Record struct {
@@ -32,6 +34,7 @@ type PullRequest struct {
 	State    string
 	Pushed   bool
 	Commits  []string
+	Latest   time.Time
 	Expected []string
 	Runs     []Run
 }
@@ -76,6 +79,12 @@ type Failing struct {
 
 type Waiting struct{ Branch string }
 
+type Stalled struct {
+	Branch  string
+	Since   time.Time
+	MaxWait time.Duration
+}
+
 type Passed struct{ Branch string }
 
 type Merged struct{ Branch string }
@@ -88,6 +97,7 @@ func (Handed) state()    {}
 func (Done) state()      {}
 func (Ready) state()     {}
 func (Failing) state()   {}
+func (Stalled) state()   {}
 func (Waiting) state()   {}
 func (Passed) state()    {}
 func (Merged) state()    {}
@@ -160,6 +170,8 @@ func Parse(o Observation) State {
 	switch {
 	case len(failures) > 0:
 		return Failing{Branch: o.Branch, Failures: failures}
+	case waiting && o.Now.Sub(pr.Latest) >= o.MaxWait:
+		return Stalled{Branch: o.Branch, Since: pr.Latest, MaxWait: o.MaxWait}
 	case waiting:
 		return Waiting{Branch: o.Branch}
 	}
@@ -185,6 +197,8 @@ func Decide(s State) Action {
 	case Failing:
 		return Action{Action: "fix-pr", Branch: s.Branch, Failures: s.Failures}
 	case Waiting:
+		return Action{Action: "wait", Branch: s.Branch}
+	case Stalled:
 		return Action{Action: "wait", Branch: s.Branch}
 	case Passed:
 		return Action{Action: "merge", Branch: s.Branch}
