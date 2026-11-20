@@ -192,7 +192,6 @@ Feature: Guard a transition
     Then the exit code is 1
     And the check "lint" has run once
 
-  @skip
   @sha:1058bc79c62e
   Scenario: A rule guarding task is checked when the task is done
     Given a branch "task-a"
@@ -202,7 +201,6 @@ Feature: Guard a transition
     When I run "shampoo guard task"
     Then the exit code is 1
 
-  @skip
   @sha:16db287a50df
   Scenario: A task's committed changes are checked when the task is done
     Given a branch "task-a"
