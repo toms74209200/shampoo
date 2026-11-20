@@ -14,3 +14,9 @@ def given_slow_check(workspace, check_id, seconds, code):
 def given_small_limit(workspace, settings_sections, seconds):
     settings_sections.setdefault("test-sizes.small", {})["max-seconds"] = int(seconds)
     write_settings(workspace, settings_sections)
+
+
+@given(parsers.re(r"settings stopping the time budget at (?P<violations>\d+) runs? over the limit in the latest (?P<runs>\d+) runs?"))
+def given_time_stop(workspace, settings_sections, violations, runs):
+    settings_sections.setdefault("time-budget", {})["stop"] = {"violations": int(violations), "runs": int(runs)}
+    write_settings(workspace, settings_sections)

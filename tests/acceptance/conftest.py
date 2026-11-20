@@ -59,11 +59,17 @@ def settings_sections():
     return {}
 
 
+def toml_value(value) -> str:
+    if isinstance(value, dict):
+        return "{ " + ", ".join(f"{key} = {toml_value(item)}" for key, item in value.items()) + " }"
+    return json.dumps(value)
+
+
 def write_settings(workspace: Path, sections: dict) -> None:
     (workspace / ".shampoo").mkdir(parents=True, exist_ok=True)
     text = ""
     for section, values in sections.items():
-        text += f"[{section}]\n" + "".join(f"{key} = {json.dumps(value)}\n" for key, value in values.items())
+        text += f"[{section}]\n" + "".join(f"{key} = {toml_value(value)}\n" for key, value in values.items())
     (workspace / ".shampoo" / "settings.toml").write_text(text)
 
 
