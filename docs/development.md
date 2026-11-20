@@ -2,7 +2,7 @@
 
 How shampoo itself is developed. What shampoo is and how it works is in the [design doc](design.md).
 
-shampoo is in bootstrapping (design doc §13): it is built with a human in the loop until it can run HOOTL. This guide records the rules so that they can be enforced by shampoo once it exists, rather than living in anyone's memory. Rules are kept here and in executable checks; CLAUDE.md, agent memory, and Claude Code settings are not used to carry them. Claude Code settings hold only the hooks that run shampoo and the permissions that deny commands the agent must not run.
+shampoo is in bootstrapping (design doc §13): it is built with a human in the loop until it can run HOOTL. This guide records the rules so that they can be enforced by shampoo once it exists, rather than living in anyone's memory. Rules are kept here and in executable checks; CLAUDE.md, agent memory, and Claude Code settings are not used to carry them. Claude Code settings hold only the hooks that run shampoo, the permissions that deny commands the agent must not run, and `"autoMemoryEnabled": false`, so that rules cannot drift into agent memory.
 
 ## 1. Setup
 The devcontainer runs `make setup` on creation, which enables the git hooks in `.githooks`. Outside the devcontainer, run it once by hand.
