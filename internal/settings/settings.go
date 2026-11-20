@@ -6,6 +6,8 @@ import (
 	"slices"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/toms74209200/shampoo/internal/rule"
 )
 
 var ErrInvalid = errors.New("invalid settings")
@@ -17,17 +19,12 @@ type Settings struct {
 	Merge          string
 	Requirements   map[string]any
 	MaxSeconds     map[string]int
-	TimeBudget     Count
-	TimeStop       Count
-	FailureBudget  Count
-	FailureStop    Count
+	TimeBudget     rule.Count
+	TimeStop       rule.Count
+	FailureBudget  rule.Count
+	FailureStop    rule.Count
 	QuestionLabel  string
 	MaxOpen        int
-}
-
-type Count struct {
-	Violations int `toml:"violations"`
-	Runs       int `toml:"runs"`
 }
 
 func Parse(data []byte) (Settings, error) {
@@ -49,12 +46,12 @@ func Parse(data []byte) (Settings, error) {
 			MaxSeconds int `toml:"max-seconds"`
 		} `toml:"test-sizes"`
 		TimeBudget struct {
-			Budget Count `toml:"budget"`
-			Stop   Count `toml:"stop"`
+			Budget rule.Count `toml:"budget"`
+			Stop   rule.Count `toml:"stop"`
 		} `toml:"time-budget"`
 		WorkflowFailure struct {
-			Budget Count `toml:"budget"`
-			Stop   Count `toml:"stop"`
+			Budget rule.Count `toml:"budget"`
+			Stop   rule.Count `toml:"stop"`
 		} `toml:"workflow-failure"`
 		HumanReview struct {
 			Label   string `toml:"label"`
@@ -64,10 +61,10 @@ func Parse(data []byte) (Settings, error) {
 	file.StateMachine.HarnessRepair.MaxFailedAttempts = 3
 	file.Orchestrator.MaxWaitMinutes = 60
 	file.Orchestrator.Merge = "merge"
-	file.TimeBudget.Budget = Count{Violations: 2, Runs: 20}
-	file.TimeBudget.Stop = Count{Violations: 2, Runs: 5}
-	file.WorkflowFailure.Budget = Count{Violations: 2, Runs: 20}
-	file.WorkflowFailure.Stop = Count{Violations: 2, Runs: 5}
+	file.TimeBudget.Budget = rule.Count{Violations: 2, Runs: 20}
+	file.TimeBudget.Stop = rule.Count{Violations: 2, Runs: 5}
+	file.WorkflowFailure.Budget = rule.Count{Violations: 2, Runs: 20}
+	file.WorkflowFailure.Stop = rule.Count{Violations: 2, Runs: 5}
 	file.HumanReview.Label = "human-review"
 	file.HumanReview.MaxOpen = 3
 	meta, err := toml.Decode(string(data), &file)
@@ -93,7 +90,7 @@ func Parse(data []byte) (Settings, error) {
 		}
 		maxSeconds[size] = limit.MaxSeconds
 	}
-	counts := map[string]Count{
+	counts := map[string]rule.Count{
 		"budget of the time budget":       file.TimeBudget.Budget,
 		"stop of the time budget":         file.TimeBudget.Stop,
 		"budget of the workflow failures": file.WorkflowFailure.Budget,
