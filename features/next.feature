@@ -6,7 +6,6 @@ Feature: Say what to do next
   Background:
     Given a git repository with a commit
 
-  @skip
   @sha:eff7194a8df6
   Scenario: With no task in progress, a task is taken from the source
     Given a task source "todo.md"
@@ -15,14 +14,12 @@ Feature: Say what to do next
     And the next action is "take-task"
     And the next action has "source" "todo.md"
 
-  @skip
   @sha:5bef18e8fe13
   Scenario: A task source that does not exist is a workflow failure
     Given a task source "todo.md" that does not exist
     When I run "shampoo next"
     Then the exit code is 2
 
-  @skip
   @sha:f0d7e7478372
   Scenario: A task whose guard has not passed goes on
     Given a task source "todo.md"
@@ -35,7 +32,6 @@ Feature: Say what to do next
     Then the next action is "continue"
     And the next action has "branch" "task-a"
 
-  @skip
   @sha:1ec42eed6d98
   Scenario: A task whose guard passed opens a pull request
     Given a task source "todo.md"
@@ -49,7 +45,6 @@ Feature: Say what to do next
     Then the next action is "open-pr"
     And the next action has "branch" "task-a"
 
-  @skip
   @sha:6ca30fba3843
   Scenario: A task over its rule's budget repairs the harness
     Given a task source "todo.md"
@@ -62,7 +57,6 @@ Feature: Say what to do next
     Then the next action is "repair-harness"
     And the next action has "branch" "task-a"
 
-  @skip
   @sha:4bc6e44803ab
   Scenario: A task over its limit of failed repairs is handed to a human
     Given a task source "todo.md"
