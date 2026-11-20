@@ -76,6 +76,21 @@ Feature: Review a task against its policies
     Then the next action is "open-pr"
     And the next action has no findings
 
+  @skip
+  @sha:154a9dc4cf1c
+  Scenario: A review of another task does not count
+    Given a policy "functions" for review
+    And "shampoo guard task" has passed
+    And the review found nothing
+    And the changes are committed
+    And a branch "task-b"
+    And a changed file "lib.go"
+    And "shampoo guard task" has passed
+    And no pull request is open
+    When I run "shampoo next"
+    Then the next action is "review"
+    And the next action has "branch" "task-b"
+
   @sha:f10a35906ceb
   Scenario: A finding on a policy not marked for review is a workflow failure
     Given a policy "layout"
