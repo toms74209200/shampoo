@@ -6,7 +6,6 @@ Feature: Print the policies for the agent's context
   Background:
     Given a git repository with a commit
 
-  @skip
   @sha:7fe6f62c0f21
   Scenario: Every policy is printed with its text
     Given a policy "layout"
@@ -16,7 +15,6 @@ Feature: Print the policies for the agent's context
     And stdout contains "layout is followed."
     And stdout contains "functions is followed."
 
-  @skip
   @sha:2f6aea638930
   Scenario: A policy's code example is printed with it
     Given a policy "layout" with the example "main.go only runs the program"
@@ -24,14 +22,12 @@ Feature: Print the policies for the agent's context
     Then the exit code is 0
     And stdout contains "main.go only runs the program"
 
-  @skip
   @sha:93b1b829ccc2
   Scenario: Without policies nothing is printed
     When I run "shampoo policies"
     Then the exit code is 0
     And stdout is empty
 
-  @skip
   @sha:6a533c61df95
   Scenario: An invalid policy is a workflow failure
     Given a policy "layout" without a text
