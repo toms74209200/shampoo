@@ -126,3 +126,22 @@ func (w Workflow) Expects(base string, changed []string) bool {
 	}
 	return true
 }
+
+type Source struct {
+	Path string
+	Data []byte
+}
+
+func Expected(sources []Source, base string, changed []string) ([]string, error) {
+	var names []string
+	for _, source := range sources {
+		parsed, err := Parse(source.Path, source.Data)
+		if err != nil {
+			return nil, err
+		}
+		if parsed.Expects(base, changed) {
+			names = append(names, parsed.Name)
+		}
+	}
+	return names, nil
+}
