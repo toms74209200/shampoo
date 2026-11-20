@@ -46,17 +46,6 @@ def given_named_rule_zero_budget(workspace, rule_id, transition, check_id):
     write_rule(workspace, rule_id, transition, check_id, budget="{ violations = 0, runs = 1 }")
 
 
-@given(parsers.parse('a rule guarding {transition:w} with check "{check_id}" judging exit {code:d} as a workflow failure'))
-def given_rule_workflow_failure(workspace, transition, check_id, code):
-    write_rule(
-        workspace,
-        new_id(),
-        transition,
-        check_id,
-        judge=f'{{ exit = {{ {code} = "workflow-failure", other = "task-failure" }} }}',
-    )
-
-
 @given(parsers.parse('a rule guarding {transition:w} for paths "{paths}" with check "{check_id}"'))
 def given_rule_paths(workspace, transition, paths, check_id):
     write_rule(workspace, new_id(), transition, check_id, extra=f'paths = ["{paths}"]\n')

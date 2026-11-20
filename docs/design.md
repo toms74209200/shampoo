@@ -57,7 +57,7 @@ Transitions are governed by budgets, in the manner of SRE error budgets. When to
 
 | Budget | Charged by | When exceeded |
 |---|---|---|
-| Workflow failure | Failures caused by the harness rather than the work: tool crashes, oracle nondeterminism, flaky tests | Stop product work; repair the harness |
+| Workflow failure | Failures caused by the harness rather than the work: tool crashes, oracle nondeterminism, flaky tests | Repair the harness |
 | Time | A check's run time, against its test size's time limit [2] | Reorganize the check |
 | False positive | Exceptions to a check | Fix the check |
 | Human review | Exceptions and workflow changes awaiting asynchronous human review | Stop until reviewed |
@@ -82,6 +82,7 @@ Budgets work as SRE error budgets do: urgency comes from how fast a budget is co
   | The others | 2 in 20 runs | 2 in the latest 5 runs |
 - **The budgets shampoo charges itself** (workflow failure, time, human review, repair) belong to no rule, and are counted the same way over the transitions they govern. A project sets their limits in `.shampoo/settings.toml`, by the states of the state machine (§2) they belong to: `max-failed-attempts` of a state is how many failed attempts it allows before the state machine moves on, such as `[state-machine.harness-repair]` before a human
 - **The time budget is counted by check**, over the check's latest runs at any transition, since its run time does not depend on the transition. A run longer than its test size's limit is a charge; the limits are 60 seconds for small, 300 for medium and 900 for large [2], and a project overrides them as `max-seconds` in `[test-sizes.<size>]`. Its budget is 2 charges in 20 runs and its stop 2 in the latest 5 runs by default, so that one run slowed by the machine does not stop the work; a project overrides them as `budget` and `stop` in `[time-budget]`, written as a rule's counts, such as `stop = { violations = 1, runs = 1 }`. Reaching the stop sends the work to harness repair, to reorganize the check
+- **Workflow failures are counted by rule**, over the rule's latest runs at any transition, apart from its violations: a violation calls for fixing the work, a workflow failure for repairing the check or its judge, so a stop tells which. Its budget is 2 workflow failures in 20 runs and its stop 2 in the latest 5 runs by default; a project overrides them as `budget` and `stop` in `[workflow-failure]`, written as a rule's counts. Reaching the stop sends the work to harness repair
 - **The exceptions of a check are the violations it lets pass**, through the tool's own exception with a written reason, such as `//nolint:<linter> // <reason>`. The tool does not report them, so only the check that runs it can count them: a rule that allows exceptions declares the file its check writes them to, one line per exception, and its limit, `exceptions = { file = "out/exceptions/lint.txt", limit = 3 }`, 3 by default. The count is a stock: the lines in the file after the check's latest run. More exceptions than the limit send the work to harness repair, to fix the check rather than add exceptions; a declared file the check did not write is a workflow failure
 
 Budgets come in four kinds. Each is attached where it is counted, by default where it always applies, with a default limit that a project overrides:
@@ -90,7 +91,7 @@ Budgets come in four kinds. Each is attached where it is counted, by default whe
 |---|---|---|---|---|
 | Rate | Violations in the latest runs of the check at one transition | Rule and transition | Every rule, at every transition it guards | 10 in 20 runs at `edit`, 2 in 20 at the others |
 | Stock | Open items at a time, such as exceptions to a check | Rule | Rules that allow exceptions, when they declare it | 3 |
-| Count | Charges within a unit, such as entries into harness repair in one task | Task (repair), milestone (workflow failure) | Always, by shampoo | 3 |
+| Count | Charges within a unit, such as entries into harness repair in one task | Task (repair) | Always, by shampoo | 3 |
 | Time | One run's duration, against the limit of its test size [2] | Check | Every check | Its size's limit |
 
 Budgets are kept apart from rules only when one turns out to be shared.
