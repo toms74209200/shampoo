@@ -81,6 +81,7 @@ Budgets work as SRE error budgets do: urgency comes from how fast a budget is co
   | `edit` | 10 in 20 runs | 8 in the latest 10 runs |
   | The others | 2 in 20 runs | 2 in the latest 5 runs |
 - **The budgets shampoo charges itself** (workflow failure, time, human review, repair) belong to no rule, and are counted the same way over the transitions they govern. A project sets their limits in `.shampoo/settings.toml`, by the states of the state machine (§2) they belong to: `max-failed-attempts` of a state is how many failed attempts it allows before the state machine moves on, such as `[state-machine.harness-repair]` before a human
+- **The time budget is counted by check**, over the check's latest runs at any transition, since its run time does not depend on the transition. A run longer than its test size's limit is a charge; the limits are 60 seconds for small, 300 for medium and 900 for large [2], and a project overrides them as `max-seconds` in `[test-sizes.<size>]`. Its budget is 2 charges in 20 runs and its stop 2 in the latest 5 runs, so that one run slowed by the machine does not stop the work. Reaching the stop sends the work to harness repair, to reorganize the check
 
 Budgets come in four kinds. Each is attached where it is counted, by default where it always applies, with a default limit that a project overrides:
 
