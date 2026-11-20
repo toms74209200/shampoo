@@ -20,38 +20,38 @@ const (
 )
 
 type Exit struct {
-	codes map[int]Outcome
-	other Outcome
+	Codes map[int]Outcome
+	Other Outcome
 }
 
 func (e Exit) Outcome(code int) Outcome {
 	if code == 0 {
 		return Pass
 	}
-	if outcome, ok := e.codes[code]; ok {
+	if outcome, ok := e.Codes[code]; ok {
 		return outcome
 	}
-	return e.other
+	return e.Other
 }
 
 func parseExit(entries map[string]string, outcomes []Outcome) (Exit, error) {
-	exit := Exit{codes: map[int]Outcome{}}
+	exit := Exit{Codes: map[int]Outcome{}}
 	for key, value := range entries {
 		outcome := Outcome(value)
 		if !slices.Contains(outcomes, outcome) {
 			return Exit{}, fmt.Errorf("%w: exit outcome %q", ErrInvalid, value)
 		}
 		if key == "other" {
-			exit.other = outcome
+			exit.Other = outcome
 			continue
 		}
 		code, err := strconv.Atoi(key)
 		if err != nil || code <= 0 {
 			return Exit{}, fmt.Errorf("%w: exit code %q", ErrInvalid, key)
 		}
-		exit.codes[code] = outcome
+		exit.Codes[code] = outcome
 	}
-	if exit.other == "" {
+	if exit.Other == "" {
 		return Exit{}, fmt.Errorf("%w: exit has no other", ErrInvalid)
 	}
 	return exit, nil

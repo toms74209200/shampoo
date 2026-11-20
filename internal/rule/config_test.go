@@ -79,3 +79,23 @@ func TestPlan(t *testing.T) {
 		})
 	}
 }
+
+func TestWindow(t *testing.T) {
+	tests := []struct {
+		name   string
+		config Config
+		want   int
+	}{
+		{name: "when Window with rules of several counts then returns the most runs of any budget or stop", config: Config{rules: []Rule{Checked{Transitions: []Transition{"edit", "task"}, Budget: map[Transition]Count{"edit": {Violations: 10, Runs: 20}, "task": {Violations: 2, Runs: 30}}, Stop: map[Transition]Count{"edit": {Violations: 8, Runs: 10}, "task": {Violations: 2, Runs: 5}}}, Unchecked{}, Checked{Transitions: []Transition{"pr"}, Budget: map[Transition]Count{"pr": {Violations: 1, Runs: 4}}, Stop: map[Transition]Count{"pr": {Violations: 1, Runs: 40}}}}}, want: 40},
+		{name: "when Window with no checked rule then returns zero", config: Config{rules: []Rule{Unchecked{}}}, want: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.config.Window()
+
+			if got != tt.want {
+				t.Errorf("got %d, want %d", got, tt.want)
+			}
+		})
+	}
+}

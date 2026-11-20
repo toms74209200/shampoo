@@ -75,3 +75,15 @@ func (c Config) Plan(transition Transition, changed []string) ([]Checked, []Chec
 	}
 	return selected, order
 }
+
+func (c Config) Window() int {
+	window := 0
+	for _, r := range c.rules {
+		if checked, ok := r.(Checked); ok {
+			for _, transition := range checked.Transitions {
+				window = max(window, checked.Budget[transition].Runs, checked.Stop[transition].Runs)
+			}
+		}
+	}
+	return window
+}
