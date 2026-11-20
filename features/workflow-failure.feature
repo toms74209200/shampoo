@@ -9,14 +9,12 @@ Feature: Count the workflow failures of a rule
     And a check "lint" that exits 2
     And a rule guarding edit with check "lint" judging exit 2 as a workflow failure
 
-  @skip
   @sha:9a62f0cefb1d
   Scenario: One workflow failure does not stop the work
     Given a changed file "main.go"
     When I run "shampoo guard edit"
     Then the exit code is 2
 
-  @skip
   @sha:1ca99a9df741
   Scenario: Workflow failures reaching the stop send the work to harness repair
     Given a changed file "main.go"
@@ -27,7 +25,6 @@ Feature: Count the workflow failures of a rule
     And stderr contains "exceeds its workflow-failure budget"
     And stderr contains "repair the harness"
 
-  @skip
   @sha:8522e186ccae
   Scenario: A project's stop overrides the default
     Given settings stopping workflow failures at 1 in the latest 1 run
@@ -35,7 +32,6 @@ Feature: Count the workflow failures of a rule
     When I run "shampoo guard edit"
     Then the exit code is 3
 
-  @skip
   @sha:3a792ad37936
   Scenario: A stop with more workflow failures than runs is a workflow failure of the settings
     Given settings stopping workflow failures at 2 in the latest 1 run
