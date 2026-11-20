@@ -13,6 +13,7 @@ import (
 
 var ErrInvalid = errors.New("invalid rule")
 
+//sumtype:decl
 type Rule interface{ rule() }
 
 type Checked struct {
@@ -46,6 +47,7 @@ type Unchecked struct {
 func (Checked) rule()   {}
 func (Unchecked) rule() {}
 
+//sumtype:decl
 type Judge interface{ judge() }
 
 type ByExit struct {

@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	directives := []string{"//go:", "//nolint:", "//line "}
+	directives := []string{"//go:", "//nolint:", "//line ", "//sumtype:decl"}
 	fset := token.NewFileSet()
 	var found []string
 	paths := bufio.NewScanner(os.Stdin)
