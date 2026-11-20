@@ -15,21 +15,20 @@ type File struct {
 }
 
 func Read(dir, suffix string) ([]File, error) {
-	entries, err := os.ReadDir(dir)
+	if _, err := os.Stat(dir); err != nil {
+		return nil, err
+	}
+	paths, err := filepath.Glob(filepath.Join(dir, "*"+suffix))
 	if err != nil {
 		return nil, err
 	}
 	var files []File
-	for _, entry := range entries {
-		name, ok := strings.CutSuffix(entry.Name(), suffix)
-		if !ok || entry.IsDir() {
-			continue
-		}
-		data, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
 		if err != nil {
 			return nil, err
 		}
-		files = append(files, File{Name: name, Data: data})
+		files = append(files, File{Name: strings.TrimSuffix(filepath.Base(path), suffix), Data: data})
 	}
 	return files, nil
 }
