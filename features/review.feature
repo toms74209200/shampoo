@@ -76,7 +76,6 @@ Feature: Review a task against its policies
     Then the next action is "open-pr"
     And the next action has no findings
 
-  @skip
   @sha:154a9dc4cf1c
   Scenario: A review of another task does not count
     Given a policy "functions" for review
