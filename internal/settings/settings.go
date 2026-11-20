@@ -1,4 +1,4 @@
-package budget
+package settings
 
 import (
 	"errors"
@@ -13,7 +13,7 @@ type Settings struct {
 	RepairAttempts int
 }
 
-func ParseSettings(data []byte) (Settings, error) {
+func Parse(data []byte) (Settings, error) {
 	var file struct {
 		StateMachine struct {
 			HarnessRepair struct {
