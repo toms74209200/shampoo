@@ -2,7 +2,7 @@
 
 How shampoo itself is developed. What shampoo is and how it works is in the [design doc](design.md).
 
-shampoo is in bootstrapping (design doc §13): it is built with a human in the loop until it can run HOOTL. This guide records the rules so that they can be enforced by shampoo once it exists, rather than living in anyone's memory. Rules are kept here and in executable checks; CLAUDE.md, agent memory, and Claude Code settings are not used to carry them. Claude Code settings hold only the hook that runs the guard.
+shampoo is in bootstrapping (design doc §13): it is built with a human in the loop until it can run HOOTL. This guide records the rules so that they can be enforced by shampoo once it exists, rather than living in anyone's memory. Rules are kept here and in executable checks; CLAUDE.md, agent memory, and Claude Code settings are not used to carry them. Claude Code settings hold only the hooks that run the guard.
 
 ## 1. Setup
 The devcontainer runs `make setup` on creation, which enables the git hooks in `.githooks`. Outside the devcontainer, run it once by hand.
@@ -23,7 +23,7 @@ golangci-lint is pinned in `scripts/golangci-lint.sh`, which installs that versi
 |---|---|
 | `pre-commit` | `make check` |
 | `commit-msg` | `scripts/check-commit.sh --msg-file` |
-| Claude Code `PostToolUse`, on every tool (`.claude/settings.json`) | `scripts/guard-hook.sh`: builds shampoo from the working tree, falling back to the last build when it does not build, and runs `shampoo guard edit`. A task failure or a budget exceeded, which calls for harness repair, is sent back to the agent (exit 2); a workflow failure or repairs beyond their budget are shown to the human (exit 1) |
+| Claude Code `PostToolUse` on every tool, and `Stop` (`.claude/settings.json`) | `scripts/guard-hook.sh edit` and `scripts/guard-hook.sh task`: builds shampoo from the working tree, falling back to the last build when it does not build, and runs `shampoo guard edit` or `shampoo guard task`. A task failure or a budget exceeded, which calls for harness repair, is sent back to the agent (exit 2); a workflow failure or repairs beyond their budget are shown to the human (exit 1) |
 
 Checks report by exit code: 0 pass, 1 task failure (the work is wrong), anything else a workflow failure (the check itself misbehaved), following design doc §3. `scripts/check-commit.sh` exits 1 on a rule violation and 2 on its own errors. A check's command calls a script or tool directly, not a make target: make exits 2 whenever a recipe fails, which would turn every task failure into a workflow failure.
 
