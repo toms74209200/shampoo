@@ -4,16 +4,15 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/toms74209200/shampoo/internal/budget"
 	"github.com/toms74209200/shampoo/internal/files"
 	"github.com/toms74209200/shampoo/internal/git"
+	"github.com/toms74209200/shampoo/internal/judgment"
 	"github.com/toms74209200/shampoo/internal/rule"
 	"github.com/toms74209200/shampoo/internal/settings"
 	"github.com/toms74209200/shampoo/internal/shell"
@@ -68,15 +67,7 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 	if err != nil {
 		return rule.WorkflowFailure, "", err
 	}
-	timeBudget, timeStop := options.TimeBudget, options.TimeStop
-	window := max(timeBudget.Runs, timeStop.Runs, options.FailureBudget.Runs, options.FailureStop.Runs)
-	for _, r := range rules {
-		if checked, ok := r.(rule.Checked); ok {
-			for _, transition := range checked.Transitions {
-				window = max(window, checked.Budget[transition].Runs, checked.Stop[transition].Runs)
-			}
-		}
-	}
+	window := max(config.Window(), options.TimeBudget.Runs, options.TimeStop.Runs, options.FailureBudget.Runs, options.FailureStop.Runs)
 	ledgerPath := filepath.Join(repo.CommonDir, "shampoo", "ledger.jsonl")
 	var compaction budget.Compaction
 	err = files.Update(ledgerPath, func(data []byte) ([]byte, error) {
@@ -94,20 +85,18 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 	if err != nil {
 		return rule.WorkflowFailure, "", err
 	}
-	if len(compaction.Summaries) > 0 {
-		err = files.Update(filepath.Join(repo.CommonDir, "shampoo", "stats.jsonl"), func(data []byte) ([]byte, error) {
-			for _, summary := range compaction.Summaries {
-				encoded, err := json.Marshal(summary)
-				if err != nil {
-					return nil, err
-				}
-				data = append(append(data, encoded...), '\n')
+	err = files.Update(filepath.Join(repo.CommonDir, "shampoo", "stats.jsonl"), func(data []byte) ([]byte, error) {
+		for _, summary := range compaction.Summaries {
+			encoded, err := json.Marshal(summary)
+			if err != nil {
+				return nil, err
 			}
-			return data, nil
-		})
-		if err != nil {
-			return rule.WorkflowFailure, "", err
+			data = append(append(data, encoded...), '\n')
 		}
+		return data, nil
+	})
+	if err != nil {
+		return rule.WorkflowFailure, "", err
 	}
 	lines := compaction.Kept
 	tree, err := repo.Snapshot()
@@ -119,130 +108,56 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 	if err != nil {
 		return rule.WorkflowFailure, "", err
 	}
-	var last attempt
-	if err := json.Unmarshal(attemptData, &last); err == nil && last.Tree == tree {
-		return last.Verdict, last.Report, nil
+	switch earlier := judgment.ParseAttempt(attemptData, tree).(type) {
+	case judgment.Cached:
+		return earlier.Verdict, earlier.Report, nil
+	case judgment.Fresh:
 	}
-	var base string
-	if transition == rule.Task {
-		base, err = repo.Base()
-	} else {
-		base, err = repo.Passed(transition)
-	}
+	passed, err := repo.Passed(rule.Edit)
 	if err != nil {
 		return rule.WorkflowFailure, "", err
 	}
+	mergeBase, err := repo.Base()
+	if err != nil {
+		return rule.WorkflowFailure, "", err
+	}
+	base := map[rule.Transition]string{rule.Edit: passed, rule.Task: mergeBase}[transition]
 	changed, err := repo.Changed(base, tree)
 	if err != nil {
 		return rule.WorkflowFailure, "", err
 	}
 	selected, order := config.Plan(transition, changed)
-	run := rand.Text()
-	verdict := rule.Pass
-	report := ""
-checks:
-	for _, check := range order {
-		for _, checked := range selected {
-			if checked.Check == check.ID && checked.Exceptions != nil {
-				if err := os.Remove(filepath.Join(repo.Root, checked.Exceptions.File)); err != nil && !errors.Is(err, fs.ErrNotExist) {
-					return rule.WorkflowFailure, report, err
-				}
-			}
-		}
-		started := time.Now()
-		code, output, err := shell.Run(repo.Root, check.Command)
+	ledger := func(line budget.Line) error {
+		encoded, err := json.Marshal(line)
 		if err != nil {
-			return rule.WorkflowFailure, report, fmt.Errorf("check %s: %w", check.ID, err)
+			return err
 		}
-		millis := time.Since(started).Milliseconds()
-		exceeded := false
-		judgedByExit := false
-		for _, checked := range selected {
-			if checked.Check != check.ID {
-				continue
-			}
-			var outcome rule.Outcome
-			var detail string
-			switch judge := checked.Judge.(type) {
-			case rule.ByExit:
-				outcome = judge.Exit.Outcome(code)
-				detail = fmt.Sprintf("check %s: %s exited %d\n", check.ID, check.Command, code)
-				judgedByExit = judgedByExit || outcome != rule.Pass
-			case rule.ByCommand:
-				judgeCode, judgeOutput, err := shell.Run(repo.Root, judge.Command)
-				if err != nil {
-					return rule.WorkflowFailure, report, fmt.Errorf("%s: judge: %w", checked.ID, err)
-				}
-				outcome = judge.Exit.Outcome(judgeCode)
-				detail = fmt.Sprintf("judge: %s exited %d\n%s", judge.Command, judgeCode, judgeOutput)
-			}
-			var exceptions *int
-			if checked.Exceptions != nil {
-				data, err := os.ReadFile(filepath.Join(repo.Root, checked.Exceptions.File))
-				if err != nil {
-					outcome = rule.WorkflowFailure
-					detail = fmt.Sprintf("check %s did not write its exceptions to %s: %v\n", check.ID, checked.Exceptions.File, err)
-				} else {
-					count := len(strings.FieldsFunc(string(data), func(r rune) bool { return r == '\n' }))
-					exceptions = &count
-				}
-			}
-			line := budget.Line{Run: run, Task: branch, Transition: string(transition), Rule: checked.ID, Check: check.ID, Outcome: outcome, Millis: millis, Exceptions: exceptions}
-			encoded, err := json.Marshal(line)
-			if err != nil {
-				return rule.WorkflowFailure, report, err
-			}
-			err = files.Update(ledgerPath, func(data []byte) ([]byte, error) {
-				return append(append(data, encoded...), '\n'), nil
-			})
-			if err != nil {
-				return rule.WorkflowFailure, report, err
-			}
-			lines = append(lines, line)
-			if outcome != rule.Pass {
-				report += fmt.Sprintf("%s: %s\n%s, %s", checked.ID, checked.Statement, outcome, detail)
-			}
-			if verdict != rule.WorkflowFailure && (outcome == rule.TaskFailure || outcome == rule.WorkflowFailure) {
-				verdict = outcome
-			}
-			charge := budget.ChargeRule(lines, checked, transition, outcome, exceptions, budget.Limits{Budget: options.FailureBudget, Stop: options.FailureStop})
-			report += charge.Report
-			exceeded = exceeded || charge.Exceeded
-		}
-		charge := budget.ChargeTime(lines, check, options.MaxSeconds[string(check.Size)], budget.Limits{Budget: timeBudget, Stop: timeStop})
-		report += charge.Report
-		exceeded = exceeded || charge.Exceeded
-		if judgedByExit {
-			report += fmt.Sprintf("output of check %s:\n%s", check.ID, output)
-		}
-		if exceeded {
-			repair := budget.Line{Run: run, Task: branch, Transition: string(transition), Outcome: rule.Exceeded}
-			encoded, err := json.Marshal(repair)
-			if err != nil {
-				return rule.WorkflowFailure, report, err
-			}
-			err = files.Update(ledgerPath, func(data []byte) ([]byte, error) {
-				return append(append(data, encoded...), '\n'), nil
-			})
-			if err != nil {
-				return rule.WorkflowFailure, report, err
-			}
-			lines = append(lines, repair)
-			verdict = rule.Exceeded
-			report += "repair the harness: find whether the work or the check causes the repeated violations, before going on with the task\n"
-			if repairs := budget.Repairs(lines, branch); repairs > options.RepairAttempts {
-				verdict = rule.Handed
-				report += fmt.Sprintf("failed repairs in %s exceed their limit of %d: hand the task to a human\n", branch, options.RepairAttempts)
-			}
-			break checks
-		}
+		return files.Update(ledgerPath, func(data []byte) ([]byte, error) {
+			return append(append(data, encoded...), '\n'), nil
+		})
 	}
-	if verdict == rule.Pass {
-		if err := repo.Record(transition, tree); err != nil {
-			return rule.WorkflowFailure, report, err
-		}
+	world := judgment.World{
+		Run: func(command string) (judgment.Result, error) {
+			started := time.Now()
+			code, output, err := shell.Run(repo.Root, command)
+			return judgment.Result{Code: code, Output: output, Millis: time.Since(started).Milliseconds()}, err
+		},
+		Remove: func(path string) error {
+			if err := os.Remove(filepath.Join(repo.Root, path)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return err
+			}
+			return nil
+		},
+		Read:   func(path string) ([]byte, error) { return os.ReadFile(filepath.Join(repo.Root, path)) },
+		Append: ledger,
+		Pass:   func() error { return repo.Record(transition, tree) },
 	}
-	encoded, err := json.Marshal(attempt{Tree: tree, Verdict: verdict, Report: report})
+	session := judgment.Session{Run: rand.Text(), Task: branch, Transition: transition, Selected: selected, Order: order, Lines: lines, Options: options}
+	verdict, report, err := judgment.Judge(session, world)
+	if err != nil {
+		return rule.WorkflowFailure, report, err
+	}
+	encoded, err := json.Marshal(judgment.Attempt{Tree: tree, Verdict: verdict, Report: report})
 	if err != nil {
 		return rule.WorkflowFailure, report, err
 	}
@@ -250,12 +165,6 @@ checks:
 		return rule.WorkflowFailure, report, err
 	}
 	return verdict, report, nil
-}
-
-type attempt struct {
-	Tree    string       `json:"tree"`
-	Verdict rule.Outcome `json:"verdict"`
-	Report  string       `json:"report"`
 }
 
 func Last(dir string, transition rule.Transition) (rule.Outcome, error) {
@@ -271,9 +180,10 @@ func Last(dir string, transition rule.Transition) (rule.Outcome, error) {
 	if err != nil {
 		return "", err
 	}
-	var last attempt
-	if err := json.Unmarshal(data, &last); err != nil || last.Tree != tree {
-		return "", nil
+	switch earlier := judgment.ParseAttempt(data, tree).(type) {
+	case judgment.Cached:
+		return earlier.Verdict, nil
+	case judgment.Fresh:
 	}
-	return last.Verdict, nil
+	return "", nil
 }
