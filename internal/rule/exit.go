@@ -16,6 +16,7 @@ const (
 	Exceeded        Outcome = "budget-exceeded"
 	Handed          Outcome = "repair-exceeded"
 	Finding         Outcome = "finding"
+	Question        Outcome = "question"
 )
 
 type Exit struct {

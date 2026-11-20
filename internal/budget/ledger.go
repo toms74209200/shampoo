@@ -27,6 +27,7 @@ type Summary struct {
 	Findings   map[string]int   `json:"findings"`
 	Millis     map[string]int64 `json:"millis"`
 	Repairs    int              `json:"repairs"`
+	Questions  int              `json:"questions"`
 }
 
 func ParseLedger(data []byte) []Line {
@@ -147,6 +148,10 @@ func Compact(lines []Line, open []string, window int) Compaction {
 		}
 		if line.Outcome == rule.Exceeded {
 			summaries[at].Repairs++
+			continue
+		}
+		if line.Outcome == rule.Question {
+			summaries[at].Questions++
 			continue
 		}
 		if line.Outcome == rule.Finding {

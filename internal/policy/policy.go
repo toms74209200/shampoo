@@ -41,16 +41,33 @@ func Parse(id string, data []byte) (Policy, error) {
 }
 
 func Render(policies []Policy) string {
-	if len(policies) == 0 {
-		return ""
-	}
 	var out strings.Builder
-	out.WriteString("# Policies of this project (.shampoo/policies/)\n")
+	if len(policies) > 0 {
+		out.WriteString("# Policies of this project (.shampoo/policies/)\n")
+	}
 	for _, p := range policies {
 		fmt.Fprintf(&out, "\n## %s\n\n%s\n", p.ID, strings.TrimSpace(p.Text))
 		if p.Example != "" {
 			fmt.Fprintf(&out, "\n%s\n", strings.TrimSpace(p.Example))
 		}
 	}
+	if len(policies) > 0 {
+		out.WriteString("\n")
+	}
+	out.WriteString(asking)
 	return out.String()
 }
+
+const asking = `# Asking a human (shampoo)
+
+When you cannot settle a decision, or a policy tells you to ask, decide, go on
+with the work, and ask a human without waiting for the answer:
+
+    echo '{"decision": "...", "alternatives": "...", "tradeoffs": "..."}' | shampoo ask
+
+- decision: what you decided
+- alternatives: how else it could be built
+- tradeoffs: what each costs, such as ease of use
+
+The answer comes later in the issue, as feedback for later tasks.
+`

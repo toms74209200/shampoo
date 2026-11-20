@@ -30,12 +30,19 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			code, message = 2, fmt.Sprintf("shampoo policies: %v\n", err)
 		}
 		output = policy.Render(policies)
+	} else if len(args) == 1 && args[0] == "ask" {
+		url, err := orchestrator.Ask("", stdin)
+		if err != nil {
+			code, message = 2, fmt.Sprintf("shampoo ask: %v\n", err)
+		} else {
+			output = url + "\n"
+		}
 	} else if len(args) == 1 && args[0] == "review" {
 		if err := orchestrator.Review("", stdin); err != nil {
 			code, message = 2, fmt.Sprintf("shampoo review: %v\n", err)
 		}
 	} else if len(args) != 2 || args[0] != "guard" {
-		code, message = 2, "usage: shampoo guard <transition> | shampoo next | shampoo review | shampoo policies\n"
+		code, message = 2, "usage: shampoo guard <transition> | shampoo next | shampoo review | shampoo policies | shampoo ask\n"
 	} else if transition, err := rule.ParseTransition(args[1]); err != nil {
 		code, message = 2, fmt.Sprintf("shampoo guard: %v\n", err)
 	} else if transition != rule.Edit && transition != rule.Task {
