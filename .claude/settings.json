@@ -1,4 +1,12 @@
 {
+  "permissions": {
+    "deny": [
+      "Bash(git checkout -b:*)",
+      "Bash(git checkout -B:*)",
+      "Bash(git checkout -q -b:*)",
+      "Bash(git checkout -q -B:*)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
