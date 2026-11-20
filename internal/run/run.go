@@ -1,11 +1,11 @@
-package cli
+package run
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 
+	"github.com/toms74209200/shampoo/internal/cli"
 	"github.com/toms74209200/shampoo/internal/guard"
 	"github.com/toms74209200/shampoo/internal/orchestrator"
 	"github.com/toms74209200/shampoo/internal/policy"
@@ -16,37 +16,41 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	var code int
 	var output, message string
 	exits := map[rule.Outcome]int{rule.TaskFailure: 1, rule.WorkflowFailure: 2, rule.Exceeded: 3, rule.Handed: 4}
-	command, err := Parse(args)
+	command, err := cli.Parse(args)
 	if err != nil {
 		code, message = 2, err.Error()+"\n"
 	}
 	switch c := command.(type) {
-	case Next:
+	case cli.Next:
 		action, err := orchestrator.Next("")
-		encoded, encodeErr := json.Marshal(action)
-		if err == nil && encodeErr == nil {
-			output = string(encoded) + "\n"
-		} else {
-			code, message = 2, fmt.Sprintf("shampoo next: %v\n", errors.Join(err, encodeErr))
+		if err != nil {
+			code, message = 2, fmt.Sprintf("shampoo next: %v\n", err)
+			break
 		}
-	case Policies:
+		encoded, err := json.Marshal(action)
+		if err != nil {
+			code, message = 2, fmt.Sprintf("shampoo next: %v\n", err)
+			break
+		}
+		output = string(encoded) + "\n"
+	case cli.Policies:
 		policies, err := orchestrator.Policies("")
 		if err != nil {
 			code, message = 2, fmt.Sprintf("shampoo policies: %v\n", err)
 		}
 		output = policy.Render(policies)
-	case Ask:
+	case cli.Ask:
 		url, err := orchestrator.Ask("", stdin)
 		if err != nil {
 			code, message = 2, fmt.Sprintf("shampoo ask: %v\n", err)
 		} else {
 			output = url + "\n"
 		}
-	case Review:
+	case cli.Review:
 		if err := orchestrator.Review("", stdin); err != nil {
 			code, message = 2, fmt.Sprintf("shampoo review: %v\n", err)
 		}
-	case Guard:
+	case cli.Guard:
 		outcome, report, err := guard.Run("", c.Transition)
 		code, message = exits[outcome], report
 		if err != nil {
