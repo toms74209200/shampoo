@@ -57,6 +57,23 @@ func Violations(lines []Line, ruleID string, transition rule.Transition, runs in
 	return violations
 }
 
+func Failures(lines []Line, ruleID string, runs int) int {
+	failures, seen := 0, 0
+	for _, line := range slices.Backward(lines) {
+		if seen == runs {
+			break
+		}
+		if line.Rule != ruleID {
+			continue
+		}
+		seen++
+		if line.Outcome == rule.WorkflowFailure {
+			failures++
+		}
+	}
+	return failures
+}
+
 func Overruns(lines []Line, check string, limit int64, runs int) int {
 	overruns := 0
 	seen := map[string]bool{}

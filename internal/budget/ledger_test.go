@@ -57,6 +57,31 @@ func TestViolations(t *testing.T) {
 	}
 }
 
+func TestFailures(t *testing.T) {
+	target := rand.Text()
+	other := rand.Text()
+	tests := []struct {
+		name  string
+		runs  int
+		lines []Line
+		want  int
+	}{
+		{name: "when Failures with workflow failures in the latest runs then returns their count", runs: 2, lines: []Line{{Rule: target, Outcome: rule.Outcome("workflow-failure")}, {Rule: target, Outcome: rule.Outcome("workflow-failure")}, {Rule: target, Outcome: rule.Outcome("pass")}}, want: 1},
+		{name: "when Failures with workflow failures at different transitions then returns their count", runs: 2, lines: []Line{{Rule: target, Transition: "edit", Outcome: rule.Outcome("workflow-failure")}, {Rule: target, Transition: "task", Outcome: rule.Outcome("workflow-failure")}}, want: 2},
+		{name: "when Failures with violations then returns zero", runs: 2, lines: []Line{{Rule: target, Outcome: rule.Outcome("task-failure")}, {Rule: target, Outcome: rule.Outcome("budget")}}, want: 0},
+		{name: "when Failures with workflow failures of another rule then returns zero", runs: 2, lines: []Line{{Rule: other, Outcome: rule.Outcome("workflow-failure")}}, want: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Failures(tt.lines, target, tt.runs)
+
+			if got != tt.want {
+				t.Errorf("got %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestOverruns(t *testing.T) {
 	target := rand.Text()
 	other := rand.Text()

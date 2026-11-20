@@ -69,7 +69,7 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 		return rule.WorkflowFailure, "", err
 	}
 	timeBudget, timeStop := options.TimeBudget, options.TimeStop
-	window := max(timeBudget.Runs, timeStop.Runs)
+	window := max(timeBudget.Runs, timeStop.Runs, options.FailureBudget.Runs, options.FailureStop.Runs)
 	for _, r := range rules {
 		if checked, ok := r.(rule.Checked); ok {
 			for _, transition := range checked.Transitions {
@@ -208,6 +208,15 @@ checks:
 			if exceptions != nil && *exceptions > checked.Exceptions.Limit {
 				report += fmt.Sprintf("%s has %d exceptions in %s, over its limit of %d: fix the check rather than add exceptions\n", checked.ID, *exceptions, checked.Exceptions.File, checked.Exceptions.Limit)
 				exceeded = true
+			}
+			if outcome == rule.WorkflowFailure {
+				if used := budget.Failures(lines, checked.ID, options.FailureBudget.Runs); used >= options.FailureBudget.Violations {
+					report += fmt.Sprintf("%s burns its workflow-failure budget: %d workflow failures in the latest %d runs, of %d allowed\n", checked.ID, used, options.FailureBudget.Runs, options.FailureBudget.Violations)
+				}
+				if recent := budget.Failures(lines, checked.ID, options.FailureStop.Runs); recent >= options.FailureStop.Violations {
+					report += fmt.Sprintf("%s exceeds its workflow-failure budget: %d workflow failures in the latest %d runs: repair its check or its judge\n", checked.ID, recent, options.FailureStop.Runs)
+					exceeded = true
+				}
 			}
 			if outcome != rule.TaskFailure && outcome != rule.Budget {
 				continue
