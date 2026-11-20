@@ -3,9 +3,9 @@ package main
 import (
 	"os"
 
-	"github.com/toms74209200/shampoo/internal/cli"
+	"github.com/toms74209200/shampoo/internal/run"
 )
 
 func main() {
-	os.Exit(cli.Run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
+	os.Exit(run.Run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
 }
