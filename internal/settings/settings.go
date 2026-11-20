@@ -17,6 +17,13 @@ type Settings struct {
 	Merge          string
 	Requirements   map[string]any
 	MaxSeconds     map[string]int
+	TimeBudget     Count
+	TimeStop       Count
+}
+
+type Count struct {
+	Violations int `toml:"violations"`
+	Runs       int `toml:"runs"`
 }
 
 func Parse(data []byte) (Settings, error) {
@@ -37,10 +44,16 @@ func Parse(data []byte) (Settings, error) {
 		TestSizes map[string]struct {
 			MaxSeconds int `toml:"max-seconds"`
 		} `toml:"test-sizes"`
+		TimeBudget struct {
+			Budget Count `toml:"budget"`
+			Stop   Count `toml:"stop"`
+		} `toml:"time-budget"`
 	}
 	file.StateMachine.HarnessRepair.MaxFailedAttempts = 3
 	file.Orchestrator.MaxWaitMinutes = 60
 	file.Orchestrator.Merge = "merge"
+	file.TimeBudget.Budget = Count{Violations: 2, Runs: 20}
+	file.TimeBudget.Stop = Count{Violations: 2, Runs: 5}
 	meta, err := toml.Decode(string(data), &file)
 	if err != nil {
 		return Settings{}, fmt.Errorf("%w: %v", ErrInvalid, err)
@@ -64,8 +77,13 @@ func Parse(data []byte) (Settings, error) {
 		}
 		maxSeconds[size] = limit.MaxSeconds
 	}
+	for name, count := range map[string]Count{"budget": file.TimeBudget.Budget, "stop": file.TimeBudget.Stop} {
+		if count.Runs < 1 || count.Violations < 1 || count.Violations > count.Runs {
+			return Settings{}, fmt.Errorf("%w: %s of the time budget has violations, from 1 to all, in runs, at least one", ErrInvalid, name)
+		}
+	}
 	if !slices.Contains([]string{"merge", "squash", "rebase"}, file.Orchestrator.Merge) {
 		return Settings{}, fmt.Errorf("%w: merge %q is not merge, squash or rebase", ErrInvalid, file.Orchestrator.Merge)
 	}
-	return Settings{RepairAttempts: file.StateMachine.HarnessRepair.MaxFailedAttempts, Tasks: file.Orchestrator.Tasks, MaxWaitMinutes: file.Orchestrator.MaxWaitMinutes, Merge: file.Orchestrator.Merge, Requirements: file.StateMachine.Review.Requirements, MaxSeconds: maxSeconds}, nil
+	return Settings{RepairAttempts: file.StateMachine.HarnessRepair.MaxFailedAttempts, Tasks: file.Orchestrator.Tasks, MaxWaitMinutes: file.Orchestrator.MaxWaitMinutes, Merge: file.Orchestrator.Merge, Requirements: file.StateMachine.Review.Requirements, MaxSeconds: maxSeconds, TimeBudget: file.TimeBudget.Budget, TimeStop: file.TimeBudget.Stop}, nil
 }
