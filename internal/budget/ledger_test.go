@@ -102,7 +102,7 @@ func TestCompact(t *testing.T) {
 				{Run: "3", Task: open, Transition: "edit", Rule: "lint", Check: "lint", Outcome: rule.Outcome("pass"), Millis: 2},
 				{Run: "4", Rule: "lint", Check: "lint", Outcome: rule.Outcome("task-failure"), Millis: 1},
 			},
-				Summaries: []Summary{{Task: merged, Attempts: map[string]int{"edit": 2}, Violations: map[string]int{"lint": 1}, Millis: map[string]int64{"lint": 12}}}},
+				Summaries: []Summary{{Task: merged, Attempts: map[string]int{"edit": 2}, Violations: map[string]int{"lint": 1}, Findings: map[string]int{}, Millis: map[string]int64{"lint": 12}}}},
 		},
 		{
 			name: "when Compact with a merged task inside the window then returns its summary with its repairs keeping its lines without the task",
@@ -123,7 +123,20 @@ func TestCompact(t *testing.T) {
 				{Run: "3", Task: open, Transition: "edit", Rule: "lint", Check: "lint", Outcome: rule.Outcome("pass"), Millis: 2},
 				{Run: "4", Rule: "lint", Check: "lint", Outcome: rule.Outcome("task-failure"), Millis: 1},
 			},
-				Summaries: []Summary{{Task: merged, Attempts: map[string]int{"edit": 2}, Violations: map[string]int{"lint": 1}, Millis: map[string]int64{"lint": 12}, Repairs: 1}}},
+				Summaries: []Summary{{Task: merged, Attempts: map[string]int{"edit": 2}, Violations: map[string]int{"lint": 1}, Findings: map[string]int{}, Millis: map[string]int64{"lint": 12}, Repairs: 1}}},
+		},
+		{
+			name: "when Compact with findings of a merged task then returns its findings by policy keeping them apart from rules in the window",
+			lines: []Line{
+				{Run: "1", Task: merged, Transition: "review", Policy: "functions", Outcome: rule.Outcome("finding")},
+				{Run: "2", Task: merged, Transition: "edit", Rule: "lint", Check: "lint", Outcome: rule.Outcome("pass"), Millis: 3},
+			},
+			window: 1,
+			want: Compaction{Kept: []Line{
+				{Run: "1", Transition: "review", Policy: "functions", Outcome: rule.Outcome("finding")},
+				{Run: "2", Transition: "edit", Rule: "lint", Check: "lint", Outcome: rule.Outcome("pass"), Millis: 3},
+			},
+				Summaries: []Summary{{Task: merged, Attempts: map[string]int{"review": 1, "edit": 1}, Violations: map[string]int{}, Findings: map[string]int{"functions": 1}, Millis: map[string]int64{"lint": 3}}}},
 		},
 	}
 	for _, tt := range tests {

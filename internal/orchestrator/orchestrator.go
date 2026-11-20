@@ -2,9 +2,11 @@ package orchestrator
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -14,10 +16,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/toms74209200/shampoo/internal/budget"
 	"github.com/toms74209200/shampoo/internal/files"
 	"github.com/toms74209200/shampoo/internal/git"
 	"github.com/toms74209200/shampoo/internal/guard"
 	"github.com/toms74209200/shampoo/internal/next"
+	"github.com/toms74209200/shampoo/internal/policy"
+	"github.com/toms74209200/shampoo/internal/review"
 	"github.com/toms74209200/shampoo/internal/rule"
 	"github.com/toms74209200/shampoo/internal/settings"
 	"github.com/toms74209200/shampoo/internal/workflow"
@@ -59,6 +64,34 @@ func Next(dir string) (next.Action, error) {
 	state := next.State{Source: options.Tasks, Branch: branch, Default: branch == defaultBranch, Verdict: verdict}
 	if state.Default {
 		return next.Decide(state), nil
+	}
+	policies, err := readPolicies(repo.Root)
+	if err != nil {
+		return next.Action{}, err
+	}
+	for _, p := range policies {
+		if p.Review {
+			state.Policies = append(state.Policies, p.ID)
+		}
+	}
+	state.Requirements = options.Requirements
+	recorded, err := files.Optional(filepath.Join(repo.GitDir, "shampoo", "review.json"))
+	if err != nil {
+		return next.Action{}, err
+	}
+	if recorded != nil {
+		var last reviewed
+		if err := json.Unmarshal(recorded, &last); err != nil {
+			return next.Action{}, fmt.Errorf("next: review: %w", err)
+		}
+		tree, err := repo.Snapshot()
+		if err != nil {
+			return next.Action{}, err
+		}
+		state.Reviewed = true
+		if last.Tree == tree {
+			state.Findings = last.Findings
+		}
 	}
 	gh := func(args ...string) ([]byte, error) {
 		cmd := exec.Command("gh", args...)
@@ -151,4 +184,77 @@ func Next(dir string) (next.Action, error) {
 		}
 	}
 	return action, nil
+}
+
+type reviewed struct {
+	Tree     string           `json:"tree"`
+	Findings []review.Finding `json:"findings"`
+}
+
+func readPolicies(root string) ([]policy.Policy, error) {
+	sources, err := files.Read(filepath.Join(root, ".shampoo", "policies"), ".toml")
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+	var policies []policy.Policy
+	for _, source := range sources {
+		parsed, err := policy.Parse(source.Name, source.Data)
+		if err != nil {
+			return nil, err
+		}
+		policies = append(policies, parsed)
+	}
+	return policies, nil
+}
+
+func Review(dir string, input io.Reader) error {
+	repo, err := git.Open(dir)
+	if err != nil {
+		return err
+	}
+	policies, err := readPolicies(repo.Root)
+	if err != nil {
+		return err
+	}
+	data, err := io.ReadAll(input)
+	if err != nil {
+		return err
+	}
+	findings, err := review.Parse(data, policies)
+	if err != nil {
+		return err
+	}
+	tree, err := repo.Snapshot()
+	if err != nil {
+		return err
+	}
+	branch, err := repo.Branch()
+	if err != nil {
+		return err
+	}
+	encoded, err := json.Marshal(reviewed{Tree: tree, Findings: findings})
+	if err != nil {
+		return err
+	}
+	if err := files.Update(filepath.Join(repo.GitDir, "shampoo", "review.json"), func([]byte) ([]byte, error) { return encoded, nil }); err != nil {
+		return err
+	}
+	run := rand.Text()
+	lines := []budget.Line{{Run: run, Task: branch, Transition: "review", Outcome: rule.Pass}}
+	if len(findings) > 0 {
+		lines = nil
+	}
+	for _, finding := range findings {
+		lines = append(lines, budget.Line{Run: run, Task: branch, Transition: "review", Policy: finding.Policy, Outcome: rule.Finding})
+	}
+	return files.Update(filepath.Join(repo.CommonDir, "shampoo", "ledger.jsonl"), func(ledger []byte) ([]byte, error) {
+		for _, line := range lines {
+			encoded, err := json.Marshal(line)
+			if err != nil {
+				return nil, err
+			}
+			ledger = append(append(ledger, encoded...), '\n')
+		}
+		return ledger, nil
+	})
 }

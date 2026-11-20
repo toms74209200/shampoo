@@ -15,6 +15,7 @@ type Settings struct {
 	Tasks          string
 	MaxWaitMinutes int
 	Merge          string
+	Requirements   map[string]any
 }
 
 func Parse(data []byte) (Settings, error) {
@@ -23,6 +24,9 @@ func Parse(data []byte) (Settings, error) {
 			HarnessRepair struct {
 				MaxFailedAttempts int `toml:"max-failed-attempts"`
 			} `toml:"harness-repair"`
+			Review struct {
+				Requirements map[string]any `toml:"requirements"`
+			} `toml:"review"`
 		} `toml:"state-machine"`
 		Orchestrator struct {
 			Tasks          string `toml:"tasks"`
@@ -49,5 +53,5 @@ func Parse(data []byte) (Settings, error) {
 	if !slices.Contains([]string{"merge", "squash", "rebase"}, file.Orchestrator.Merge) {
 		return Settings{}, fmt.Errorf("%w: merge %q is not merge, squash or rebase", ErrInvalid, file.Orchestrator.Merge)
 	}
-	return Settings{RepairAttempts: file.StateMachine.HarnessRepair.MaxFailedAttempts, Tasks: file.Orchestrator.Tasks, MaxWaitMinutes: file.Orchestrator.MaxWaitMinutes, Merge: file.Orchestrator.Merge}, nil
+	return Settings{RepairAttempts: file.StateMachine.HarnessRepair.MaxFailedAttempts, Tasks: file.Orchestrator.Tasks, MaxWaitMinutes: file.Orchestrator.MaxWaitMinutes, Merge: file.Orchestrator.Merge, Requirements: file.StateMachine.Review.Requirements}, nil
 }
