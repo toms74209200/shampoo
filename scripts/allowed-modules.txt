@@ -1,1 +1,2 @@
 github.com/BurntSushi/toml reads the TOML files of .shampoo/; the standard library has no TOML parser
+go.yaml.in/yaml/v3 reads the pull_request filters of .github/workflows/ to derive a pull request's expected checks; the standard library has no YAML parser
