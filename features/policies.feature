@@ -23,6 +23,7 @@ Feature: Print the policies for the agent's context
     And stdout contains "main.go only runs the program"
 
   @skip
+  @sha:1a93fd7c8c5c
   Scenario: Without policies only asking a human is printed
     When I run "shampoo policies"
     Then the exit code is 0
@@ -30,6 +31,7 @@ Feature: Print the policies for the agent's context
     And stdout does not contain "Policies of this project"
 
   @skip
+  @sha:297543a7d590
   Scenario: Asking a human follows the policies
     Given a policy "layout"
     When I run "shampoo policies"
