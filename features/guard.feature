@@ -212,6 +212,7 @@ Feature: Guard a transition
     Then the check "lint" has run once
 
   @skip
+  @sha:065e5b2a73fd
   Scenario: Violations at edit do not count toward the stop at task
     Given a check "lint" that exits 1
     And a rule "no-todo" guarding edit and task with check "lint" and a stop at task of 2 violations in the latest 2 runs
@@ -223,6 +224,7 @@ Feature: Guard a transition
     Then the exit code is 1
 
   @skip
+  @sha:62568703dfe5
   Scenario: The default stop at edit lets a change fail on its way
     Given a check "lint" that exits 1
     And a rule guarding edit with check "lint" and the default budgets
