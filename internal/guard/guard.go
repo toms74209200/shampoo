@@ -141,6 +141,7 @@ checks:
 		}
 		millis := time.Since(started).Milliseconds()
 		exceeded := false
+		judgedByExit := false
 		for _, checked := range selected {
 			if checked.Check != check.ID {
 				continue
@@ -150,7 +151,8 @@ checks:
 			switch judge := checked.Judge.(type) {
 			case rule.ByExit:
 				outcome = judge.Exit.Outcome(code)
-				detail = fmt.Sprintf("check %s: %s exited %d\n%s", check.ID, check.Command, code, output)
+				detail = fmt.Sprintf("check %s: %s exited %d\n", check.ID, check.Command, code)
+				judgedByExit = judgedByExit || outcome != rule.Pass
 			case rule.ByCommand:
 				judgeCode, judgeOutput, err := shell.Run(repo.Root, judge.Command)
 				if err != nil {
@@ -187,6 +189,9 @@ checks:
 				report += fmt.Sprintf("%s exceeds its budget: %d violations in the latest %d runs\n", checked.ID, recent, checked.Stop.Runs)
 				exceeded = true
 			}
+		}
+		if judgedByExit {
+			report += fmt.Sprintf("output of check %s:\n%s", check.ID, output)
 		}
 		if exceeded {
 			repair := budget.Line{Run: run, Task: branch, Transition: string(transition), Outcome: rule.Exceeded}
