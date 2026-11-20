@@ -8,18 +8,24 @@ import (
 	"github.com/toms74209200/shampoo/internal/rule"
 )
 
-type State struct {
+type Observation struct {
 	Source       string
 	Branch       string
 	Default      bool
-	Verdict      rule.Outcome
-	PullRequest  *PullRequest
-	Policies     []string
-	Requirements map[string]any
-	Reviewed     bool
-	Findings     []review.Finding
 	Questions    []string
 	MaxOpen      int
+	Verdict      rule.Outcome
+	Tree         string
+	Policies     []string
+	Requirements map[string]any
+	Record       *Record
+	PullRequest  *PullRequest
+}
+
+type Record struct {
+	Branch   string           `json:"branch"`
+	Tree     string           `json:"tree"`
+	Findings []review.Finding `json:"findings"`
 }
 
 type PullRequest struct {
@@ -39,6 +45,53 @@ type Run struct {
 	Created    time.Time
 }
 
+//sumtype:decl
+type State interface{ state() }
+
+type Idle struct{ Source string }
+
+type Blocked struct{ Questions []string }
+
+type Editing struct{ Branch string }
+
+type Repairing struct{ Branch string }
+
+type Handed struct{ Branch string }
+
+type Done struct {
+	Branch       string
+	Policies     []string
+	Requirements map[string]any
+}
+
+type Ready struct {
+	Branch   string
+	Findings []review.Finding
+}
+
+type Failing struct {
+	Branch   string
+	Failures []Failure
+}
+
+type Waiting struct{ Branch string }
+
+type Passed struct{ Branch string }
+
+type Merged struct{ Branch string }
+
+func (Idle) state()      {}
+func (Blocked) state()   {}
+func (Editing) state()   {}
+func (Repairing) state() {}
+func (Handed) state()    {}
+func (Done) state()      {}
+func (Ready) state()     {}
+func (Failing) state()   {}
+func (Waiting) state()   {}
+func (Passed) state()    {}
+func (Merged) state()    {}
+
 type Action struct {
 	Action       string           `json:"action"`
 	Source       string           `json:"source,omitempty"`
@@ -55,34 +108,38 @@ type Failure struct {
 	URL      string `json:"url"`
 }
 
-func Decide(s State) Action {
-	if s.Default && len(s.Questions) > s.MaxOpen {
-		return Action{Action: "wait-for-human", Questions: s.Questions}
+func Parse(o Observation) State {
+	if o.Default && len(o.Questions) > o.MaxOpen {
+		return Blocked{Questions: o.Questions}
 	}
-	if s.Default {
-		return Action{Action: "take-task", Source: s.Source}
+	if o.Default {
+		return Idle{Source: o.Source}
 	}
-	pr := s.PullRequest
+	pr := o.PullRequest
 	if pr != nil && pr.State == "MERGED" {
-		return Action{Action: "merged", Branch: s.Branch}
+		return Merged{Branch: o.Branch}
 	}
 	if pr != nil && pr.State == "CLOSED" {
-		return Action{Action: "hand-to-human", Branch: s.Branch}
+		return Handed{Branch: o.Branch}
 	}
-	switch s.Verdict {
-	case rule.Pass:
-		if (pr == nil || !pr.Pushed) && len(s.Policies) > 0 && !s.Reviewed {
-			return Action{Action: "review", Branch: s.Branch, Policies: s.Policies, Requirements: s.Requirements}
-		}
-		if pr == nil || !pr.Pushed {
-			return Action{Action: "open-pr", Branch: s.Branch, Findings: s.Findings}
-		}
+	switch o.Verdict {
 	case rule.Exceeded:
-		return Action{Action: "repair-harness", Branch: s.Branch}
+		return Repairing{Branch: o.Branch}
 	case rule.Handed:
-		return Action{Action: "hand-to-human", Branch: s.Branch}
-	default:
-		return Action{Action: "continue", Branch: s.Branch}
+		return Handed{Branch: o.Branch}
+	}
+	if o.Verdict != rule.Pass {
+		return Editing{Branch: o.Branch}
+	}
+	if pr == nil || !pr.Pushed {
+		mine := o.Record != nil && o.Record.Branch == o.Branch
+		switch {
+		case !mine && len(o.Policies) > 0:
+			return Done{Branch: o.Branch, Policies: o.Policies, Requirements: o.Requirements}
+		case mine && o.Record.Tree == o.Tree:
+			return Ready{Branch: o.Branch, Findings: o.Record.Findings}
+		}
+		return Ready{Branch: o.Branch}
 	}
 	var failures []Failure
 	waiting := false
@@ -102,9 +159,37 @@ func Decide(s State) Action {
 	}
 	switch {
 	case len(failures) > 0:
-		return Action{Action: "fix-pr", Branch: s.Branch, Failures: failures}
+		return Failing{Branch: o.Branch, Failures: failures}
 	case waiting:
-		return Action{Action: "wait", Branch: s.Branch}
+		return Waiting{Branch: o.Branch}
 	}
-	return Action{Action: "merge", Branch: s.Branch}
+	return Passed{Branch: o.Branch}
+}
+
+func Decide(s State) Action {
+	switch s := s.(type) {
+	case Idle:
+		return Action{Action: "take-task", Source: s.Source}
+	case Blocked:
+		return Action{Action: "wait-for-human", Questions: s.Questions}
+	case Editing:
+		return Action{Action: "continue", Branch: s.Branch}
+	case Repairing:
+		return Action{Action: "repair-harness", Branch: s.Branch}
+	case Handed:
+		return Action{Action: "hand-to-human", Branch: s.Branch}
+	case Done:
+		return Action{Action: "review", Branch: s.Branch, Policies: s.Policies, Requirements: s.Requirements}
+	case Ready:
+		return Action{Action: "open-pr", Branch: s.Branch, Findings: s.Findings}
+	case Failing:
+		return Action{Action: "fix-pr", Branch: s.Branch, Failures: s.Failures}
+	case Waiting:
+		return Action{Action: "wait", Branch: s.Branch}
+	case Passed:
+		return Action{Action: "merge", Branch: s.Branch}
+	case Merged:
+		return Action{Action: "merged", Branch: s.Branch}
+	}
+	return Action{}
 }
