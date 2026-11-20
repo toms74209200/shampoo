@@ -104,6 +104,7 @@ Feature: Follow a pull request to its merge
     Then the next action is "merged"
 
   @skip
+  @sha:c9d95bcf4dda
   Scenario: A run that did not execute is not a result
     Given a workflow "go" on pull requests to paths "**.go"
     And "shampoo guard task" has passed
