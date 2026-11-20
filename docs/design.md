@@ -69,14 +69,20 @@ Initial values are guesses and are adjusted from observation.
 Budgets work as SRE error budgets do: urgency comes from how fast a budget is consumed, not from each failure on its own.
 - **A rule's budget is part of the rule.** Its unit is a violation of the rule, and its window is counted in runs of the rule's check, not in time: there are no calendar-based runs. A check run on every edit, such as small tests, moves through its window fast, so a failure that persists over a few runs burns quickly. The rule gives its limit as counts, how many violations it allows in how many latest runs, such as 2 in 20: the share is the limit and the runs are the window
 - **A limit of zero violations tolerates nothing**: any charge acts at once, whatever the rate, for what stops everything when it fails, such as a deploy
-- **Actions follow the burn rate**, the share of the limit consumed over the share of the window elapsed, so that budgets of different rules compare on one scale. A fast burn escapes or stops work; a slow burn, through the window, leads to review or a task. A rule writes both in counts: its budget (2 in 20 runs by default), whose use in full is the slow burn and is reported, and its stop (2 in the latest 5 runs by default), the fast burn that sends the work to harness repair. shampoo computes burn rates from the counts to compare rules
+- **Actions follow the burn rate**, the share of the limit consumed over the share of the window elapsed, so that budgets of different rules compare on one scale. A fast burn escapes or stops work; a slow burn, through the window, leads to review or a task. A rule writes both in counts: its budget, whose use in full is the slow burn and is reported, and its stop, the fast burn that sends the work to harness repair. shampoo computes burn rates from the counts to compare rules
+- **A rule's budget is counted by transition.** `edit` and `task` both start from Editing: a violation at `edit` is feedback in the middle of the work, since a change spread over files fails until it is complete, while a violation at `task` is the work claimed done and not. So each transition a rule guards has its own budget and stop, counting the violations at that transition only. A rule writes `budget` and `stop` either as one count for every transition it guards, `budget = { violations = 2, runs = 20 }`, or as a table from transitions to counts, `[budget]` with `edit = { violations = 10, runs = 20 }`; a transition left out takes the default:
+
+  | Transition | Budget | Stop |
+  |---|---|---|
+  | `edit` | 10 in 20 runs | 8 in the latest 10 runs |
+  | The others | 2 in 20 runs | 2 in the latest 5 runs |
 - **The budgets shampoo charges itself** (workflow failure, time, human review, repair) belong to no rule, and are counted the same way over the transitions they govern. A project sets their limits in `.shampoo/settings.toml`, by the states of the state machine (§2) they belong to: `max-failed-attempts` of a state is how many failed attempts it allows before the state machine moves on, such as `[state-machine.harness-repair]` before a human
 
 Budgets come in four kinds. Each is attached where it is counted, by default where it always applies, with a default limit that a project overrides:
 
 | Kind | Counts | Attached to | By default | Default limit |
 |---|---|---|---|---|
-| Rate | Violations in the latest runs of the check | Rule | Every rule | 2 in 20 runs |
+| Rate | Violations in the latest runs of the check at one transition | Rule and transition | Every rule, at every transition it guards | 10 in 20 runs at `edit`, 2 in 20 at the others |
 | Stock | Open items at a time, such as exceptions to a check | Rule | Rules that allow exceptions, when they declare it | 3 |
 | Count | Charges within a unit, such as entries into harness repair in one task | Task (repair), milestone (workflow failure) | Always, by shampoo | 3 |
 | Time | One run's duration, against the limit of its test size [2] | Check | Every check | Its size's limit |
