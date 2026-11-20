@@ -7,54 +7,13 @@ from pathlib import Path
 import pytest
 from pytest_bdd import given, parsers, scenarios, then
 
+from conftest import VIOLATION, new_id, record, write_check, write_rule
+
 scenarios("../../features/guard.feature")
-
-VIOLATION = '{ other = "task-failure" }'
-
 
 @pytest.fixture
 def runs_log(tmp_path):
     return tmp_path / "runs.log"
-
-
-def write_check(workspace: Path, check_id: str, command: str, needs: str = "") -> None:
-    checks = workspace / ".shampoo" / "checks"
-    checks.mkdir(parents=True, exist_ok=True)
-    (checks / f"{check_id}.toml").write_text(f'command = {command!r}\nsize = "small"\n{needs}')
-
-
-def write_rule(
-    workspace: Path,
-    rule_id: str,
-    transition: str,
-    check_id: str,
-    judge: str = f"{{ exit = {VIOLATION} }}",
-    budget: str = "{ violations = 5, runs = 10 }",
-    extra: str = "",
-) -> None:
-    rules = workspace / ".shampoo" / "rules"
-    rules.mkdir(parents=True, exist_ok=True)
-    (rules / f"{rule_id}.toml").write_text(
-        f'rule = "{rule_id} holds."\n'
-        f'check = "{check_id}"\n'
-        f'transitions = ["{transition}"]\n'
-        f"{extra}"
-        f"judge = {judge}\n"
-        f"budget = {budget}\n"
-    )
-
-
-def new_id() -> str:
-    return "rule-" + secrets.token_hex(4)
-
-
-def record(runs_log: Path, check_id: str) -> str:
-    return f"echo {shlex.quote(check_id)} >> {shlex.quote(str(runs_log))}"
-
-
-@given(parsers.parse('a check "{check_id}" that exits {code:d}'))
-def given_check_exits(workspace, check_id, code):
-    write_check(workspace, check_id, f"exit {code}")
 
 
 @given(parsers.parse('a check "{check_id}" that prints "{text}" and exits {code:d}'))
@@ -75,11 +34,6 @@ def given_check_records_exits(workspace, runs_log, check_id, code):
 @given(parsers.parse('a check "{check_id}" that needs "{needed}" and records that it ran'))
 def given_check_needs(workspace, runs_log, check_id, needed):
     write_check(workspace, check_id, record(runs_log, check_id), f'needs = ["{needed}"]\n')
-
-
-@given(parsers.parse('a rule guarding {transition:w} with check "{check_id}"'))
-def given_rule(workspace, transition, check_id):
-    write_rule(workspace, new_id(), transition, check_id)
 
 
 @given(parsers.parse('a rule "{rule_id}" guarding {transition:w} with check "{check_id}"'))
