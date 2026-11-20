@@ -14,8 +14,10 @@ func TestParse(t *testing.T) {
 		want    Settings
 		wantErr bool
 	}{
-		{name: "when Parse with no settings then returns the defaults", data: "", want: Settings{RepairAttempts: 3}},
-		{name: "when Parse with failed attempts of harness repair then returns them", data: "[state-machine.harness-repair]\nmax-failed-attempts = 1\n", want: Settings{RepairAttempts: 1}},
+		{name: "when Parse with no settings then returns the defaults", data: "", want: Settings{RepairAttempts: 3, Agent: "claude -p"}},
+		{name: "when Parse with failed attempts of harness repair then returns them", data: "[state-machine.harness-repair]\nmax-failed-attempts = 1\n", want: Settings{RepairAttempts: 1, Agent: "claude -p"}},
+		{name: "when Parse with a task source and an agent then returns them", data: "[orchestrator]\ntasks = \"list-tasks\"\nagent = \"my-agent --headless\"\n", want: Settings{RepairAttempts: 3, Tasks: "list-tasks", Agent: "my-agent --headless"}},
+		{name: "when Parse with an empty agent then returns an error", data: "[orchestrator]\nagent = \"\"\n", wantErr: true},
 		{name: "when Parse with invalid TOML then returns an error", data: "[state-machine", wantErr: true},
 		{name: "when Parse with a state not settable yet then returns an error", data: "[state-machine.editing]\nmax-failed-attempts = 3\n", wantErr: true},
 		{name: "when Parse with negative failed attempts then returns an error", data: "[state-machine.harness-repair]\nmax-failed-attempts = -1\n", wantErr: true},
