@@ -60,7 +60,7 @@ Transitions are governed by budgets, in the manner of SRE error budgets. When to
 | Workflow failure | Failures caused by the harness rather than the work: tool crashes, oracle nondeterminism, flaky tests | Repair the harness |
 | Time | A check's run time, against its test size's time limit [2] | Reorganize the check |
 | False positive | Exceptions to a check | Fix the check |
-| Human review | Exceptions and workflow changes awaiting asynchronous human review | Stop until reviewed |
+| Human review | Questions to a human that are still open | Take no new task until they are answered |
 | Repair | Each entry into harness repair within a task | Hand the task to a human |
 
 Charging the right budget requires telling a task failure (the check found a problem in the work) from a workflow failure (the harness misbehaved). Every check reports which one it is.
@@ -90,7 +90,7 @@ Budgets come in four kinds. Each is attached where it is counted, by default whe
 | Kind | Counts | Attached to | By default | Default limit |
 |---|---|---|---|---|
 | Rate | Violations in the latest runs of the check at one transition | Rule and transition | Every rule, at every transition it guards | 10 in 20 runs at `edit`, 2 in 20 at the others |
-| Stock | Open items at a time, such as exceptions to a check | Rule | Rules that allow exceptions, when they declare it | 3 |
+| Stock | Open items at a time, such as exceptions to a check or questions to a human | Rule | Rules that allow exceptions, when they declare it | 3 |
 | Count | Charges within a unit, such as entries into harness repair in one task | Task (repair) | Always, by shampoo | 3 |
 | Time | One run's duration, against the limit of its test size [2] | Check | Every check | Its size's limit |
 
@@ -112,7 +112,7 @@ The loop must keep running with no human present. That requires:
 | Auto-merge | Work that passes the PR checks merges without waiting for a human |
 | Failure classification and the workflow-failure budget | A broken harness must not be retried forever as if it were a task failure |
 | Self-healing | Escapes become harness-repair tasks for an agent. A human is reached only when the repair budget is exhausted |
-| Asynchronous human review | Human approval never blocks the loop directly; only the human-review budget does |
+| Asynchronous human review | Whether a human should look is the agent's call, by the policies, not a fixed kind of change. The agent asks without waiting; only too many open questions stop new tasks |
 
 ## 5. Principles for checks
 - **A check failure always sends the work back.** No warnings
@@ -120,7 +120,7 @@ The loop must keep running with no human present. That requires:
 - **Exceeding the budget means fixing the check**, not adding exceptions
 - **Checks follow test sizes [2].** A check's size decides the earliest transition it can guard: small from edit done, medium from task done, large from PR
 - **Checks are added when a trigger is observed**, cheapest first, and reorganized on cost (run time, failure cost). A check is not removed for catching nothing: catching nothing does not show it is ineffective
-- **Agents don't change the checks that judge their own work.** Such changes go through the human-review budget
+- **An agent that changes the checks judging its own work asks a human**, as the policies say, and goes on (§5.3)
 
 ### 5.1 Acceptance tests
 Tests come in two kinds, and only one of them belongs to the implementation:
@@ -131,7 +131,7 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 | Feature specs and black-box (acceptance) tests | The spec, made executable: checks that judge the implementation | No |
 
 - **An implementation task never changes acceptance tests.** This follows from the rule above: an implementation that may rewrite its acceptance tests can pass anything
-- **A behavior change starts with a spec-change task.** It updates the feature specs and acceptance tests, and goes through the human-review budget. Implementation tasks follow it
+- **A behavior change starts with a spec-change task.** It updates the feature specs and acceptance tests, and asks a human where the policies say so (§5.3). Implementation tasks follow it
 - **A scenario's content is its name and steps.** Its tags are not content
 - **A scenario carries `@sha:<hash>`** of its content, which identifies the scenario as defined. A scenario without `@sha`, or whose `@sha` does not match its content, is new or changed, and carries `@skip`, written by whoever changes the spec: it is not run, so a spec change can land before its implementation. The implementation removes `@skip`, changing tags only. `@sha` is recorded by CI, never by hand: when feature files change, CI writes it on every scenario whose `@sha` is missing or does not match, after the check below, and commits
 - **A change to feature files is checked on its own, statically**: every scenario whose `@sha` is missing or does not match carries `@skip`. No test runs for it
@@ -154,6 +154,11 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 - **A policy may be marked for review** (`review = true`). If any is, the state machine has the review phase (§2): before the PR, an agent reviews the task's change against the marked policies, without a human. Which agent does it is the agents' setup; the requirements on it, such as the model or that it is not the agent that did the work, are the project's, in `[state-machine.review.requirements]`, and shampoo hands them over as they are
 - **Findings are feedback, and statistics.** The agent that did the work gets them with the next action and decides what to change. Each finding is recorded in the ledger by policy, so that a policy often found violated shows in the statistics, as a candidate for a rule or for repairing the harness (§3.2). Whether a review met its requirements is not checked; how well reviews work is read from the statistics
 - **Policies and rules are defined independently**, in the project's configuration (§7). shampoo provides no defaults: their content is the project's own
+
+### 5.3 Asking a human
+- **An agent asks a human when the policies say so**, a decision made by the agent and so probabilistic, never fixed by the kind of change: a human who must look at every change of a kind is in the loop
+- **A question is a GitHub issue with the label `[human-review] label`** (default `human-review`): what the agent decided, and how else it could be built, with the trade-offs, such as ease of use. The agent does not wait for the answer; the human answers in the issue, and the answer is feedback for later tasks
+- **Open questions are a stock** (§3.1): when more than `[human-review] max-open` (default 3) are open, `shampoo next` hands no new task and says to wait for a human, with the questions. Work on a task already taken goes on
 
 ## 6. Non-goals
 - Project-specific checks: these come from the project (§7)
@@ -222,10 +227,11 @@ Each transition is split by what agent mechanisms (hooks, skills) do, what the d
 
 | Transition | Agent mechanisms | Platform | shampoo |
 |---|---|---|---|
-| Task created → Editing | Launch the agent, in a worktree of its own. The `SessionStart` hook puts the policies into its context, again after compaction | | `shampoo next` hands over the task source; `shampoo policies` prints the policies for the hook |
+| Task created → Editing | Launch the agent, in a worktree of its own. The `SessionStart` hook puts the policies into its context, again after compaction | | `shampoo next` hands over the task source, unless too many questions to a human are open (§5.3); `shampoo policies` prints the policies for the hook |
 | Edit done (Editing → Editing) | The PostToolUse hook on every tool [3] calls `shampoo guard edit` | | Which rules judge, and how budgets count. The guard ignores which tool ran (agents also edit through Bash, Python, sed) and looks at files: what changed since the last passed guard, recorded as a git tree at each pass. If nothing changed, it does nothing |
 | Task done (Editing → TaskDone) | The Stop hook [3] calls `shampoo guard task`. Every stop is an attempt at task done: the agent either thinks it is done or is stuck, and in both cases the guard decides | | Same as edit done |
 | Review (TaskDone → Review → PR), when a policy is marked for review | An agent reviews, under the project's requirements | | `shampoo next` says to review, with the marked policies and the requirements, once the task guard passes; `shampoo review` records the findings for the reviewed tree. Then `shampoo next` gives the findings with the action to open the PR, while the tree is the reviewed one |
+| Asking a human, at any time | The agent opens the issue, as the policies say | Issues | `shampoo next` counts the open ones |
 | PR opened (TaskDone → PR) | The agent opens it | Opens the PR | `shampoo next` says to, once the task guard passes |
 | PR checks | | The repository's own CI | |
 | PR checks fail (PR → Editing) | An agent fixes them | | `shampoo next` says to, with the failure |

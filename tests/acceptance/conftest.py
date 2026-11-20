@@ -3,6 +3,7 @@ import os
 import secrets
 import shlex
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -47,10 +48,48 @@ def run_result():
     return {}
 
 
+FAKE_GH = """\
+import json, sys
+from pathlib import Path
+
+state = Path({state!r})
+args = sys.argv[1:]
+if args[:2] == ["pr", "view"]:
+    if not (state / "pr.json").exists():
+        print("no pull requests found", file=sys.stderr)
+        sys.exit(1)
+    print((state / "pr.json").read_text())
+elif args[:2] == ["run", "list"]:
+    print((state / "runs.json").read_text())
+elif args[:2] == ["pr", "merge"]:
+    with (state / "merges.log").open("a") as log:
+        log.write(" ".join(args) + "\\n")
+elif args[:2] == ["issue", "list"]:
+    label = args[args.index("--label") + 1]
+    issues = json.loads((state / "issues.json").read_text())
+    print(json.dumps([issue for issue in issues if label in issue["labels"] and issue["state"] == "OPEN"]))
+else:
+    print("fake gh: unexpected " + " ".join(args), file=sys.stderr)
+    sys.exit(1)
+"""
+
+
 @pytest.fixture
-def fake_bin(tmp_path):
+def gh_state(tmp_path):
+    state = tmp_path / "gh-state"
+    state.mkdir()
+    (state / "runs.json").write_text("[]")
+    (state / "issues.json").write_text("[]")
+    return state
+
+
+@pytest.fixture
+def fake_bin(tmp_path, gh_state):
     bin_dir = tmp_path / "fake-bin"
     bin_dir.mkdir()
+    gh = bin_dir / "gh"
+    gh.write_text(f"#!{sys.executable}\n" + FAKE_GH.format(state=str(gh_state)))
+    gh.chmod(0o755)
     return bin_dir
 
 
@@ -267,10 +306,8 @@ def then_next_action_field(run_result, field, value):
 
 
 @given("no pull request is open")
-def given_no_pull_request(fake_bin):
-    gh = fake_bin / "gh"
-    gh.write_text("#!/bin/sh\necho 'no pull requests found' >&2\nexit 1\n")
-    gh.chmod(0o755)
+def given_no_pull_request(gh_state):
+    (gh_state / "pr.json").unlink(missing_ok=True)
 
 
 def write_policy(workspace: Path, policy_id: str, review: bool) -> None:
