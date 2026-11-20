@@ -35,18 +35,20 @@ func TestViolations(t *testing.T) {
 	target := rand.Text()
 	other := rand.Text()
 	tests := []struct {
-		name  string
-		runs  int
-		lines []Line
-		want  int
+		name       string
+		transition rule.Transition
+		runs       int
+		lines      []Line
+		want       int
 	}{
-		{name: "when Violations with violations in the latest runs then returns their count", runs: 2, lines: []Line{{Rule: target, Outcome: rule.Outcome("task-failure")}, {Rule: target, Outcome: rule.Outcome("pass")}, {Rule: other, Outcome: rule.Outcome("task-failure")}, {Rule: target, Outcome: rule.Outcome("budget")}}, want: 1},
-		{name: "when Violations with fewer runs than asked then returns the violations there are", runs: 4, lines: []Line{{Rule: target, Outcome: rule.Outcome("task-failure")}}, want: 1},
-		{name: "when Violations with a workflow failure then returns zero", runs: 2, lines: []Line{{Rule: target, Outcome: rule.Outcome("workflow-failure")}}, want: 0},
+		{name: "when Violations with violations in the latest runs then returns their count", transition: rule.Transition("edit"), runs: 2, lines: []Line{{Rule: target, Transition: "edit", Outcome: rule.Outcome("task-failure")}, {Rule: target, Transition: "edit", Outcome: rule.Outcome("pass")}, {Rule: other, Transition: "edit", Outcome: rule.Outcome("task-failure")}, {Rule: target, Transition: "edit", Outcome: rule.Outcome("budget")}}, want: 1},
+		{name: "when Violations with violations at another transition then returns the count at its own", transition: rule.Transition("edit"), runs: 2, lines: []Line{{Rule: target, Transition: "edit", Outcome: rule.Outcome("task-failure")}, {Rule: target, Transition: "task", Outcome: rule.Outcome("task-failure")}, {Rule: target, Transition: "task", Outcome: rule.Outcome("task-failure")}}, want: 1},
+		{name: "when Violations with fewer runs than asked then returns the violations there are", transition: rule.Transition("edit"), runs: 4, lines: []Line{{Rule: target, Transition: "edit", Outcome: rule.Outcome("task-failure")}}, want: 1},
+		{name: "when Violations with a workflow failure then returns zero", transition: rule.Transition("edit"), runs: 2, lines: []Line{{Rule: target, Transition: "edit", Outcome: rule.Outcome("workflow-failure")}}, want: 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Violations(tt.lines, target, tt.runs)
+			got := Violations(tt.lines, target, tt.transition, tt.runs)
 
 			if got != tt.want {
 				t.Errorf("got %d, want %d", got, tt.want)

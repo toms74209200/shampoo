@@ -67,7 +67,9 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 	window := 0
 	for _, r := range rules {
 		if checked, ok := r.(rule.Checked); ok {
-			window = max(window, checked.Budget.Runs, checked.Stop.Runs)
+			for _, transition := range checked.Transitions {
+				window = max(window, checked.Budget[transition].Runs, checked.Stop[transition].Runs)
+			}
 		}
 	}
 	ledgerPath := filepath.Join(repo.CommonDir, "shampoo", "ledger.jsonl")
@@ -183,11 +185,12 @@ checks:
 			if outcome != rule.TaskFailure && outcome != rule.Budget {
 				continue
 			}
-			if used := budget.Violations(lines, checked.ID, checked.Budget.Runs); checked.Budget.Violations > 0 && used >= checked.Budget.Violations {
-				report += fmt.Sprintf("%s burns its budget: %d violations in the latest %d runs, of %d allowed\n", checked.ID, used, checked.Budget.Runs, checked.Budget.Violations)
+			allowed, stop := checked.Budget[transition], checked.Stop[transition]
+			if used := budget.Violations(lines, checked.ID, transition, allowed.Runs); allowed.Violations > 0 && used >= allowed.Violations {
+				report += fmt.Sprintf("%s burns its budget at %s: %d violations in the latest %d runs, of %d allowed\n", checked.ID, transition, used, allowed.Runs, allowed.Violations)
 			}
-			if recent := budget.Violations(lines, checked.ID, checked.Stop.Runs); checked.Budget.Violations == 0 || recent >= checked.Stop.Violations {
-				report += fmt.Sprintf("%s exceeds its budget: %d violations in the latest %d runs\n", checked.ID, recent, checked.Stop.Runs)
+			if recent := budget.Violations(lines, checked.ID, transition, stop.Runs); allowed.Violations == 0 || recent >= stop.Violations {
+				report += fmt.Sprintf("%s exceeds its budget at %s: %d violations in the latest %d runs\n", checked.ID, transition, recent, stop.Runs)
 				exceeded = true
 			}
 		}

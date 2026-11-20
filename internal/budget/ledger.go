@@ -37,13 +37,13 @@ func ParseLedger(data []byte) []Line {
 	return lines
 }
 
-func Violations(lines []Line, ruleID string, runs int) int {
+func Violations(lines []Line, ruleID string, transition rule.Transition, runs int) int {
 	violations, seen := 0, 0
 	for _, line := range slices.Backward(lines) {
 		if seen == runs {
 			break
 		}
-		if line.Rule != ruleID {
+		if line.Rule != ruleID || line.Transition != string(transition) {
 			continue
 		}
 		seen++
