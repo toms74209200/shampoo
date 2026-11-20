@@ -156,8 +156,9 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 - **Policies and rules are defined independently**, in the project's configuration (§7). shampoo provides no defaults: their content is the project's own
 
 ### 5.3 Asking a human
-- **An agent asks a human when the policies say so**, a decision made by the agent and so probabilistic, never fixed by the kind of change: a human who must look at every change of a kind is in the loop
-- **A question is a GitHub issue with the label `[human-review] label`** (default `human-review`): what the agent decided, and how else it could be built, with the trade-offs, such as ease of use. The agent does not wait for the answer; the human answers in the issue, and the answer is feedback for later tasks
+- **An agent asks a human when it cannot settle a decision, or when the policies say so**, a decision made by the agent and so probabilistic, never fixed by the kind of change: a human who must look at every change of a kind is in the loop. It decides, goes on, and asks
+- **How to ask is shampoo's, when to ask the project's.** `shampoo policies` ends with shampoo's own section on asking, so every agent knows it from the start of its session; a project adds its own occasions as policies
+- **A question is a GitHub issue with the label `[human-review] label`** (default `human-review`), opened by `shampoo ask`, so that its form and label do not depend on the agent, and so that the ledger records which task asked: what the agent decided, and how else it could be built, with the trade-offs, such as ease of use. The agent does not wait for the answer; the human answers in the issue, and the answer is feedback for later tasks
 - **Open questions are a stock** (§3.1): when more than `[human-review] max-open` (default 3) are open, `shampoo next` hands no new task and says to wait for a human, with the questions. Work on a task already taken goes on
 
 ## 6. Non-goals
@@ -192,7 +193,8 @@ The state machine (§2) is shampoo's own. Its transitions are bound to Claude Co
 ## 8. Commands
 - `shampoo next`: the orchestrator. Says what to do next from the current state (§11), as a JSON object naming the action and its details, such as `{"action": "open-pr", "branch": "task/add-readme"}`, readable by agents and by scripts that run them, and open to new fields without breaking either; merges what its own auto-merge allows. Whoever runs the agents calls it
 - `shampoo guard <transition>`: runs the guard for a transition (`edit`, `task`). Called by hooks
-- `shampoo policies`: prints every policy, its text and its code example, for the hook that puts them into the agent's context (§5.2)
+- `shampoo policies`: prints every policy, its text and its code example, then shampoo's own section on asking a human (§5.3), for the hook that puts them into the agent's context (§5.2)
+- `shampoo ask`: asks a human (§5.3), read as JSON from stdin: `{"decision": "...", "alternatives": "...", "tradeoffs": "..."}`, none empty. Opens the issue, its title the decision's first line, records the question in the ledger for the current branch, and prints the issue's URL
 - `shampoo review`: records a review of the current tree, read as JSON from stdin: `{"findings": [{"policy": "<id>", "comment": "..."}]}`. Each finding names a policy marked for review. Called by the reviewing agent
 
 ---
@@ -268,7 +270,7 @@ The flow of one task:
 ## 12. State and ledger
 - **State** is derived from git and GitHub (a branch per task in its own worktree, the PR, whether it is merged). There is no separate state file to drift
 - **Ledger**: JSON Lines in the git common directory, shared by all worktrees and not tracked. Each judgment at a transition is appended as one line: task (its branch), transition, rule, check, outcome, the check's duration and, for a rule that allows exceptions, their count. Rate, repair, workflow-failure and time budgets are counted from it. A line is written in one append, so worktrees writing at once do not interleave lines, and a broken last line is skipped
-- **Statistics**: a separate JSON Lines file beside the ledger, one line per merged task: attempts per transition, violations per rule, findings per policy, run time per check. It is the evidence for tuning budgets and for drift (§3.2)
+- **Statistics**: a separate JSON Lines file beside the ledger, one line per merged task: attempts per transition, violations per rule, findings per policy, questions to a human, run time per check. It is the evidence for tuning budgets and for drift (§3.2)
 - **Compaction is automatic**: when a guard starts, the tasks whose branch is merged are summarized into statistics, and their lines leave the ledger, except the latest runs of each check within the window (§3.1). The ledger stays the size of the windows and the open tasks
 - **JSON Lines rather than SQLite**: SQLite in Go needs cgo, which complicates cross-building and distributing one static binary, or a pure-Go port with many dependencies. The ledger only appends and reads the latest lines
 - **Not in the ledger**: the freeze flag is a labeled issue on GitHub, so CI can enforce it too; PR failures come from GitHub's check history

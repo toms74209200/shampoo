@@ -64,6 +64,13 @@ elif args[:2] == ["run", "list"]:
 elif args[:2] == ["pr", "merge"]:
     with (state / "merges.log").open("a") as log:
         log.write(" ".join(args) + "\\n")
+elif args[:2] == ["issue", "create"]:
+    issues = json.loads((state / "issues.json").read_text())
+    url = "https://github.example/issues/" + str(len(issues) + 1)
+    value = lambda flag: args[args.index(flag) + 1]
+    issues.append({{"url": url, "labels": [value("--label")], "state": "OPEN", "title": value("--title"), "body": value("--body")}})
+    (state / "issues.json").write_text(json.dumps(issues))
+    print(url)
 elif args[:2] == ["issue", "list"]:
     label = args[args.index("--label") + 1]
     issues = json.loads((state / "issues.json").read_text())
@@ -279,6 +286,12 @@ def given_rule_zero_budget(workspace, transition, check_id):
     write_rule(workspace, new_id(), transition, check_id, budget="{ violations = 0, runs = 1 }")
 
 
+@given(parsers.parse('settings asking a human with the label "{label}" and at most {limit:d} open questions'))
+def given_human_review_settings(workspace, settings_sections, label, limit):
+    settings_sections["human-review"] = {"label": label, "max-open": limit}
+    write_settings(workspace, settings_sections)
+
+
 @given(parsers.parse('a task source "{path}"'))
 def given_task_source(workspace, settings_sections, path):
     (workspace / path).write_text("- a task\n")
@@ -345,6 +358,11 @@ def given_policy_without_text(workspace, policy_id):
 @then(parsers.parse('stdout contains "{text}"'))
 def then_stdout_contains(run_result, text):
     assert text in run_result["stdout"], f"expected {text!r} in stdout, got {run_result['stdout']!r}"
+
+
+@then(parsers.parse('stdout does not contain "{text}"'))
+def then_stdout_lacks(run_result, text):
+    assert text not in run_result["stdout"], f"stdout={run_result['stdout']!r}"
 
 
 @then("stdout is empty")

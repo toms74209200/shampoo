@@ -2,7 +2,7 @@ import json
 
 from pytest_bdd import given, parsers, scenarios, then
 
-from conftest import next_action, write_settings
+from conftest import next_action
 
 scenarios("../../features/human-questions.feature")
 
@@ -28,12 +28,6 @@ def given_closed_questions(gh_state, count):
 @given(parsers.re(r'(?P<count>\d+) questions? to a human labeled "(?P<label>[^"]+)" (?:is|are) open'))
 def given_labeled_questions(gh_state, count, label):
     add_questions(gh_state, int(count), label, "OPEN")
-
-
-@given(parsers.parse('settings asking a human with the label "{label}" and at most {limit:d} open questions'))
-def given_human_review_settings(workspace, settings_sections, label, limit):
-    settings_sections["human-review"] = {"label": label, "max-open": limit}
-    write_settings(workspace, settings_sections)
 
 
 @then(parsers.parse("the next action names {count:d} questions"))
