@@ -16,6 +16,7 @@ Feature: Follow a pull request to its merge
     And a changed file "main.go"
 
   @skip
+  @sha:8e74d666a254
   Scenario: A pull request whose expected workflow is running waits
     Given a workflow "go" on pull requests to paths "**.go"
     And "shampoo guard task" has passed
@@ -28,6 +29,7 @@ Feature: Follow a pull request to its merge
     And the next action has "branch" "task-a"
 
   @skip
+  @sha:816f3ed2e0e9
   Scenario: A pull request with no run of an expected workflow waits
     Given a workflow "go" on pull requests to paths "**.go"
     And "shampoo guard task" has passed
@@ -37,6 +39,7 @@ Feature: Follow a pull request to its merge
     Then the next action is "wait"
 
   @skip
+  @sha:a55e4887082a
   Scenario: A workflow without paths is expected for every change
     Given a workflow "go" on pull requests to paths "**.go"
     And a workflow "commit" on pull requests
@@ -48,6 +51,7 @@ Feature: Follow a pull request to its merge
     Then the next action is "wait"
 
   @skip
+  @sha:2a3976750c39
   Scenario: A workflow whose paths the change does not touch is not expected
     Given a workflow "go" on pull requests to paths "**.go"
     And a workflow "docs" on pull requests to paths "docs/**"
@@ -59,6 +63,7 @@ Feature: Follow a pull request to its merge
     Then the next action is "merged"
 
   @skip
+  @sha:ab94220fb8b1
   Scenario: A pull request whose expected workflow failed is fixed
     Given a workflow "go" on pull requests to paths "**.go"
     And "shampoo guard task" has passed
@@ -73,6 +78,7 @@ Feature: Follow a pull request to its merge
     And the pull request is not merged
 
   @skip
+  @sha:4fa323b79b39
   Scenario: A pull request whose expected workflows passed is merged
     Given a workflow "go" on pull requests to paths "**.go"
     And "shampoo guard task" has passed
@@ -86,6 +92,7 @@ Feature: Follow a pull request to its merge
     And the pull request is merged with "--merge"
 
   @skip
+  @sha:dddfb8a18d1d
   Scenario: A run on an earlier commit of the pull request counts
     Given a workflow "go" on pull requests to paths "**.go"
     And "shampoo guard task" has passed
@@ -97,6 +104,7 @@ Feature: Follow a pull request to its merge
     Then the next action is "merged"
 
   @skip
+  @sha:36cbd36ea7e4
   Scenario: The latest run of a workflow counts
     Given a workflow "go" on pull requests to paths "**.go"
     And "shampoo guard task" has passed
@@ -108,6 +116,7 @@ Feature: Follow a pull request to its merge
     Then the next action is "merged"
 
   @skip
+  @sha:9c6d364ff572
   Scenario: The merge method follows the settings
     Given settings merging by "squash"
     And a workflow "go" on pull requests to paths "**.go"
@@ -119,6 +128,7 @@ Feature: Follow a pull request to its merge
     Then the pull request is merged with "--squash"
 
   @skip
+  @sha:fabf4a40e115
   Scenario: Waiting longer than the limit is a workflow failure
     Given settings waiting at most 0 minutes for checks
     And a workflow "go" on pull requests to paths "**.go"
