@@ -57,6 +57,33 @@ func TestViolations(t *testing.T) {
 	}
 }
 
+func TestOverruns(t *testing.T) {
+	target := rand.Text()
+	other := rand.Text()
+	tests := []struct {
+		name  string
+		limit int64
+		runs  int
+		lines []Line
+		want  int
+	}{
+		{name: "when Overruns with runs over the limit in the latest runs then returns their count", limit: 10, runs: 2, lines: []Line{{Run: "a", Check: target, Millis: 20}, {Run: "b", Check: target, Millis: 20}, {Run: "c", Check: target, Millis: 5}}, want: 1},
+		{name: "when Overruns with a run judged by several rules then returns one", limit: 10, runs: 2, lines: []Line{{Run: "a", Check: target, Millis: 20}, {Run: "a", Check: target, Millis: 20}}, want: 1},
+		{name: "when Overruns with a run at the limit then returns zero", limit: 10, runs: 2, lines: []Line{{Run: "a", Check: target, Millis: 10}}, want: 0},
+		{name: "when Overruns with another check over the limit then returns zero", limit: 10, runs: 2, lines: []Line{{Run: "a", Check: other, Millis: 20}}, want: 0},
+		{name: "when Overruns with runs at different transitions then returns their count", limit: 10, runs: 2, lines: []Line{{Run: "a", Transition: "edit", Check: target, Millis: 20}, {Run: "b", Transition: "task", Check: target, Millis: 20}}, want: 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Overruns(tt.lines, target, tt.limit, tt.runs)
+
+			if got != tt.want {
+				t.Errorf("got %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestRepairs(t *testing.T) {
 	task := rand.Text()
 	tests := []struct {
