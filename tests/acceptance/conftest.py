@@ -221,3 +221,29 @@ def given_repair_limit(workspace, settings_sections, count):
 @given(parsers.parse('a rule guarding {transition:w} with check "{check_id}" and a zero budget'))
 def given_rule_zero_budget(workspace, transition, check_id):
     write_rule(workspace, new_id(), transition, check_id, budget="{ violations = 0, runs = 1 }")
+
+
+@given(parsers.parse('a task source "{path}"'))
+def given_task_source(workspace, settings_sections, path):
+    (workspace / path).write_text("- a task\n")
+    settings_sections.setdefault("orchestrator", {})["tasks"] = path
+    write_settings(workspace, settings_sections)
+
+
+def next_action(run_result) -> dict:
+    try:
+        return json.loads(run_result["stdout"])
+    except json.JSONDecodeError as error:
+        raise AssertionError(f"expected a JSON object, got {run_result['stdout']!r}: {run_result['stderr']!r}") from error
+
+
+@then(parsers.parse('the next action is "{action}"'))
+def then_next_action(run_result, action):
+    got = next_action(run_result).get("action")
+    assert got == action, f"expected action {action!r}, got {got!r}: stderr={run_result['stderr']!r}"
+
+
+@then(parsers.parse('the next action has "{field}" "{value}"'))
+def then_next_action_field(run_result, field, value):
+    got = next_action(run_result).get(field)
+    assert got == value, f"expected {field} {value!r}, got {got!r}"
