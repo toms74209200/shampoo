@@ -2,7 +2,7 @@
 
 How shampoo itself is developed. What shampoo is and how it works is in the [design doc](design.md).
 
-shampoo is in bootstrapping (design doc §13): it is built with a human in the loop until it can run HOOTL. This guide records the rules so that they can be enforced by shampoo once it exists, rather than living in anyone's memory. Rules are kept here and in executable checks; CLAUDE.md, agent memory, and Claude Code settings are not used to carry them. Claude Code settings hold only the hooks that run the guard and the permissions that deny commands the agent must not run.
+shampoo is in bootstrapping (design doc §13): it is built with a human in the loop until it can run HOOTL. This guide records the rules so that they can be enforced by shampoo once it exists, rather than living in anyone's memory. Rules are kept here and in executable checks; CLAUDE.md, agent memory, and Claude Code settings are not used to carry them. Claude Code settings hold only the hooks that run shampoo and the permissions that deny commands the agent must not run.
 
 ## 1. Setup
 The devcontainer runs `make setup` on creation, which enables the git hooks in `.githooks`. Outside the devcontainer, run it once by hand.
@@ -23,7 +23,8 @@ golangci-lint is pinned in `scripts/golangci-lint.sh`, which installs that versi
 |---|---|
 | `pre-commit` | `make check` |
 | `commit-msg` | `scripts/check-commit.sh --msg-file` |
-| Claude Code `PostToolUse` on every tool, and `Stop` (`.claude/settings.json`) | `scripts/guard-hook.sh edit` and `scripts/guard-hook.sh task`: builds shampoo from the working tree, falling back to the last build when it does not build, and runs `shampoo guard edit` or `shampoo guard task`. A task failure or a budget exceeded, which calls for harness repair, is sent back to the agent (exit 2); a workflow failure or repairs beyond their budget are shown to the human (exit 1) |
+| Claude Code `PostToolUse` on every tool, and `Stop` (`.claude/settings.json`) | `scripts/hook.sh guard edit` and `scripts/hook.sh guard task`: builds shampoo from the working tree, falling back to the last build when it does not build, and runs `shampoo guard edit` or `shampoo guard task`. A task failure or a budget exceeded, which calls for harness repair, is sent back to the agent (exit 2); a workflow failure or repairs beyond their budget are shown to the human (exit 1) |
+| Claude Code `SessionStart` on `startup`, `clear` and `compact` (`.claude/settings.json`) | `scripts/hook.sh policies`: builds shampoo the same way and prints every policy with `shampoo policies`; the output enters the agent's context (design doc §5.2) |
 
 Claude Code permissions in `.claude/settings.json` deny making a branch with `git checkout -b`; branches are made with `git switch -c`.
 
