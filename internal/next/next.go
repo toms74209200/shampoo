@@ -123,26 +123,23 @@ func Parse(o Observation) State {
 		return Handed{Branch: o.Branch}
 	}
 	switch o.Verdict {
-	case rule.Pass:
 	case rule.Exceeded:
 		return Repairing{Branch: o.Branch}
 	case rule.Handed:
 		return Handed{Branch: o.Branch}
-	default:
+	}
+	if o.Verdict != rule.Pass {
 		return Editing{Branch: o.Branch}
 	}
 	if pr == nil || !pr.Pushed {
-		record := o.Record
-		if record == nil || record.Branch != o.Branch {
-			record = nil
-		}
-		if record == nil && len(o.Policies) > 0 {
+		mine := o.Record != nil && o.Record.Branch == o.Branch
+		switch {
+		case !mine && len(o.Policies) > 0:
 			return Done{Branch: o.Branch, Policies: o.Policies, Requirements: o.Requirements}
+		case mine && o.Record.Tree == o.Tree:
+			return Ready{Branch: o.Branch, Findings: o.Record.Findings}
 		}
-		if record == nil || record.Tree != o.Tree {
-			return Ready{Branch: o.Branch}
-		}
-		return Ready{Branch: o.Branch, Findings: record.Findings}
+		return Ready{Branch: o.Branch}
 	}
 	var failures []Failure
 	waiting := false
