@@ -33,3 +33,7 @@ jobs:
           git commit -am ":white_check_mark: Update coverage baseline"
           git pull --rebase origin ${{ github.head_ref }}
           git push
+      - name: Verify the pushed coverage baseline
+        run: |
+          scripts/judge-coverage.sh ${{ github.event.pull_request.base.sha }} --update out/small.cover || [ $? -eq 3 ]
+          git diff --exit-code

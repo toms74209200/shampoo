@@ -31,3 +31,8 @@ jobs:
           git commit -am ":white_check_mark: Update @sha of scenarios"
           git pull --rebase origin ${{ github.head_ref }}
           git push
+      - name: Verify the pushed @sha
+        run: |
+          scripts/check-scenarios.sh --write
+          git diff --exit-code
+          make check-scenarios
