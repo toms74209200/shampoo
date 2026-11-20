@@ -1,3 +1,4 @@
+review = true
 text = '''
 - `main.go` only runs the program and exits with its error
 - Code lives in `internal/<context>/`, one package per bounded context

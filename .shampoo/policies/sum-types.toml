@@ -1,3 +1,4 @@
+review = true
 text = '''
 Every branch is a test to write. When the code you are writing looks like
 this, write it as in the example instead.
