@@ -222,9 +222,11 @@ Each transition is split by what agent mechanisms (hooks, skills) do, what the d
 | Budget exceeded → HarnessRepair, repaired, repair budget exceeded → Human | | | All of it: the guard stops blocking and records the escape; `shampoo next` says to repair the harness |
 
 Which checks a PR needs depends on what it changes, since each workflow starts from the paths it checks. GitHub's required checks are a fixed list, and a required check whose workflow did not start waits forever; its auto-merge waits only on that list. So shampoo merges by its own auto-merge, when `shampoo next` is asked:
-- **Expected checks** are derived from the PR's changed paths, by the same rules as the workflows' path filters. The commit message check is always expected
-- **The results that count** are those of runs started by the PR's latest commit that no run pushed. A run may change the code before checking it and push what it produced; those commits, on top of it, are the run's output and are covered by its results
-- **A missing expected check means wait**, whatever the cause: a run not yet registered, one awaiting approval, or a commit that started none. Waiting past a time limit is a workflow failure
+- **Expected checks** are workflows, derived from the PR's changed paths by the workflows' own `pull_request` filters (`branches`, `branches-ignore`, `paths`, `paths-ignore`) in `.github/workflows/`. A workflow's result is its run's conclusion, which covers its jobs. The commit message check is always expected
+- **The results that count** are those of runs on any of the PR's commits (the commits between its base and its head); for each workflow, its latest run. A run may change the code before checking it and push what it produced; such a commit starts no run of its own, and the run that pushed it is responsible for verifying what it pushed
+- **A missing expected check means wait**, whatever the cause: a run not yet registered, one awaiting approval, or a commit that started none. Waiting longer than `[orchestrator] max-wait-minutes` (default 60) since the PR's latest commit is a workflow failure
+- **A failed expected check means fix**: `shampoo next` names each failed workflow and its run's URL; the agent reads the reason from the run
+- **When every expected check passed**, `shampoo next` merges the PR by `[orchestrator] merge` (`merge`, the default, `squash` or `rebase`)
 - **Automation delivers changes as PRs** opened with a token that starts workflows, never by pushing to another PR's branch, and no commit may skip CI
 
 ## 11. Who drives transitions
