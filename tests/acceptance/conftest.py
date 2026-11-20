@@ -218,6 +218,17 @@ def given_rule(workspace, transition, check_id):
     write_rule(workspace, new_id(), transition, check_id)
 
 
+@given(parsers.parse('a rule guarding {transition:w} with check "{check_id}" judging exit {code:d} as a workflow failure'))
+def given_rule_workflow_failure(workspace, transition, check_id, code):
+    write_rule(
+        workspace,
+        new_id(),
+        transition,
+        check_id,
+        judge=f'{{ exit = {{ {code} = "workflow-failure", other = "task-failure" }} }}',
+    )
+
+
 @given(parsers.parse("settings allowing {count:d} failed attempt in harness repair"))
 def given_repair_limit(workspace, settings_sections, count):
     settings_sections.setdefault("state-machine.harness-repair", {})["max-failed-attempts"] = count
