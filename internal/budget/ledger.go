@@ -14,6 +14,7 @@ type Line struct {
 	Transition string       `json:"transition"`
 	Rule       string       `json:"rule"`
 	Check      string       `json:"check"`
+	Policy     string       `json:"policy,omitempty"`
 	Outcome    rule.Outcome `json:"outcome"`
 	Millis     int64        `json:"millis"`
 }
@@ -22,6 +23,7 @@ type Summary struct {
 	Task       string           `json:"task"`
 	Attempts   map[string]int   `json:"attempts"`
 	Violations map[string]int   `json:"violations"`
+	Findings   map[string]int   `json:"findings"`
 	Millis     map[string]int64 `json:"millis"`
 	Repairs    int              `json:"repairs"`
 }
@@ -73,8 +75,12 @@ func Compact(lines []Line, open []string, window int) Compaction {
 	latest := map[string]int{}
 	keep := make([]bool, len(lines))
 	for i, line := range slices.Backward(lines) {
-		keep[i] = latest[line.Rule] < window || slices.Contains(open, line.Task)
-		latest[line.Rule]++
+		key := "rule:" + line.Rule
+		if line.Policy != "" {
+			key = "policy:" + line.Policy
+		}
+		keep[i] = latest[key] < window || slices.Contains(open, line.Task)
+		latest[key]++
 	}
 	var kept []Line
 	var summaries []Summary
@@ -97,7 +103,7 @@ func Compact(lines []Line, open []string, window int) Compaction {
 		if !ok {
 			at = len(summaries)
 			index[line.Task] = at
-			summaries = append(summaries, Summary{Task: line.Task, Attempts: map[string]int{}, Violations: map[string]int{}, Millis: map[string]int64{}})
+			summaries = append(summaries, Summary{Task: line.Task, Attempts: map[string]int{}, Violations: map[string]int{}, Findings: map[string]int{}, Millis: map[string]int64{}})
 		}
 		if !attempted[line.Run] {
 			attempted[line.Run] = true
@@ -105,6 +111,10 @@ func Compact(lines []Line, open []string, window int) Compaction {
 		}
 		if line.Outcome == rule.Exceeded {
 			summaries[at].Repairs++
+			continue
+		}
+		if line.Outcome == rule.Finding {
+			summaries[at].Findings[line.Policy]++
 			continue
 		}
 		if !timed[[2]string{line.Run, line.Check}] {
