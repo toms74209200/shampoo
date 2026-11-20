@@ -170,7 +170,7 @@ A guard:
 The state machine (§2) is shampoo's own. Its transitions are bound to Claude Code hooks, CI and GitHub, so a project names them (`edit`, `task`, `pr`, `milestone`) and does not define them.
 
 ## 8. Commands
-- `shampoo next`: the orchestrator. Says what to do next from the current state (§11), as one line of an action and its arguments, such as `open-pr task/add-readme`, readable by agents and by scripts that run them; merges what its own auto-merge allows. Whoever runs the agents calls it
+- `shampoo next`: the orchestrator. Says what to do next from the current state (§11), as a JSON object naming the action and its details, such as `{"action": "open-pr", "branch": "task/add-readme"}`, readable by agents and by scripts that run them, and open to new fields without breaking either; merges what its own auto-merge allows. Whoever runs the agents calls it
 - `shampoo guard <transition>`: runs the guard for a transition (`edit`, `task`). Called by hooks
 
 ---
