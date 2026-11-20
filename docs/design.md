@@ -36,6 +36,8 @@ stateDiagram-v2
     [*] --> Editing: task created
     Editing --> Editing: edit done / edit checks
     Editing --> TaskDone: task done / task checks
+    TaskDone --> Review: policies for review exist
+    Review --> PR: reviewed / findings as feedback
     TaskDone --> PR: PR opened or updated / PR checks
     PR --> Editing: PR checks fail
     PR --> Merged: auto-merge
@@ -45,6 +47,8 @@ stateDiagram-v2
     HarnessRepair --> Editing: repaired
     HarnessRepair --> Human: repair budget exceeded
 ```
+
+Review is a phase, not a check: it exists only when a policy is marked for review (§5.2). An agent reviews the task's change against those policies once per task, and its findings go back to the agent that did the work as feedback; they fail no transition.
 
 Triggers do not add a schedule: an observed trigger creates a task, which enters the machine at Editing like any other.
 
@@ -139,11 +143,13 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 | Rule | A categorical constraint on the work: it must hold. Its violation fails the transition and sends the work back |
 | Check | The implementation of rules: a deterministic executable run at a transition, leaving results for judges (§7) |
 | Judge | A rule's decision on its check's results: pass, task failure, workflow failure or a charge to the rule's budget (§3, §7) |
-| Policy | Guidance that the harness puts into the agent's context. No check detects its violations; it takes effect only as far as the agent follows it |
+| Policy | Guidance that the harness puts into the agent's context. No check detects its violations; it takes effect only as far as the agent follows it, and, when marked for review, as far as a review finds them |
 
 - **The harness puts policies into the context at fixed times**: all policies when a task starts, and all of them again after the context is compacted. The agent does not choose whether to load them
 - **A policy may carry a code example**: written inline, a reference `path#L<start>-L<end>` at a fixed commit, or none
 - **Every rule passes on every code example.** A rule that fails on one contradicts the policy, and the rule is fixed
+- **A policy may be marked for review** (`review = true`). If any is, the state machine has the review phase (§2): before the PR, an agent reviews the task's change against the marked policies, without a human. Which agent does it is the agents' setup; the requirements on it, such as the model or that it is not the agent that did the work, are the project's, in `[state-machine.review.requirements]`, and shampoo hands them over as they are
+- **Findings are feedback, and statistics.** The agent that did the work gets them with the next action and decides what to change. Each finding is recorded in the ledger by policy, so that a policy often found violated shows in the statistics, as a candidate for a rule or for repairing the harness (§3.2). Whether a review met its requirements is not checked; how well reviews work is read from the statistics
 - **Policies and rules are defined independently**, in the project's configuration (§7). shampoo provides no defaults: their content is the project's own
 
 ## 6. Non-goals
@@ -160,7 +166,7 @@ A project provides these in `.shampoo/`, one file per item, named by its id:
 - **Rules** (`.shampoo/rules/`), each with the transitions it guards, the paths whose changes start it, the id of its check, its judge and its budget (§3.1); a rule without a check states why, as `unchecked`
 - **Checks** (`.shampoo/checks/`), each with its command, its test size and the checks it needs
 - **Settings** (`.shampoo/settings.toml`), optional: shampoo's own settings by bounded context, such as the limits of the state machine (§3.1)
-- **Policies** (`.shampoo/policies/`), each with its code example (§5.2)
+- **Policies** (`.shampoo/policies/`), each with its code example, and whether it is used in review (§5.2)
 - **Task source** (`[orchestrator] tasks` in the settings): the URI of where the tasks are, a URL or a file path, such as an issue list or a `todo.md`. shampoo checks that it exists and hands it to the agent, which reads it, takes a task and marks it done there; shampoo does not parse it. Instructions in natural language go in a file it points to
 
 A check runs; a judge decides. A check only leaves results (its exit code, its output, the files it writes). A judge maps them to pass, task failure, workflow failure or a charge to its rule's budget: either the check's exit code through a mapping, or a command run on the check's results, through a mapping of that command's exit code.
@@ -178,6 +184,7 @@ The state machine (§2) is shampoo's own. Its transitions are bound to Claude Co
 ## 8. Commands
 - `shampoo next`: the orchestrator. Says what to do next from the current state (§11), as a JSON object naming the action and its details, such as `{"action": "open-pr", "branch": "task/add-readme"}`, readable by agents and by scripts that run them, and open to new fields without breaking either; merges what its own auto-merge allows. Whoever runs the agents calls it
 - `shampoo guard <transition>`: runs the guard for a transition (`edit`, `task`). Called by hooks
+- `shampoo review`: records a review of the current tree, read as JSON from stdin: `{"findings": [{"policy": "<id>", "comment": "..."}]}`. Each finding names a policy marked for review. Called by the reviewing agent
 
 ---
 
@@ -214,6 +221,7 @@ Each transition is split by what agent mechanisms (hooks, skills) do, what the d
 | Task created → Editing | Launch the agent, in a worktree of its own | | `shampoo next` hands over the task source |
 | Edit done (Editing → Editing) | The PostToolUse hook on every tool [3] calls `shampoo guard edit` | | Which rules judge, and how budgets count. The guard ignores which tool ran (agents also edit through Bash, Python, sed) and looks at files: what changed since the last passed guard, recorded as a git tree at each pass. If nothing changed, it does nothing |
 | Task done (Editing → TaskDone) | The Stop hook [3] calls `shampoo guard task`. Every stop is an attempt at task done: the agent either thinks it is done or is stuck, and in both cases the guard decides | | Same as edit done |
+| Review (TaskDone → Review → PR), when a policy is marked for review | An agent reviews, under the project's requirements | | `shampoo next` says to review, with the marked policies and the requirements, once the task guard passes; `shampoo review` records the findings for the reviewed tree. Then `shampoo next` gives the findings with the action to open the PR, while the tree is the reviewed one |
 | PR opened (TaskDone → PR) | The agent opens it | Opens the PR | `shampoo next` says to, once the task guard passes |
 | PR checks | | The repository's own CI | |
 | PR checks fail (PR → Editing) | An agent fixes them | | `shampoo next` says to, with the failure |
@@ -244,13 +252,13 @@ The flow of one task:
 1. An agent, launched however the project sets agents up, asks `shampoo next`, which hands over the task source; the agent takes a task from it
 2. On every tool call, the PostToolUse hook calls `shampoo guard edit`; on failure the agent gets the reason and fixes it
 3. When the agent tries to stop, the Stop hook calls `shampoo guard task`. On a violation, the agent is sent back with the reason; the rules' budgets and the repair budget decide when it stops being sent back. On pass, the stop is allowed. Every judgment is recorded in the ledger
-4. Asked again, `shampoo next` sees the recorded outcome: on pass it says to push the branch and open a PR; on escape, to repair the harness
+4. Asked again, `shampoo next` sees the recorded outcome: on pass it says to review if a policy is marked for review and the task has not been reviewed, and otherwise to push the branch and open a PR, with the review's findings; on escape, to repair the harness
 5. The PR's CI runs. Asked again, `shampoo next` merges the PR once the checks the change calls for have passed, or says to fix the failure, with its reason
 
 ## 12. State and ledger
 - **State** is derived from git and GitHub (a branch per task in its own worktree, the PR, whether it is merged). There is no separate state file to drift
 - **Ledger**: JSON Lines in the git common directory, shared by all worktrees and not tracked. Each judgment at a transition is appended as one line: task (its branch), transition, rule, check, outcome, the check's duration. Rate, repair, workflow-failure and time budgets are counted from it. A line is written in one append, so worktrees writing at once do not interleave lines, and a broken last line is skipped
-- **Statistics**: a separate JSON Lines file beside the ledger, one line per merged task: attempts per transition, violations per rule, run time per check. It is the evidence for tuning budgets and for drift (§3.2)
+- **Statistics**: a separate JSON Lines file beside the ledger, one line per merged task: attempts per transition, violations per rule, findings per policy, run time per check. It is the evidence for tuning budgets and for drift (§3.2)
 - **Compaction is automatic**: when a guard starts, the tasks whose branch is merged are summarized into statistics, and their lines leave the ledger, except the latest runs of each check within the window (§3.1). The ledger stays the size of the windows and the open tasks
 - **JSON Lines rather than SQLite**: SQLite in Go needs cgo, which complicates cross-building and distributing one static binary, or a pure-Go port with many dependencies. The ledger only appends and reads the latest lines
 - **Not in the ledger**: false-positive exceptions are counted from the code itself; the freeze flag is a labeled issue on GitHub, so CI can enforce it too; PR failures come from GitHub's check history
