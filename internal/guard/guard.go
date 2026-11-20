@@ -115,11 +115,16 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 	if err := json.Unmarshal(attemptData, &last); err == nil && last.Tree == tree {
 		return last.Verdict, last.Report, nil
 	}
-	passed, err := repo.Passed(transition)
+	var base string
+	if transition == rule.Task {
+		base, err = repo.Base()
+	} else {
+		base, err = repo.Passed(transition)
+	}
 	if err != nil {
 		return rule.WorkflowFailure, "", err
 	}
-	changed, err := repo.Changed(passed, tree)
+	changed, err := repo.Changed(base, tree)
 	if err != nil {
 		return rule.WorkflowFailure, "", err
 	}

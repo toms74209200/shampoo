@@ -15,8 +15,8 @@ func Run(args []string, stderr io.Writer) int {
 		code, message = 2, "usage: shampoo guard <transition>\n"
 	} else if transition, err := rule.ParseTransition(args[1]); err != nil {
 		code, message = 2, fmt.Sprintf("shampoo guard: %v\n", err)
-	} else if transition != rule.Edit {
-		code, message = 2, fmt.Sprintf("shampoo guard: %s is not implemented yet\n", transition)
+	} else if transition != rule.Edit && transition != rule.Task {
+		code, message = 2, fmt.Sprintf("shampoo guard: %s is checked by the repository's CI, not by shampoo\n", transition)
 	} else {
 		outcome, report, err := guard.Run("", transition)
 		code, message = map[rule.Outcome]int{rule.TaskFailure: 1, rule.WorkflowFailure: 2, rule.Exceeded: 3, rule.Handed: 4}[outcome], report
