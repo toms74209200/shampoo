@@ -1,3 +1,4 @@
+review = true
 text = '''
 Recognize it by: one value run through several checks or steps, each with
 its own `if`, the results collected by hand.
