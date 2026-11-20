@@ -138,6 +138,11 @@ def given_run_failed(gh_state, workflow):
     add_run(gh_state, workflow, "completed", "failure")
 
 
+@given(parsers.parse('the workflow "{workflow}" did not execute on the latest commit'))
+def given_run_not_executed(gh_state, workflow):
+    add_run(gh_state, workflow, "completed", "action_required")
+
+
 @given("the run pushed a commit to the pull request")
 def given_pushed_by_run(gh_state):
     pull_request = read_json(gh_state / "pr.json")
