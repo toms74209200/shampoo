@@ -64,7 +64,8 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 	if err != nil {
 		return rule.WorkflowFailure, "", err
 	}
-	window := 0
+	timeBudget, timeStop := rule.Count{Violations: 2, Runs: 20}, rule.Count{Violations: 2, Runs: 5}
+	window := timeBudget.Runs
 	for _, r := range rules {
 		if checked, ok := r.(rule.Checked); ok {
 			for _, transition := range checked.Transitions {
@@ -193,6 +194,14 @@ checks:
 				report += fmt.Sprintf("%s exceeds its budget at %s: %d violations in the latest %d runs\n", checked.ID, transition, recent, stop.Runs)
 				exceeded = true
 			}
+		}
+		limit := int64(options.MaxSeconds[string(check.Size)]) * 1000
+		if used := budget.Overruns(lines, check.ID, limit, timeBudget.Runs); used >= timeBudget.Violations {
+			report += fmt.Sprintf("check %s burns its time budget: %d runs over %ds of %s checks in the latest %d runs, of %d allowed\n", check.ID, used, limit/1000, check.Size, timeBudget.Runs, timeBudget.Violations)
+		}
+		if recent := budget.Overruns(lines, check.ID, limit, timeStop.Runs); recent >= timeStop.Violations {
+			report += fmt.Sprintf("check %s exceeds its time budget: %d runs over %ds of %s checks in the latest %d runs: reorganize the check, such as by splitting it or moving it to a later transition\n", check.ID, recent, limit/1000, check.Size, timeStop.Runs)
+			exceeded = true
 		}
 		if judgedByExit {
 			report += fmt.Sprintf("output of check %s:\n%s", check.ID, output)
