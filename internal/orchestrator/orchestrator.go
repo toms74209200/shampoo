@@ -22,6 +22,7 @@ import (
 	"github.com/toms74209200/shampoo/internal/guard"
 	"github.com/toms74209200/shampoo/internal/next"
 	"github.com/toms74209200/shampoo/internal/policy"
+	"github.com/toms74209200/shampoo/internal/question"
 	"github.com/toms74209200/shampoo/internal/review"
 	"github.com/toms74209200/shampoo/internal/rule"
 	"github.com/toms74209200/shampoo/internal/settings"
@@ -223,6 +224,49 @@ func Policies(dir string) ([]policy.Policy, error) {
 		policies = append(policies, parsed)
 	}
 	return policies, nil
+}
+
+func Ask(dir string, input io.Reader) (string, error) {
+	repo, err := git.Open(dir)
+	if err != nil {
+		return "", err
+	}
+	data, err := files.Optional(filepath.Join(repo.Root, ".shampoo", "settings.toml"))
+	if err != nil {
+		return "", err
+	}
+	options, err := settings.Parse(data)
+	if err != nil {
+		return "", err
+	}
+	branch, err := repo.Branch()
+	if err != nil {
+		return "", err
+	}
+	asked, err := io.ReadAll(input)
+	if err != nil {
+		return "", err
+	}
+	issue, err := question.Parse(asked, branch)
+	if err != nil {
+		return "", err
+	}
+	cmd := exec.Command("gh", "issue", "create", "--title", issue.Title, "--label", options.QuestionLabel, "--body", issue.Body)
+	cmd.Dir = repo.Root
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("gh issue create: %w: %s", err, strings.TrimSpace(stderr.String()))
+	}
+	encoded, err := json.Marshal(budget.Line{Run: rand.Text(), Task: branch, Transition: "ask", Outcome: rule.Question})
+	if err != nil {
+		return "", err
+	}
+	err = files.Update(filepath.Join(repo.CommonDir, "shampoo", "ledger.jsonl"), func(ledger []byte) ([]byte, error) {
+		return append(append(ledger, encoded...), '\n'), nil
+	})
+	return strings.TrimSpace(string(out)), err
 }
 
 func Review(dir string, input io.Reader) error {
