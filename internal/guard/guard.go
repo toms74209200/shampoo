@@ -64,8 +64,8 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 	if err != nil {
 		return rule.WorkflowFailure, "", err
 	}
-	timeBudget, timeStop := rule.Count{Violations: 2, Runs: 20}, rule.Count{Violations: 2, Runs: 5}
-	window := timeBudget.Runs
+	timeBudget, timeStop := options.TimeBudget, options.TimeStop
+	window := max(timeBudget.Runs, timeStop.Runs)
 	for _, r := range rules {
 		if checked, ok := r.(rule.Checked); ok {
 			for _, transition := range checked.Transitions {
