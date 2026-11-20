@@ -1,7 +1,6 @@
 package git
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -19,17 +18,17 @@ type Repository struct {
 }
 
 func Open(dir string) (Repository, error) {
-	cmd := exec.Command("git", "rev-parse", "--path-format=absolute", "--show-toplevel", "--absolute-git-dir", "--git-common-dir")
-	cmd.Dir = dir
-	out, err := cmd.Output()
-	if err != nil {
-		return Repository{}, fmt.Errorf("git rev-parse: %w", err)
+	var paths []string
+	for _, flag := range []string{"--show-toplevel", "--absolute-git-dir", "--git-common-dir"} {
+		cmd := exec.Command("git", "rev-parse", "--path-format=absolute", flag)
+		cmd.Dir = dir
+		out, err := cmd.Output()
+		if err != nil {
+			return Repository{}, fmt.Errorf("git rev-parse %s: %w", flag, err)
+		}
+		paths = append(paths, strings.TrimSpace(string(out)))
 	}
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	if len(lines) != 3 {
-		return Repository{}, fmt.Errorf("git rev-parse: unexpected output %q", out)
-	}
-	return Repository{Root: lines[0], GitDir: lines[1], CommonDir: lines[2]}, nil
+	return Repository{Root: paths[0], GitDir: paths[1], CommonDir: paths[2]}, nil
 }
 
 func (r Repository) Snapshot() (string, error) {
@@ -74,13 +73,7 @@ func (r Repository) Changed(from, to string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("git diff: %w", err)
 	}
-	var changed []string
-	for _, path := range bytes.Split(out, []byte{0}) {
-		if len(path) > 0 {
-			changed = append(changed, string(path))
-		}
-	}
-	return changed, nil
+	return strings.FieldsFunc(string(out), func(r rune) bool { return r == 0 }), nil
 }
 
 func (r Repository) Record(transition rule.Transition, tree string) error {
