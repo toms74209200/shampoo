@@ -19,6 +19,11 @@ jobs:
           pattern: '*-cover'
           merge-multiple: true
           path: out
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Report coverage
+        run: scripts/coverage-summary.sh out/small.cover >> "$GITHUB_STEP_SUMMARY"
       - name: Judge small-test coverage
         run: scripts/judge-small-test-coverage.sh out/small.cover
       - name: Judge the share of pure code against the base
