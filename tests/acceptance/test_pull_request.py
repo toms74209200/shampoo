@@ -1,43 +1,14 @@
 import json
 import secrets
 import subprocess
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import pytest
 from pytest_bdd import given, parsers, scenarios, then
 
 from conftest import next_action, write_settings
 
 scenarios("../../features/pull-request.feature")
-
-FAKE_GH = """\
-import json, sys
-from pathlib import Path
-
-state = Path({state!r})
-args = sys.argv[1:]
-if args[:2] == ["pr", "view"]:
-    print((state / "pr.json").read_text())
-elif args[:2] == ["run", "list"]:
-    print((state / "runs.json").read_text())
-elif args[:2] == ["pr", "merge"]:
-    with (state / "merges.log").open("a") as log:
-        log.write(" ".join(args) + "\\n")
-else:
-    print("fake gh: unexpected " + " ".join(args), file=sys.stderr)
-    sys.exit(1)
-"""
-
-
-@pytest.fixture
-def gh_state(tmp_path):
-    state = tmp_path / "gh-state"
-    state.mkdir()
-    (state / "runs.json").write_text("[]")
-    return state
-
 
 def read_json(path: Path):
     return json.loads(path.read_text())
@@ -82,7 +53,7 @@ def given_max_wait(workspace, settings_sections, minutes):
 
 
 @given("a pull request is open for the branch")
-def given_pull_request(workspace, default_branch, fake_bin, gh_state):
+def given_pull_request(workspace, default_branch, gh_state):
     git = ["git", "-C", str(workspace)]
     log = subprocess.run(
         [*git, "log", "--reverse", "--format=%H %cI", f"{default_branch}..HEAD"],
@@ -101,9 +72,6 @@ def given_pull_request(workspace, default_branch, fake_bin, gh_state):
         "commits": commits,
         "files": [{"path": path} for path in files],
     }))
-    gh = fake_bin / "gh"
-    gh.write_text(f"#!{sys.executable}\n" + FAKE_GH.format(state=str(gh_state)))
-    gh.chmod(0o755)
 
 
 def add_run(gh_state: Path, workflow: str, status: str, conclusion: str) -> None:
