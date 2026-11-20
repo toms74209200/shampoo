@@ -111,9 +111,9 @@ The subject starts with one of the verbs below, in the imperative. Other verbs a
 | Revert | Undoing an earlier commit | |
 
 ## 4. Branches and merging
-- **Now (bootstrapping):** commits go directly to `master`, each one minimal
-- **Repository rules:** the `master` ruleset requires a PR and merge commits, and forbids force pushes and deletion. Auto-merge is enabled, and only merge commits are allowed, titled with the PR title. Until production code starts, repository admins bypass the ruleset so that the commits above can be pushed directly. **Remove that bypass before the first production code**
-- **Production code:** one task per branch and PR, made of minimal commits. The PR is merged with a merge commit once the checks its changes call for pass, so each task's commits stay on `master` as they are
+- **Tasks:** one task per branch and PR, made of minimal commits. Branches are made with `git switch -c`
+- **Repository rules:** the `master` ruleset requires a PR and merge commits, and forbids force pushes and deletion. No check is required (§5). Repository admins still bypass the ruleset, and GitHub's auto-merge is still enabled though not used. **Remove that bypass and turn auto-merge off**: production code has started, and only shampoo merges (design doc §10)
+- **Merging:** the PR is merged with a merge commit, titled with the PR title, once the checks its changes call for pass, so each task's commits stay on `master` as they are. A human merges until `shampoo next` does (design doc §10)
 
 ## 5. CI
 Each workflow starts from the changes it checks, as in earlier repositories:
@@ -128,12 +128,12 @@ Each workflow starts from the changes it checks, as in earlier repositories:
 The `job-*.yml` workflows hold the steps, and the `on-*.yml` workflows decide when they run.
 
 Rules for CI:
-- **A run's results belong to the commit that started it.** A run may change the code before checking it (apply a formatter, generate, build, bundle) and may push what it produced; those commits are its output, covered by its results
+- **A run that pushes verifies what it pushed.** A run may change the code before checking it (apply a formatter, generate, build, bundle) and may push what it produced; it then checks the pushed code in the same run, after the push. The runs GitHub creates on such a commit do not execute and are not results
 - **Changes made by automation arrive as PRs.** Whatever makes them, an agent, a scheduled workflow or a bot, opens its own PR rather than pushing to another PR's branch, and that PR runs CI like any other. A PR opened with the workflow token starts no workflows, so automation uses a token that does (e.g. a GitHub App's)
 - **Nothing skips CI.** Commit messages cannot skip it (§3.2)
 - **Tool versions are pinned in the scripts that run them, and CI runs `make`**, whose targets call those scripts, so local runs and CI judge the same way
 
-No check is required by the ruleset. GitHub's required checks are a fixed list on the head commit, while the checks a PR needs depend on its changes, and the commits CI pushes run no checks of their own. A human merges until shampoo does; shampoo then decides from the changed paths which checks must have passed, on the commit that started them (design doc §10).
+No check is required by the ruleset. GitHub's required checks are a fixed list on the head commit, while the checks a PR needs depend on its changes, and the commits CI pushes run no checks of their own. shampoo instead decides from the changed paths which workflows must have passed, counting the latest run of each on any of the PR's commits (design doc §10).
 
 Dependabot, when added, uses the commit prefix `:arrow_up:` so that its commits follow the commit rules, with `bump` as an allowed verb. The exact message it produces is to be verified then.
 
