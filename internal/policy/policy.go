@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -37,4 +38,19 @@ func Parse(id string, data []byte) (Policy, error) {
 		return Policy{}, fmt.Errorf("%w: %s: no text", ErrInvalid, id)
 	}
 	return Policy{ID: id, Text: file.Text, Example: file.Example, Review: file.Review}, nil
+}
+
+func Render(policies []Policy) string {
+	if len(policies) == 0 {
+		return ""
+	}
+	var out strings.Builder
+	out.WriteString("# Policies of this project (.shampoo/policies/)\n")
+	for _, p := range policies {
+		fmt.Fprintf(&out, "\n## %s\n\n%s\n", p.ID, strings.TrimSpace(p.Text))
+		if p.Example != "" {
+			fmt.Fprintf(&out, "\n%s\n", strings.TrimSpace(p.Example))
+		}
+	}
+	return out.String()
 }
