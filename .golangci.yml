@@ -6,6 +6,7 @@ run:
 linters:
   enable:
     - depguard
+    - gochecksumtype
     - nolintlint
   settings:
     depguard:
