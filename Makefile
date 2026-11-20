@@ -1,4 +1,4 @@
-.PHONY: all setup build check lint check-exceptions check-dependencies check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names check-fixed-values check-functions check-white-box check-scenarios fmt test-small test-medium test-acceptance test-tools help
+.PHONY: all setup build check lint check-exceptions check-dependencies check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names check-fixed-values check-functions check-side-effect-statements check-white-box check-scenarios fmt test-small test-medium test-acceptance test-tools help
 
 all: check build
 
@@ -8,7 +8,7 @@ setup: ## Enable the git hooks in .githooks
 build: ## Build the binary
 	go build -o shampoo .
 
-check: lint check-exceptions check-dependencies test-small check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names check-fixed-values check-functions check-white-box check-scenarios test-tools ## Run all checks guarding a commit
+check: lint check-exceptions check-dependencies test-small check-small-test-coverage check-side-effects check-comments check-test-helpers check-test-names check-fixed-values check-functions check-side-effect-statements check-white-box check-scenarios test-tools ## Run all checks guarding a commit
 
 lint: ## Run linters and format checks
 	scripts/lint.sh
@@ -39,6 +39,9 @@ check-fixed-values: ## Check that literals in tests appear only in parameterized
 
 check-functions: ## Check that production code has none of the prohibited functions
 	scripts/check-functions.sh
+
+check-side-effect-statements: ## Check that side-effect packages are statements only
+	scripts/check-side-effect-statements.sh
 
 check-white-box: ## Check that white-box tests depend on their target and types only
 	scripts/check-white-box.sh

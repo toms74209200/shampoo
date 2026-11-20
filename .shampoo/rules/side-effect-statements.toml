@@ -1,0 +1,5 @@
+rule = "Code in the side-effect packages is statements only: a choice other than handling an error or matching a sum type belongs in pure code, where small tests cover it."
+check = "side-effect-statements"
+transitions = ["edit", "task", "pr"]
+paths = ["**.go", "scripts/check-side-effect-statements.sh", "scripts/side-effect-packages.txt", "tools/**"]
+judge = { exit = { 1 = "task-failure", other = "workflow-failure" } }
