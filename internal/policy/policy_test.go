@@ -35,3 +35,23 @@ func TestParse(t *testing.T) {
 		})
 	}
 }
+
+func TestRender(t *testing.T) {
+	tests := []struct {
+		name     string
+		policies []Policy
+		want     string
+	}{
+		{name: "when Render with policies then returns each with its text and its example", policies: []Policy{{ID: "layout", Text: "\nmain.go runs.\n", Example: "\nmain.go\n"}, {ID: "functions", Text: "No wrappers.", Review: true}}, want: "# Policies of this project (.shampoo/policies/)\n\n## layout\n\nmain.go runs.\n\nmain.go\n\n## functions\n\nNo wrappers.\n"},
+		{name: "when Render with no policies then returns nothing", policies: nil, want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Render(tt.policies)
+
+			if got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
