@@ -1,0 +1,2 @@
+[orchestrator]
+tasks = "docs/design.md"
