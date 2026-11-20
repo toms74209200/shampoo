@@ -22,11 +22,19 @@ Feature: Print the policies for the agent's context
     Then the exit code is 0
     And stdout contains "main.go only runs the program"
 
-  @sha:93b1b829ccc2
-  Scenario: Without policies nothing is printed
+  @skip
+  Scenario: Without policies only asking a human is printed
     When I run "shampoo policies"
     Then the exit code is 0
-    And stdout is empty
+    And stdout contains "shampoo ask"
+    And stdout does not contain "Policies of this project"
+
+  @skip
+  Scenario: Asking a human follows the policies
+    Given a policy "layout"
+    When I run "shampoo policies"
+    Then stdout contains "layout is followed."
+    And stdout contains "shampoo ask"
 
   @sha:6a533c61df95
   Scenario: An invalid policy is a workflow failure
