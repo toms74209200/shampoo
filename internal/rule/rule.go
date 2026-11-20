@@ -3,6 +3,7 @@ package rule
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -23,6 +24,12 @@ type Checked struct {
 	Paths       Paths
 	Budget      map[Transition]Count
 	Stop        map[Transition]Count
+	Exceptions  *Exceptions
+}
+
+type Exceptions struct {
+	File  string
+	Limit int
 }
 
 type Count struct {
@@ -67,9 +74,13 @@ func Parse(id string, data []byte) (Rule, error) {
 			Command string            `toml:"command"`
 			Exit    map[string]string `toml:"exit"`
 		} `toml:"judge"`
-		Unchecked string         `toml:"unchecked"`
-		Budget    map[string]any `toml:"budget"`
-		Stop      map[string]any `toml:"stop"`
+		Unchecked  string         `toml:"unchecked"`
+		Budget     map[string]any `toml:"budget"`
+		Stop       map[string]any `toml:"stop"`
+		Exceptions *struct {
+			File  string `toml:"file"`
+			Limit *int   `toml:"limit"`
+		} `toml:"exceptions"`
 	}
 	meta, err := toml.Decode(string(data), &file)
 	if err != nil {
@@ -86,7 +97,7 @@ func Parse(id string, data []byte) (Rule, error) {
 		return nil, fmt.Errorf("%w: %s: no rule", ErrInvalid, id)
 	}
 	if meta.IsDefined("unchecked") {
-		if slices.ContainsFunc([]string{"check", "transitions", "paths", "judge", "budget", "stop"}, func(key string) bool { return meta.IsDefined(key) }) || file.Unchecked == "" {
+		if slices.ContainsFunc([]string{"check", "transitions", "paths", "judge", "budget", "stop", "exceptions"}, func(key string) bool { return meta.IsDefined(key) }) || file.Unchecked == "" {
 			return nil, fmt.Errorf("%w: %s: an unchecked rule has a reason and no check", ErrInvalid, id)
 		}
 		return Unchecked{ID: id, Statement: file.Rule, Reason: file.Unchecked}, nil
@@ -143,6 +154,17 @@ func Parse(id string, data []byte) (Rule, error) {
 	checked.Stop, err = parseCounts(file.Stop, checked.Transitions, 1, Count{Violations: 8, Runs: 10}, Count{Violations: 2, Runs: 5})
 	if err != nil {
 		return nil, fmt.Errorf("%s: stop: %w", id, err)
+	}
+	if file.Exceptions != nil {
+		limit := 3
+		if file.Exceptions.Limit != nil {
+			limit = *file.Exceptions.Limit
+		}
+		path := file.Exceptions.File
+		if path == "" || filepath.IsAbs(path) || !filepath.IsLocal(path) || limit < 0 {
+			return nil, fmt.Errorf("%w: %s: exceptions have a file inside the repository and a limit of at least zero", ErrInvalid, id)
+		}
+		checked.Exceptions = &Exceptions{File: path, Limit: limit}
 	}
 	return checked, nil
 }
