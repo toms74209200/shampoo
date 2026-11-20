@@ -133,3 +133,24 @@ def then_statistics_line(workspace, task):
     stats = Path(common) / "shampoo" / "stats.jsonl"
     lines = [json.loads(line) for line in stats.read_text().splitlines()] if stats.exists() else []
     assert any(line.get("task") == task for line in lines), f"expected a line for {task}, got {lines}"
+
+
+@given(
+    parsers.parse(
+        'a rule "{rule_id}" guarding {transitions} with check "{check_id}" and a stop at {transition:w} of {violations:d} violations in the latest {count:d} runs'
+    )
+)
+def given_rule_stop_at(workspace, rule_id, transitions, check_id, transition, violations, count):
+    write_rule(
+        workspace,
+        rule_id,
+        transitions,
+        check_id,
+        budget=None,
+        tables=f"[stop]\n{transition} = {{ violations = {violations}, runs = {count} }}\n",
+    )
+
+
+@given(parsers.parse('a rule guarding {transition:w} with check "{check_id}" and the default budgets'))
+def given_rule_default_budgets(workspace, transition, check_id):
+    write_rule(workspace, new_id(), transition, check_id, budget=None)

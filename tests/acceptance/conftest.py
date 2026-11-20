@@ -176,18 +176,21 @@ def write_rule(
     transition: str,
     check_id: str,
     judge: str = f"{{ exit = {VIOLATION} }}",
-    budget: str = "{ violations = 5, runs = 10 }",
+    budget: str | None = "{ violations = 5, runs = 10 }",
     extra: str = "",
+    tables: str = "",
 ) -> None:
     rules = workspace / ".shampoo" / "rules"
     rules.mkdir(parents=True, exist_ok=True)
+    transitions = ", ".join(f'"{name}"' for name in transition.split(" and "))
     (rules / f"{rule_id}.toml").write_text(
         f'rule = "{rule_id} holds."\n'
         f'check = "{check_id}"\n'
-        f'transitions = ["{transition}"]\n'
+        f"transitions = [{transitions}]\n"
         f"{extra}"
         f"judge = {judge}\n"
-        f"budget = {budget}\n"
+        + (f"budget = {budget}\n" if budget is not None else "")
+        + tables
     )
 
 
