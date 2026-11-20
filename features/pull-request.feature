@@ -104,6 +104,18 @@ Feature: Follow a pull request to its merge
     Then the next action is "merged"
 
   @skip
+  Scenario: A run that did not execute is not a result
+    Given a workflow "go" on pull requests to paths "**.go"
+    And "shampoo guard task" has passed
+    And the changes are committed
+    And a pull request is open for the branch
+    And the workflow "go" has succeeded on the latest commit
+    And the run pushed a commit to the pull request
+    And the workflow "go" did not execute on the latest commit
+    When I run "shampoo next"
+    Then the next action is "merged"
+
+  @skip
   @sha:36cbd36ea7e4
   Scenario: The latest run of a workflow counts
     Given a workflow "go" on pull requests to paths "**.go"
