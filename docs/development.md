@@ -30,7 +30,7 @@ Claude Code permissions in `.claude/settings.json` deny making a branch with `gi
 
 Checks report by exit code: 0 pass, 1 task failure (the work is wrong), anything else a workflow failure (the check itself misbehaved), following design doc §3. `scripts/check-commit.sh` exits 1 on a rule violation and 2 on its own errors. A check's command calls a script or tool directly, not a make target: make exits 2 whenever a recipe fails, which would turn every task failure into a workflow failure.
 
-Lint findings have no warnings: a finding fails the check. A false positive passes only through `//nolint:<linter> // <reason>`; `nolintlint` rejects a directive without a specific linter or a reason, so exceptions stay countable from the code.
+Lint findings have no warnings: a finding fails the check. A false positive passes only through `//nolint:<linter> // <reason>`; `nolintlint` rejects a directive without a specific linter or a reason, so exceptions stay countable from the code. `scripts/lint.sh` writes them to `out/exceptions/lint.txt`, which the lint rule declares as its exceptions, at most 3 (design doc §3.1).
 
 ## 3. Commits
 ### 3.1 Minimal commits
