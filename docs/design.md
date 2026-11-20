@@ -95,7 +95,7 @@ The loop must keep running with no human present. That requires:
 | Requirement | Why |
 |---|---|
 | Task supply | The next piece of work must appear without a human assigning it |
-| Agent launch | Each task gets its own worktree and a headless agent session |
+| Agent launch | Each task gets an agent session that no human starts. Agent mechanisms provide it (sessions, subagents, worktrees, scheduled runs); shampoo says what to do next, not how agents are set up |
 | Auto-merge | Work that passes the PR checks merges without waiting for a human |
 | Failure classification and the workflow-failure budget | A broken harness must not be retried forever as if it were a task failure |
 | Self-healing | Escapes become harness-repair tasks for an agent. A human is reached only when the repair budget is exhausted |
@@ -135,14 +135,14 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 | Judge | A rule's decision on its check's results: pass, task failure, workflow failure or a charge to the rule's budget (§3, §7) |
 | Policy | Guidance that the harness puts into the agent's context. No check detects its violations; it takes effect only as far as the agent follows it |
 
-- **The harness puts policies into the context at fixed times**: all policies when the orchestrator starts a task, and all of them again after the context is compacted. The agent does not choose whether to load them
+- **The harness puts policies into the context at fixed times**: all policies when a task starts, and all of them again after the context is compacted. The agent does not choose whether to load them
 - **A policy may carry a code example**: written inline, a reference `path#L<start>-L<end>` at a fixed commit, or none
 - **Every rule passes on every code example.** A rule that fails on one contradicts the policy, and the rule is fixed
 - **Policies and rules are defined independently**, in the project's configuration (§7). shampoo provides no defaults: their content is the project's own
 
 ## 6. Non-goals
 - Project-specific checks: these come from the project (§7)
-- Replacing CI or the code host: shampoo drives GitHub and GitHub Actions rather than reimplementing them
+- Replacing CI or the code host: shampoo drives GitHub and GitHub Actions rather than reimplementing them. Where one of their mechanisms falls short for agentic coding, shampoo has its own instead of depending on it: auto-merge (§10)
 - What agent mechanisms or the development platform already do: shampoo takes on only what neither covers, for agentic coding, and most of it is managing the SDLC as a state machine (§2, §10)
 
 ---
@@ -155,7 +155,7 @@ A project provides these in `.shampoo/`, one file per item, named by its id:
 - **Checks** (`.shampoo/checks/`), each with its command, its test size and the checks it needs
 - **Settings** (`.shampoo/settings.toml`), optional: shampoo's own settings by bounded context, such as the limits of the state machine (§3.1)
 - **Policies** (`.shampoo/policies/`), each with its code example (§5.2)
-- **Task sources**: where tasks come from (for jeer: clusters of mismatches against the oracle)
+- **Task source** (`[orchestrator] tasks` in the settings): the URI of where the tasks are, a URL or a file path, such as an issue list or a `todo.md`. shampoo checks that it exists and hands it to the agent, which reads it, takes a task and marks it done there; shampoo does not parse it. Instructions in natural language go in a file it points to
 
 A check runs; a judge decides. A check only leaves results (its exit code, its output, the files it writes). A judge maps them to pass, task failure, workflow failure or a charge to its rule's budget: either the check's exit code through a mapping, or a command run on the check's results, through a mapping of that command's exit code.
 
@@ -170,7 +170,7 @@ A guard:
 The state machine (§2) is shampoo's own. Its transitions are bound to Claude Code hooks, CI and GitHub, so a project names them (`edit`, `task`, `pr`, `milestone`) and does not define them.
 
 ## 8. Commands
-- `shampoo run`: the orchestrator. A long-running server that watches state and drives transitions between sessions (§11)
+- `shampoo next`: the orchestrator. Says what to do next from the current state (§11), as a JSON object naming the action and its details, such as `{"action": "open-pr", "branch": "task/add-readme"}`, readable by agents and by scripts that run them, and open to new fields without breaking either; merges what its own auto-merge allows. Whoever runs the agents calls it
 - `shampoo guard <transition>`: runs the guard for a transition (`edit`, `task`). Called by hooks
 
 ---
@@ -186,7 +186,7 @@ Implementation language: Go. The core is concurrent coordination (the reconcilia
                  │
                  ▼
  ┌──────────────────────────────┐
- │ orchestrator (shampoo run)   │── worktree + headless agent session per task
+ │ orchestrator (shampoo next)  │── what to do next, for the agents
  └──────────────────────────────┘
                  │ hooks / CI
                  ▼
@@ -205,17 +205,17 @@ Each transition is split by what agent mechanisms (hooks, skills) do, what the d
 
 | Transition | Agent mechanisms | Platform | shampoo |
 |---|---|---|---|
-| Task created → Editing | | | Supplies the task, creates its worktree and launches an agent |
+| Task created → Editing | Launch the agent, in a worktree of its own | | `shampoo next` hands over the task source |
 | Edit done (Editing → Editing) | The PostToolUse hook on every tool [3] calls `shampoo guard edit` | | Which rules judge, and how budgets count. The guard ignores which tool ran (agents also edit through Bash, Python, sed) and looks at files: what changed since the last passed guard, recorded as a git tree at each pass. If nothing changed, it does nothing |
 | Task done (Editing → TaskDone) | The Stop hook [3] calls `shampoo guard task`. Every stop is an attempt at task done: the agent either thinks it is done or is stuck, and in both cases the guard decides | | Same as edit done |
-| PR opened (TaskDone → PR) | | Opens the PR | Opens it once the task guard passes, since no human is there to |
+| PR opened (TaskDone → PR) | The agent opens it | Opens the PR | `shampoo next` says to, once the task guard passes |
 | PR checks | | The repository's own CI | |
-| PR checks fail (PR → Editing) | | | Launches an agent to fix them |
-| Merge (PR → Merged) | | Auto-merge | What required checks cannot express (below) |
+| PR checks fail (PR → Editing) | An agent fixes them | | `shampoo next` says to, with the failure |
+| Merge (PR → Merged) | | Merges, when asked | shampoo's own auto-merge: `shampoo next` merges a PR once the checks its change calls for have passed (below). GitHub's auto-merge and required checks are not used |
 | Milestone | | A GitHub milestone, plus a manually dispatched workflow for large checks | |
-| Budget exceeded → HarnessRepair, repaired, repair budget exceeded → Human | | | All of it: the guard stops blocking and records the escape; the orchestrator creates a harness-repair task |
+| Budget exceeded → HarnessRepair, repaired, repair budget exceeded → Human | | | All of it: the guard stops blocking and records the escape; `shampoo next` says to repair the harness |
 
-Which checks a PR needs depends on what it changes, since each workflow starts from the paths it checks. GitHub's required checks are a fixed list, and a required check whose workflow did not start waits forever; its auto-merge waits only on that list. So the merge is decided by the orchestrator:
+Which checks a PR needs depends on what it changes, since each workflow starts from the paths it checks. GitHub's required checks are a fixed list, and a required check whose workflow did not start waits forever; its auto-merge waits only on that list. So shampoo merges by its own auto-merge, when `shampoo next` is asked:
 - **Expected checks** are derived from the PR's changed paths, by the same rules as the workflows' path filters. The commit message check is always expected
 - **The results that count** are those of runs started by the PR's latest commit that no run pushed. A run may change the code before checking it and push what it produced; those commits, on top of it, are the run's output and are covered by its results
 - **A missing expected check means wait**, whatever the cause: a run not yet registered, one awaiting approval, or a commit that started none. Waiting past a time limit is a workflow failure
@@ -227,17 +227,17 @@ Transitions are driven by three actors.
 | Actor | Transitions | How |
 |---|---|---|
 | Hooks (inside a session) | Edit done, task done | Synchronous calls to the guard. They must be synchronous, since the result decides whether the agent is sent back |
-| Orchestrator (`shampoo run`) | Task done → PR, PR failed → Editing, PR passed → Merged, escape → harness repair | A reconciliation loop: it observes the actual state (git, GitHub, ledger) and acts to close the gap to the desired state |
+| Orchestrator (`shampoo next`) | Task done → PR, PR failed → Editing, PR passed → Merged, escape → harness repair | It observes the actual state (git, GitHub, ledger) and says what closes the gap to the desired state; the agents act on it |
 | GitHub | PR checks | CI |
 
-The orchestrator is level-triggered rather than event-driven. It does not react to events that could be lost; it looks at the state each time and decides the next action from it (e.g. a worktree with no running session and a passed task guard → open a PR; a PR with failing checks and no running session → launch a session to fix it). A restart only needs to look at the state again. Observing state periodically is not a scheduled check: checks still run only when a transition is attempted. Event notifications (e.g. webhooks) can be added later to wake the loop if its latency becomes a problem.
+The orchestrator is level-triggered rather than event-driven. It does not react to events that could be lost; it looks at the state each time and decides the next action from it (e.g. a passed task guard and no PR → open a PR; a PR with failing checks → fix them). A restart only needs to look at the state again. Observing state periodically is not a scheduled check: checks still run only when a transition is attempted. How often it is asked, and by how many agents, is the agents' setup, not shampoo's.
 
 The flow of one task:
-1. The orchestrator takes a task, creates a worktree, and launches a headless session
+1. An agent, launched however the project sets agents up, asks `shampoo next`, which hands over the task source; the agent takes a task from it
 2. On every tool call, the PostToolUse hook calls `shampoo guard edit`; on failure the agent gets the reason and fixes it
 3. When the agent tries to stop, the Stop hook calls `shampoo guard task`. On a violation, the agent is sent back with the reason; the rules' budgets and the repair budget decide when it stops being sent back. On pass, the stop is allowed. Every judgment is recorded in the ledger
-4. The orchestrator sees the ended session and the recorded outcome: on pass it pushes the branch and opens a PR with auto-merge; on escape it creates a harness-repair task
-5. The PR's CI runs. On pass, the orchestrator merges. On failure, the orchestrator launches a new session in the same worktree with the failure reason
+4. Asked again, `shampoo next` sees the recorded outcome: on pass it says to push the branch and open a PR; on escape, to repair the harness
+5. The PR's CI runs. Asked again, `shampoo next` merges the PR once the checks the change calls for have passed, or says to fix the failure, with its reason
 
 ## 12. State and ledger
 - **State** is derived from git and GitHub (a branch per task in its own worktree, the PR, whether it is merged). There is no separate state file to drift
