@@ -17,6 +17,7 @@ type Line struct {
 	Policy     string       `json:"policy,omitempty"`
 	Outcome    rule.Outcome `json:"outcome"`
 	Millis     int64        `json:"millis"`
+	Exceptions *int         `json:"exceptions,omitempty"`
 }
 
 type Summary struct {

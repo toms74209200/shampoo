@@ -3,8 +3,12 @@ package guard
 import (
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/toms74209200/shampoo/internal/budget"
@@ -138,6 +142,13 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 	report := ""
 checks:
 	for _, check := range order {
+		for _, checked := range selected {
+			if checked.Check == check.ID && checked.Exceptions != nil {
+				if err := os.Remove(filepath.Join(repo.Root, checked.Exceptions.File)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+					return rule.WorkflowFailure, report, err
+				}
+			}
+		}
 		started := time.Now()
 		code, output, err := shell.Run(repo.Root, check.Command)
 		if err != nil {
@@ -165,7 +176,18 @@ checks:
 				outcome = judge.Exit.Outcome(judgeCode)
 				detail = fmt.Sprintf("judge: %s exited %d\n%s", judge.Command, judgeCode, judgeOutput)
 			}
-			line := budget.Line{Run: run, Task: branch, Transition: string(transition), Rule: checked.ID, Check: check.ID, Outcome: outcome, Millis: millis}
+			var exceptions *int
+			if checked.Exceptions != nil {
+				data, err := os.ReadFile(filepath.Join(repo.Root, checked.Exceptions.File))
+				if err != nil {
+					outcome = rule.WorkflowFailure
+					detail = fmt.Sprintf("check %s did not write its exceptions to %s: %v\n", check.ID, checked.Exceptions.File, err)
+				} else {
+					count := len(strings.FieldsFunc(string(data), func(r rune) bool { return r == '\n' }))
+					exceptions = &count
+				}
+			}
+			line := budget.Line{Run: run, Task: branch, Transition: string(transition), Rule: checked.ID, Check: check.ID, Outcome: outcome, Millis: millis, Exceptions: exceptions}
 			encoded, err := json.Marshal(line)
 			if err != nil {
 				return rule.WorkflowFailure, report, err
@@ -182,6 +204,10 @@ checks:
 			}
 			if verdict != rule.WorkflowFailure && (outcome == rule.TaskFailure || outcome == rule.WorkflowFailure) {
 				verdict = outcome
+			}
+			if exceptions != nil && *exceptions > checked.Exceptions.Limit {
+				report += fmt.Sprintf("%s has %d exceptions in %s, over its limit of %d: fix the check rather than add exceptions\n", checked.ID, *exceptions, checked.Exceptions.File, checked.Exceptions.Limit)
+				exceeded = true
 			}
 			if outcome != rule.TaskFailure && outcome != rule.Budget {
 				continue
