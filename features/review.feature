@@ -15,6 +15,7 @@ Feature: Review a task against its policies
     And a changed file "main.go"
 
   @skip
+  @sha:47b32f4db431
   Scenario: Without a policy for review, a passed task opens a pull request
     Given a policy "layout"
     And "shampoo guard task" has passed
@@ -23,6 +24,7 @@ Feature: Review a task against its policies
     Then the next action is "open-pr"
 
   @skip
+  @sha:a9a17e9269f6
   Scenario: A passed task with a policy for review is reviewed first
     Given a policy "layout"
     And a policy "functions" for review
@@ -35,6 +37,7 @@ Feature: Review a task against its policies
     And the next action has the policies "functions"
 
   @skip
+  @sha:84b6830dacb6
   Scenario: The requirements on the review are handed over
     Given a policy "functions" for review
     And settings requiring "model" "claude-opus-5-5" of the review
@@ -45,6 +48,7 @@ Feature: Review a task against its policies
     And the next action has the requirement "model" "claude-opus-5-5"
 
   @skip
+  @sha:d383c842ee6d
   Scenario: A reviewed task opens a pull request with the findings
     Given a policy "functions" for review
     And "shampoo guard task" has passed
@@ -55,6 +59,7 @@ Feature: Review a task against its policies
     And the next action has the finding "a wrapper used once" on policy "functions"
 
   @skip
+  @sha:1fc9463d7c9e
   Scenario: A review without findings lets the task open a pull request
     Given a policy "functions" for review
     And "shampoo guard task" has passed
@@ -65,6 +70,7 @@ Feature: Review a task against its policies
     And the next action has no findings
 
   @skip
+  @sha:46fbb3f792f9
   Scenario: A task changed after its review is not reviewed again
     Given a policy "functions" for review
     And "shampoo guard task" has passed
@@ -77,6 +83,7 @@ Feature: Review a task against its policies
     And the next action has no findings
 
   @skip
+  @sha:f10a35906ceb
   Scenario: A finding on a policy not marked for review is a workflow failure
     Given a policy "layout"
     And a policy "functions" for review
