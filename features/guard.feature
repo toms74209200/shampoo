@@ -210,3 +210,28 @@ Feature: Guard a transition
     And the changes are committed
     When I run "shampoo guard task"
     Then the check "lint" has run once
+
+  @skip
+  Scenario: Violations at edit do not count toward the stop at task
+    Given a check "lint" that exits 1
+    And a rule "no-todo" guarding edit and task with check "lint" and a stop at task of 2 violations in the latest 2 runs
+    And a changed file "main.go"
+    And "shampoo guard edit" has run
+    And a changed file "main.go"
+    And "shampoo guard edit" has run
+    When I run "shampoo guard task"
+    Then the exit code is 1
+
+  @skip
+  Scenario: The default stop at edit lets a change fail on its way
+    Given a check "lint" that exits 1
+    And a rule guarding edit with check "lint" and the default budgets
+    And a changed file "main.go"
+    And "shampoo guard edit" has run
+    And a changed file "main.go"
+    And "shampoo guard edit" has run
+    And a changed file "main.go"
+    And "shampoo guard edit" has run
+    And a changed file "main.go"
+    When I run "shampoo guard edit"
+    Then the exit code is 1
