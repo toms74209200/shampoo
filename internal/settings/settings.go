@@ -19,6 +19,8 @@ type Settings struct {
 	MaxSeconds     map[string]int
 	TimeBudget     Count
 	TimeStop       Count
+	FailureBudget  Count
+	FailureStop    Count
 }
 
 type Count struct {
@@ -48,12 +50,18 @@ func Parse(data []byte) (Settings, error) {
 			Budget Count `toml:"budget"`
 			Stop   Count `toml:"stop"`
 		} `toml:"time-budget"`
+		WorkflowFailure struct {
+			Budget Count `toml:"budget"`
+			Stop   Count `toml:"stop"`
+		} `toml:"workflow-failure"`
 	}
 	file.StateMachine.HarnessRepair.MaxFailedAttempts = 3
 	file.Orchestrator.MaxWaitMinutes = 60
 	file.Orchestrator.Merge = "merge"
 	file.TimeBudget.Budget = Count{Violations: 2, Runs: 20}
 	file.TimeBudget.Stop = Count{Violations: 2, Runs: 5}
+	file.WorkflowFailure.Budget = Count{Violations: 2, Runs: 20}
+	file.WorkflowFailure.Stop = Count{Violations: 2, Runs: 5}
 	meta, err := toml.Decode(string(data), &file)
 	if err != nil {
 		return Settings{}, fmt.Errorf("%w: %v", ErrInvalid, err)
@@ -77,13 +85,19 @@ func Parse(data []byte) (Settings, error) {
 		}
 		maxSeconds[size] = limit.MaxSeconds
 	}
-	for name, count := range map[string]Count{"budget": file.TimeBudget.Budget, "stop": file.TimeBudget.Stop} {
+	counts := map[string]Count{
+		"budget of the time budget":       file.TimeBudget.Budget,
+		"stop of the time budget":         file.TimeBudget.Stop,
+		"budget of the workflow failures": file.WorkflowFailure.Budget,
+		"stop of the workflow failures":   file.WorkflowFailure.Stop,
+	}
+	for name, count := range counts {
 		if count.Runs < 1 || count.Violations < 1 || count.Violations > count.Runs {
-			return Settings{}, fmt.Errorf("%w: %s of the time budget has violations, from 1 to all, in runs, at least one", ErrInvalid, name)
+			return Settings{}, fmt.Errorf("%w: %s has violations, from 1 to all, in runs, at least one", ErrInvalid, name)
 		}
 	}
 	if !slices.Contains([]string{"merge", "squash", "rebase"}, file.Orchestrator.Merge) {
 		return Settings{}, fmt.Errorf("%w: merge %q is not merge, squash or rebase", ErrInvalid, file.Orchestrator.Merge)
 	}
-	return Settings{RepairAttempts: file.StateMachine.HarnessRepair.MaxFailedAttempts, Tasks: file.Orchestrator.Tasks, MaxWaitMinutes: file.Orchestrator.MaxWaitMinutes, Merge: file.Orchestrator.Merge, Requirements: file.StateMachine.Review.Requirements, MaxSeconds: maxSeconds, TimeBudget: file.TimeBudget.Budget, TimeStop: file.TimeBudget.Stop}, nil
+	return Settings{RepairAttempts: file.StateMachine.HarnessRepair.MaxFailedAttempts, Tasks: file.Orchestrator.Tasks, MaxWaitMinutes: file.Orchestrator.MaxWaitMinutes, Merge: file.Orchestrator.Merge, Requirements: file.StateMachine.Review.Requirements, MaxSeconds: maxSeconds, TimeBudget: file.TimeBudget.Budget, TimeStop: file.TimeBudget.Stop, FailureBudget: file.WorkflowFailure.Budget, FailureStop: file.WorkflowFailure.Stop}, nil
 }
