@@ -1,0 +1,2 @@
+command = "scripts/check-side-effect-statements.sh"
+size = "small"
