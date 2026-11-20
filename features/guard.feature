@@ -191,3 +191,22 @@ Feature: Guard a transition
     When I run "shampoo guard edit"
     Then the exit code is 1
     And the check "lint" has run once
+
+  @skip
+  Scenario: A rule guarding task is checked when the task is done
+    Given a branch "task-a"
+    And a check "lint" that exits 1
+    And a rule guarding task with check "lint"
+    And a changed file "main.go"
+    When I run "shampoo guard task"
+    Then the exit code is 1
+
+  @skip
+  Scenario: A task's committed changes are checked when the task is done
+    Given a branch "task-a"
+    And a check "lint" that records that it ran
+    And a rule guarding task with check "lint"
+    And a changed file "main.go"
+    And the changes are committed
+    When I run "shampoo guard task"
+    Then the check "lint" has run once
