@@ -1,3 +1,5 @@
+import json
+import os
 import secrets
 import shlex
 import subprocess
@@ -45,7 +47,27 @@ def run_result():
     return {}
 
 
-def run_shampoo(workspace: Path, shampoo_binary: Path, command: str):
+@pytest.fixture
+def fake_bin(tmp_path):
+    bin_dir = tmp_path / "fake-bin"
+    bin_dir.mkdir()
+    return bin_dir
+
+
+@pytest.fixture
+def settings_sections():
+    return {}
+
+
+def write_settings(workspace: Path, sections: dict) -> None:
+    (workspace / ".shampoo").mkdir(parents=True, exist_ok=True)
+    text = ""
+    for section, values in sections.items():
+        text += f"[{section}]\n" + "".join(f"{key} = {json.dumps(value)}\n" for key, value in values.items())
+    (workspace / ".shampoo" / "settings.toml").write_text(text)
+
+
+def run_shampoo(workspace: Path, shampoo_binary: Path, fake_bin: Path, command: str):
     args = command.split()
     assert args[0] == "shampoo"
     return subprocess.run(
@@ -55,6 +77,7 @@ def run_shampoo(workspace: Path, shampoo_binary: Path, command: str):
         capture_output=True,
         text=True,
         timeout=300,
+        env={**os.environ, "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}"},
     )
 
 
@@ -80,8 +103,8 @@ def given_changed_file(workspace, path):
 
 
 @given(parsers.parse('"{command}" has passed'))
-def given_command_passed(workspace, shampoo_binary, command):
-    result = run_shampoo(workspace, shampoo_binary, command)
+def given_command_passed(workspace, shampoo_binary, fake_bin, command):
+    result = run_shampoo(workspace, shampoo_binary, fake_bin, command)
     assert result.returncode == 0, (
         f"precondition failed: {command} exited {result.returncode}: "
         f"stdout={result.stdout!r}, stderr={result.stderr!r}"
@@ -89,8 +112,8 @@ def given_command_passed(workspace, shampoo_binary, command):
 
 
 @given(parsers.parse('"{command}" has run'))
-def given_command_ran(workspace, shampoo_binary, command):
-    run_shampoo(workspace, shampoo_binary, command)
+def given_command_ran(workspace, shampoo_binary, fake_bin, command):
+    run_shampoo(workspace, shampoo_binary, fake_bin, command)
 
 
 @given(parsers.parse('a branch "{name}"'))
@@ -115,8 +138,8 @@ def given_branch_merged(workspace, default_branch, name):
 
 
 @when(parsers.parse('I run "{command}"'))
-def when_running(workspace, shampoo_binary, command, run_result):
-    result = run_shampoo(workspace, shampoo_binary, command)
+def when_running(workspace, shampoo_binary, fake_bin, command, run_result):
+    result = run_shampoo(workspace, shampoo_binary, fake_bin, command)
     run_result.update(
         {
             "stdout": result.stdout,
@@ -184,3 +207,14 @@ def given_check_exits(workspace, check_id, code):
 @given(parsers.parse('a rule guarding {transition:w} with check "{check_id}"'))
 def given_rule(workspace, transition, check_id):
     write_rule(workspace, new_id(), transition, check_id)
+
+
+@given(parsers.parse("settings allowing {count:d} failed attempt in harness repair"))
+def given_repair_limit(workspace, settings_sections, count):
+    settings_sections.setdefault("state-machine.harness-repair", {})["max-failed-attempts"] = count
+    write_settings(workspace, settings_sections)
+
+
+@given(parsers.parse('a rule guarding {transition:w} with check "{check_id}" and a zero budget'))
+def given_rule_zero_budget(workspace, transition, check_id):
+    write_rule(workspace, new_id(), transition, check_id, budget="{ violations = 0, runs = 1 }")

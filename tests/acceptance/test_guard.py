@@ -41,11 +41,6 @@ def given_named_rule(workspace, rule_id, transition, check_id):
     write_rule(workspace, rule_id, transition, check_id)
 
 
-@given(parsers.parse('a rule guarding {transition:w} with check "{check_id}" and a zero budget'))
-def given_rule_zero_budget(workspace, transition, check_id):
-    write_rule(workspace, new_id(), transition, check_id, budget="{ violations = 0, runs = 1 }")
-
-
 @given(parsers.parse('a rule "{rule_id}" guarding {transition:w} with check "{check_id}" and a zero budget'))
 def given_named_rule_zero_budget(workspace, rule_id, transition, check_id):
     write_rule(workspace, rule_id, transition, check_id, budget="{ violations = 0, runs = 1 }")
@@ -104,14 +99,6 @@ def given_rule_stop(workspace, rule_id, transition, check_id, violations, count)
 )
 def given_rule_budget_counts(workspace, rule_id, transition, check_id, violations, count):
     write_rule(workspace, rule_id, transition, check_id, budget=f"{{ violations = {violations}, runs = {count} }}")
-
-
-@given(parsers.parse("settings allowing {count:d} failed attempt in harness repair"))
-def given_repair_limit(workspace, count):
-    (workspace / ".shampoo").mkdir(parents=True, exist_ok=True)
-    (workspace / ".shampoo" / "settings.toml").write_text(
-        f'[state-machine.harness-repair]\nmax-failed-attempts = {count}\n'
-    )
 
 
 def runs(runs_log: Path) -> list[str]:
