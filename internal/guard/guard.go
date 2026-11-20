@@ -205,39 +205,13 @@ checks:
 			if verdict != rule.WorkflowFailure && (outcome == rule.TaskFailure || outcome == rule.WorkflowFailure) {
 				verdict = outcome
 			}
-			if exceptions != nil && *exceptions > checked.Exceptions.Limit {
-				report += fmt.Sprintf("%s has %d exceptions in %s, over its limit of %d: fix the check rather than add exceptions\n", checked.ID, *exceptions, checked.Exceptions.File, checked.Exceptions.Limit)
-				exceeded = true
-			}
-			if outcome == rule.WorkflowFailure {
-				if used := budget.Failures(lines, checked.ID, options.FailureBudget.Runs); used >= options.FailureBudget.Violations {
-					report += fmt.Sprintf("%s burns its workflow-failure budget: %d workflow failures in the latest %d runs, of %d allowed\n", checked.ID, used, options.FailureBudget.Runs, options.FailureBudget.Violations)
-				}
-				if recent := budget.Failures(lines, checked.ID, options.FailureStop.Runs); recent >= options.FailureStop.Violations {
-					report += fmt.Sprintf("%s exceeds its workflow-failure budget: %d workflow failures in the latest %d runs: repair its check or its judge\n", checked.ID, recent, options.FailureStop.Runs)
-					exceeded = true
-				}
-			}
-			if outcome != rule.TaskFailure && outcome != rule.Budget {
-				continue
-			}
-			allowed, stop := checked.Budget[transition], checked.Stop[transition]
-			if used := budget.Violations(lines, checked.ID, transition, allowed.Runs); allowed.Violations > 0 && used >= allowed.Violations {
-				report += fmt.Sprintf("%s burns its budget at %s: %d violations in the latest %d runs, of %d allowed\n", checked.ID, transition, used, allowed.Runs, allowed.Violations)
-			}
-			if recent := budget.Violations(lines, checked.ID, transition, stop.Runs); allowed.Violations == 0 || recent >= stop.Violations {
-				report += fmt.Sprintf("%s exceeds its budget at %s: %d violations in the latest %d runs\n", checked.ID, transition, recent, stop.Runs)
-				exceeded = true
-			}
+			charge := budget.ChargeRule(lines, checked, transition, outcome, exceptions, budget.Limits{Budget: options.FailureBudget, Stop: options.FailureStop})
+			report += charge.Report
+			exceeded = exceeded || charge.Exceeded
 		}
-		limit := int64(options.MaxSeconds[string(check.Size)]) * 1000
-		if used := budget.Overruns(lines, check.ID, limit, timeBudget.Runs); used >= timeBudget.Violations {
-			report += fmt.Sprintf("check %s burns its time budget: %d runs over %ds of %s checks in the latest %d runs, of %d allowed\n", check.ID, used, limit/1000, check.Size, timeBudget.Runs, timeBudget.Violations)
-		}
-		if recent := budget.Overruns(lines, check.ID, limit, timeStop.Runs); recent >= timeStop.Violations {
-			report += fmt.Sprintf("check %s exceeds its time budget: %d runs over %ds of %s checks in the latest %d runs: reorganize the check, such as by splitting it or moving it to a later transition\n", check.ID, recent, limit/1000, check.Size, timeStop.Runs)
-			exceeded = true
-		}
+		charge := budget.ChargeTime(lines, check, options.MaxSeconds[string(check.Size)], budget.Limits{Budget: timeBudget, Stop: timeStop})
+		report += charge.Report
+		exceeded = exceeded || charge.Exceeded
 		if judgedByExit {
 			report += fmt.Sprintf("output of check %s:\n%s", check.ID, output)
 		}
