@@ -200,7 +200,7 @@ func Next(dir string) (next.Action, error) {
 			return next.Action{}, fmt.Errorf("next: %w", err)
 		}
 		issue := strings.TrimSpace(string(created))
-		entry, err := json.Marshal(question.Record{Issue: issue, Kind: "workflow", Task: branch})
+		entry, err := json.Marshal(question.Record{Issue: issue, Kind: question.Escalated, Task: branch})
 		if err != nil {
 			return next.Action{}, err
 		}
@@ -270,7 +270,7 @@ func Ask(dir string, input io.Reader) (string, error) {
 		return "", fmt.Errorf("gh issue create: %w: %s", err, strings.TrimSpace(stderr.String()))
 	}
 	url := strings.TrimSpace(string(out))
-	entry, err := json.Marshal(question.Record{Issue: url, Kind: "question", Task: branch})
+	entry, err := json.Marshal(question.Record{Issue: url, Kind: question.Asked, Task: branch})
 	if err != nil {
 		return "", err
 	}
