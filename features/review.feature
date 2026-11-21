@@ -153,7 +153,6 @@ Feature: Review a task against its policies
     When I run "shampoo next"
     Then the next action is "hand-to-human"
 
-  @skip
   @sha:f8b3ee3b4d02
   Scenario: A task whose commits changed after a review with findings is reviewed again
     Given a policy "pull-requests" for review

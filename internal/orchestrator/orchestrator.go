@@ -97,6 +97,10 @@ func Next(dir string) (next.Action, error) {
 	if err != nil {
 		return next.Action{}, err
 	}
+	state.Head, err = repo.Head()
+	if err != nil {
+		return next.Action{}, err
+	}
 	var pr struct {
 		Number      int    `json:"number"`
 		State       string `json:"state"`
@@ -114,18 +118,12 @@ func Next(dir string) (next.Action, error) {
 		if err := json.Unmarshal(view, &pr); err != nil {
 			return next.Action{}, fmt.Errorf("next: gh pr view: %w", err)
 		}
-		head := exec.Command("git", "rev-parse", "HEAD")
-		head.Dir = repo.Root
-		out, err := head.Output()
-		if err != nil {
-			return next.Action{}, fmt.Errorf("git rev-parse HEAD: %w", err)
-		}
 		state.PullRequest = &next.PullRequest{State: pr.State}
 		for _, commit := range pr.Commits {
 			state.PullRequest.Commits = append(state.PullRequest.Commits, commit.Oid)
 			state.PullRequest.Latest = commit.CommittedDate
 		}
-		state.PullRequest.Pushed = slices.Contains(state.PullRequest.Commits, strings.TrimSpace(string(out)))
+		state.PullRequest.Pushed = slices.Contains(state.PullRequest.Commits, state.Head)
 		var changed []string
 		for _, file := range pr.Files {
 			changed = append(changed, file.Path)
@@ -322,7 +320,11 @@ func Review(dir string, input io.Reader) error {
 	if err != nil {
 		return err
 	}
-	encoded, err := json.Marshal(next.Record{Branch: branch, Tree: tree, Findings: findings})
+	commit, err := repo.Head()
+	if err != nil {
+		return err
+	}
+	encoded, err := json.Marshal(next.Record{Branch: branch, Tree: tree, Commit: commit, Findings: findings})
 	if err != nil {
 		return err
 	}

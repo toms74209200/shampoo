@@ -23,6 +23,7 @@ type Observation struct {
 	Due          budget.Due
 	Verdict      rule.Outcome
 	Tree         string
+	Head         string
 	Policies     []policy.Policy
 	Requirements map[string]any
 	Record       *Record
@@ -35,6 +36,7 @@ type Observation struct {
 type Record struct {
 	Branch   string           `json:"branch"`
 	Tree     string           `json:"tree"`
+	Commit   string           `json:"commit,omitempty"`
 	Findings []review.Finding `json:"findings"`
 }
 
@@ -206,7 +208,7 @@ func Parse(o Observation) Observed {
 		mine := o.Record != nil && o.Record.Branch == o.Branch
 		found := mine && len(o.Record.Findings) > 0
 		switch {
-		case !mine && len(marked) > 0, found && o.Record.Tree != o.Tree:
+		case !mine && len(marked) > 0, found && (o.Record.Tree != o.Tree || o.Record.Commit != o.Head):
 			return Settled{State: Done{Branch: o.Branch, Policies: marked, Requirements: o.Requirements}}
 		case found:
 			switch o.Convergence.(type) {
