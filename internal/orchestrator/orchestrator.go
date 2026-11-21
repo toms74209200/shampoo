@@ -185,14 +185,16 @@ func Next(dir string) (next.Action, error) {
 	}
 	state.Now = time.Now()
 	state.MaxWait = time.Duration(options.MaxWaitMinutes) * time.Minute
-	parsed := next.Parse(state)
-	switch s := parsed.(type) {
+	var settled next.State
+	switch s := next.Parse(state).(type) {
+	case next.Settled:
+		settled = s.State
 	case next.Passed:
 		if _, err := gh("pr", "merge", strconv.Itoa(pr.Number), "--"+options.Merge); err != nil {
 			return next.Action{}, fmt.Errorf("next: %w", err)
 		}
-		parsed = next.Merged(s)
-	case next.ReviewingWorkflow:
+		settled = next.Merged(s)
+	case next.DueReview:
 		encoded, err := json.Marshal(budget.StatLine{Review: "workflow"})
 		if err != nil {
 			return next.Action{}, err
@@ -200,6 +202,7 @@ func Next(dir string) (next.Action, error) {
 		if err := files.Update(statsPath, func(data []byte) ([]byte, error) { return append(append(data, encoded...), '\n'), nil }); err != nil {
 			return next.Action{}, err
 		}
+		settled = next.ReviewingWorkflow(s)
 	case next.Escalating:
 		created, err := gh("issue", "create", "--title", s.Title, "--body", s.Body)
 		if err != nil {
@@ -220,14 +223,13 @@ func Next(dir string) (next.Action, error) {
 		if err := files.Update(statsPath, func(data []byte) ([]byte, error) { return append(append(data, encoded...), '\n'), nil }); err != nil {
 			return next.Action{}, err
 		}
-		parsed = next.Blocked{Questions: []string{issue}}
+		settled = next.Blocked{Questions: []string{issue}}
 	case next.NoSource:
 		return next.Action{}, fmt.Errorf("next: the task source %q is not set or not found; set [orchestrator] tasks in .shampoo/settings.toml", s.Source)
 	case next.Stalled:
 		return next.Action{}, fmt.Errorf("next: %s has waited for its checks since %s, longer than [orchestrator] max-wait-minutes (%d)", s.Branch, s.Since.Format(time.RFC3339), int(s.MaxWait.Minutes()))
-	default:
 	}
-	return next.Decide(parsed), nil
+	return next.Decide(settled), nil
 }
 
 func Policies(dir string) ([]policy.Policy, error) {
