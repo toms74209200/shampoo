@@ -77,7 +77,6 @@ Feature: Write the recommended rules for the checks a project decided
     And the rule "lint" is the one written by hand
     And init reports ".shampoo/rules/lint.toml" as kept
 
-  @skip
   @sha:f20f2f61095e
   Scenario: No label is created
     When shampoo init runs with the task source "todo.md" and the check "lint" running "make lint"

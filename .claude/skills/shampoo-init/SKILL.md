@@ -59,7 +59,7 @@ such as `["**.go", "go.mod"]`.
     echo '{"tasks": "<task source>", "checks": {"lint": {"command": "...", "exceptions": "..."}, "small-tests": {"command": "..."}, "coverage": {"command": "..."}, "commit-message": {"command": "... <commit>"}}}' | shampoo init
 
 It writes the rules, checks, recommended policies, the task source and the
-hooks in `.claude/settings.json`, and creates the labels for asking a human.
+hooks in `.claude/settings.json`. It needs no label on GitHub.
 It prints what it wrote and what it kept. When it says there is no review
 phase, no policy is marked for review: keep it so only if the project wants no
 review.

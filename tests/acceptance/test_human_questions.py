@@ -8,19 +8,19 @@ scenarios("../../features/human-questions.feature")
 @given(parsers.re(r"(?P<count>\d+) questions? to a human (?:is|are) open"))
 def given_open_questions(workspace, gh_state, count):
     for _ in range(int(count)):
-        open_issue(workspace, gh_state, "human-review", "question", recorded=True)
+        open_issue(workspace, gh_state, "question", recorded=True)
 
 
 @given(parsers.re(r"(?P<count>\d+) questions? to a human (?:is|are) closed"))
 def given_closed_questions(workspace, gh_state, count):
     for _ in range(int(count)):
-        open_issue(workspace, gh_state, "human-review", "question", recorded=True, state="CLOSED")
+        open_issue(workspace, gh_state, "question", recorded=True, state="CLOSED")
 
 
 @given(parsers.parse("{count:d} issues are open that shampoo did not open"))
 def given_foreign_issues(workspace, gh_state, count):
     for _ in range(count):
-        open_issue(workspace, gh_state, "human-review", "question", recorded=False)
+        open_issue(workspace, gh_state, "question", recorded=False)
 
 
 @then(parsers.parse("the next action names {count:d} questions"))
