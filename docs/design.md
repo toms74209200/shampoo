@@ -24,7 +24,7 @@ When implementation becomes cheap, verification becomes most of the work (one pr
 
 Today a human sits in that loop: assigning tasks, judging whether work is done, merging, and repairing the harness when it breaks. shampoo takes the human out of the loop. Humans set direction and review asynchronously; the loop keeps running without waiting for them.
 
-shampoo does not make agents better, more autonomous or more numerous: it writes no code, decides no step for an agent, plans no work and runs no agent. What it adds is around the agents a project already runs: guards on every step of the work, and budgets that tell when to stop and fix the harness instead.
+Stronger or more numerous agents do not make an unattended loop trustworthy; without gates on every step, they only produce unverified changes faster. And strict gates alone are not enough: with no human there to tell bad work from a faulty check or an unclear policy, an agent retries against a broken workflow forever.
 
 ---
 
