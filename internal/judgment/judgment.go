@@ -3,6 +3,7 @@ package judgment
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/toms74209200/shampoo/internal/budget"
@@ -36,7 +37,7 @@ type Session struct {
 
 func Judge(s Session, w World) (rule.Outcome, string, error) {
 	lines := s.Lines
-	verdict := rule.Pass
+	var outcomes []rule.Outcome
 	report := ""
 	failures := budget.Limits{Budget: s.Options.FailureBudget, Stop: s.Options.FailureStop}
 	time := budget.Limits{Budget: s.Options.TimeBudget, Stop: s.Options.TimeStop}
@@ -96,9 +97,7 @@ func Judge(s Session, w World) (rule.Outcome, string, error) {
 			if outcome != rule.Pass {
 				report += fmt.Sprintf("%s: %s\n%s, %s", checked.ID, checked.Statement, outcome, detail)
 			}
-			if verdict != rule.WorkflowFailure && (outcome == rule.TaskFailure || outcome == rule.WorkflowFailure) {
-				verdict = outcome
-			}
+			outcomes = append(outcomes, outcome)
 			charge := budget.ChargeRule(lines, checked, s.Transition, outcome, exceptions, failures)
 			report += charge.Report
 			exceeded = exceeded || charge.Exceeded
@@ -123,6 +122,13 @@ func Judge(s Session, w World) (rule.Outcome, string, error) {
 			return rule.Handed, report, nil
 		}
 		return rule.Exceeded, report, nil
+	}
+	verdict := rule.Pass
+	switch {
+	case slices.Contains(outcomes, rule.WorkflowFailure):
+		verdict = rule.WorkflowFailure
+	case slices.Contains(outcomes, rule.TaskFailure):
+		verdict = rule.TaskFailure
 	}
 	if verdict == rule.Pass {
 		if err := w.Pass(); err != nil {
