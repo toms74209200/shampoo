@@ -1,4 +1,5 @@
 import json
+import subprocess
 
 from pytest_bdd import given, parsers, scenarios, then, when
 
@@ -78,3 +79,8 @@ def then_finding(run_result, comment, policy_id):
 def then_no_findings(run_result):
     got = next_action(run_result).get("findings")
     assert not got, f"got findings {got!r}"
+
+
+@given("the commits are made again with the same tree")
+def given_commits_remade(workspace):
+    subprocess.run(["git", "-C", str(workspace), "commit", "--amend", "--quiet", "--message", "made again"], check=True)
