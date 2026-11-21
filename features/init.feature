@@ -51,6 +51,7 @@ Feature: Write the recommended rules for the checks a project decided
     And stderr contains "no review phase"
 
   @skip
+  @sha:ac5c0ea899b7
   Scenario: Nothing of any agent's is written
     When shampoo init runs with the task source "todo.md" and the check "lint" running "make lint"
     Then the exit code is 0
