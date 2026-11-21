@@ -412,3 +412,40 @@ def then_stdout_lacks(run_result, text):
 @then("stdout is empty")
 def then_stdout_empty(run_result):
     assert run_result["stdout"] == "", f"expected no stdout, got {run_result['stdout']!r}"
+
+
+def hook_answer(run_result) -> dict:
+    try:
+        return json.loads(run_result["stdout"])
+    except json.JSONDecodeError as error:
+        raise AssertionError(f"expected a JSON object, got {run_result['stdout']!r}: {run_result['stderr']!r}") from error
+
+
+@then(parsers.parse('the answer has "{field}" {value:d}'))
+def then_answer_number(run_result, field, value):
+    answer = hook_answer(run_result)
+    assert answer.get(field) == value, f"got {answer!r}"
+
+
+@then(parsers.parse('the answer has "{field}" "{value}"'))
+def then_answer_text(run_result, field, value):
+    answer = hook_answer(run_result)
+    assert answer.get(field) == value, f"got {answer!r}"
+
+
+@then(parsers.parse('the answer has no "{field}"'))
+def then_answer_lacks(run_result, field):
+    answer = hook_answer(run_result)
+    assert field not in answer, f"got {answer!r}"
+
+
+@then(parsers.parse('the answer\'s "{field}" contains "{text}"'))
+def then_answer_contains(run_result, field, text):
+    answer = hook_answer(run_result)
+    assert text in answer.get(field, ""), f"got {answer!r}"
+
+
+@then(parsers.parse('the answer\'s hook output is for "{event}" with context containing "{text}"'))
+def then_answer_hook_output(run_result, event, text):
+    output = hook_answer(run_result).get("hookSpecificOutput", {})
+    assert output.get("hookEventName") == event and text in output.get("additionalContext", ""), f"got {output!r}"
