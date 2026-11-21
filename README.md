@@ -43,11 +43,11 @@ go install github.com/toms74209200/shampoo@latest
 Make sure `shampoo` is in your `PATH`, then install the skills (`~/.claude/skills/` or your agent's skills directory):
 
 ```bash
-curl -fsSL --create-dirs -o ~/.claude/skills/shampoo-init/SKILL.md https://raw.githubusercontent.com/toms74209200/shampoo/master/.claude/skills/shampoo-init/SKILL.md
+curl -fsSL --create-dirs -o ~/.claude/skills/shampoo-init/SKILL.md https://raw.githubusercontent.com/toms74209200/shampoo/master/skills/shampoo-init/SKILL.md
 ```
 
 ```bash
-curl -fsSL --create-dirs -o ~/.claude/skills/shampoo-start/SKILL.md https://raw.githubusercontent.com/toms74209200/shampoo/master/.claude/skills/shampoo-start/SKILL.md
+curl -fsSL --create-dirs -o ~/.claude/skills/shampoo-start/SKILL.md https://raw.githubusercontent.com/toms74209200/shampoo/master/skills/shampoo-start/SKILL.md
 ```
 
 ## Usage

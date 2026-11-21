@@ -71,7 +71,33 @@ without overwriting existing files. It writes nothing of the agent's: wire the
 agent's hooks to shampoo yourself. If `stderr` reports no review phase, keep it
 so only if the project wants no policy review.
 
-## 6. Verify and open a PR
+## 6. Wire the agent's hooks
+
+Add three hooks to the agent's project settings, merged into what is there:
+after every tool use `shampoo guard edit --json`, when the agent stops
+`shampoo guard task --json`, and at the start of a session
+`shampoo policies --json`. Each prints one JSON object with every agent's
+fields and exits 0, so the hook passes it on unchanged.
+
+| Agent | Settings | After a tool use | On stop | Session start |
+|---|---|---|---|---|
+| Claude Code | `.claude/settings.json` | `PostToolUse`, matcher `*` | `Stop` | `SessionStart`, matcher `startup\|clear\|compact` |
+| Codex CLI | `.codex/hooks.json` | `PostToolUse`, no matcher | `Stop` | `SessionStart`, matcher `startup\|resume\|clear\|compact` |
+| Gemini CLI | `.gemini/settings.json` | `AfterTool`, matcher `*` | `AfterAgent` | `SessionStart`, matcher `startup\|resume\|clear` |
+| Cursor | `.cursor/hooks.json` (`"version": 1`) | `postToolUse` | `stop`, `"loop_limit": null` | `sessionStart` |
+
+Claude Code, Codex CLI and Gemini CLI nest each hook as
+`{"matcher": "...", "hooks": [{"type": "command", "command": "..."}]}` under its
+event; Cursor lists `{"command": "..."}` under its event. Cursor's
+`loop_limit` is lifted so that shampoo's budgets, not Cursor's default of 5,
+decide when a stop is no longer sent back.
+
+Codex CLI and Gemini CLI run project hooks only once a human trusts them
+(`/hooks`), and Cursor only in a trusted workspace: say so in the pull request.
+Cursor and Gemini CLI give the agent nothing after compaction; `shampoo-start`
+has the agent read its policies and task again.
+
+## 7. Verify and open a PR
 
 Run each check command and `shampoo guard task`; fix any check that fails on
 clean code. Commit the setup on its own branch and open a pull request with
