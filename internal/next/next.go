@@ -9,6 +9,7 @@ import (
 
 	"github.com/toms74209200/shampoo/internal/budget"
 	"github.com/toms74209200/shampoo/internal/policy"
+	"github.com/toms74209200/shampoo/internal/question"
 	"github.com/toms74209200/shampoo/internal/review"
 	"github.com/toms74209200/shampoo/internal/rule"
 )
@@ -18,9 +19,7 @@ type Observation struct {
 	SourceFound  bool
 	Branch       string
 	Default      bool
-	Questions    []string
 	MaxOpen      int
-	Escalations  []string
 	Due          budget.Due
 	Verdict      rule.Outcome
 	Tree         string
@@ -64,6 +63,8 @@ type Observed interface{ observed() }
 type State interface{ state() }
 
 type Settled struct{ State State }
+
+type Starting struct{}
 
 type DueReview struct {
 	Asked    []string
@@ -136,6 +137,7 @@ func (Waiting) state()           {}
 func (Merged) state()            {}
 
 func (Settled) observed()    {}
+func (Starting) observed()   {}
 func (NoSource) observed()   {}
 func (DueReview) observed()  {}
 func (Escalating) observed() {}
@@ -175,29 +177,8 @@ func Parse(o Observation) Observed {
 	if o.Source == "" || (!strings.Contains(o.Source, "://") && !o.SourceFound) {
 		return NoSource{Source: o.Source}
 	}
-	if o.Default && len(o.Escalations) > 0 {
-		return Settled{State: Blocked{Questions: o.Escalations}}
-	}
-	if o.Default && len(o.Questions) > o.MaxOpen {
-		return Settled{State: Blocked{Questions: o.Questions}}
-	}
 	if o.Default {
-		switch due := o.Due.(type) {
-		case budget.Review:
-			return DueReview{Asked: due.Asked, Repaired: due.Repaired}
-		case budget.Escalate:
-			body := "Workflow reviews keep failing: the tasks below still ask a human or repair the harness too often. Review the workflow, then close this issue.\n\nAsked a human:\n"
-			for _, task := range due.Asked {
-				body += "- " + task + "\n"
-			}
-			body += "\nRepaired the harness:\n"
-			for _, task := range due.Repaired {
-				body += "- " + task + "\n"
-			}
-			return Escalating{Title: "Review the workflow: reviews keep failing", Body: body}
-		case budget.Steady:
-		}
-		return Settled{State: Idle{Source: o.Source}}
+		return Starting{}
 	}
 	pr := o.PullRequest
 	if pr != nil && pr.State == "MERGED" {
@@ -270,6 +251,31 @@ func Parse(o Observation) Observed {
 		return Settled{State: Waiting{Branch: o.Branch}}
 	}
 	return Passed{Branch: o.Branch}
+}
+
+func Start(o Observation, opened question.Open) Observed {
+	if len(opened.Workflows) > 0 {
+		return Settled{State: Blocked{Questions: opened.Workflows}}
+	}
+	if len(opened.Questions) > o.MaxOpen {
+		return Settled{State: Blocked{Questions: opened.Questions}}
+	}
+	switch due := o.Due.(type) {
+	case budget.Review:
+		return DueReview{Asked: due.Asked, Repaired: due.Repaired}
+	case budget.Escalate:
+		body := "Workflow reviews keep failing: the tasks below still ask a human or repair the harness too often. Review the workflow, then close this issue.\n\nAsked a human:\n"
+		for _, task := range due.Asked {
+			body += "- " + task + "\n"
+		}
+		body += "\nRepaired the harness:\n"
+		for _, task := range due.Repaired {
+			body += "- " + task + "\n"
+		}
+		return Escalating{Title: "Review the workflow: reviews keep failing", Body: body}
+	case budget.Steady:
+	}
+	return Settled{State: Idle{Source: o.Source}}
 }
 
 func Decide(s State) Action {

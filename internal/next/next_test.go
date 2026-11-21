@@ -10,6 +10,7 @@ import (
 
 	"github.com/toms74209200/shampoo/internal/budget"
 	"github.com/toms74209200/shampoo/internal/policy"
+	"github.com/toms74209200/shampoo/internal/question"
 	"github.com/toms74209200/shampoo/internal/review"
 	"github.com/toms74209200/shampoo/internal/rule"
 )
@@ -32,17 +33,11 @@ func TestParse(t *testing.T) {
 	}{
 		{name: "when Parse with no task source then returns no source", observation: Observation{Source: "", SourceFound: false, Default: true}, want: NoSource{Source: ""}},
 		{name: "when Parse with a task file not found then returns no source", observation: Observation{Source: "todo.md", SourceFound: false, Default: true}, want: NoSource{Source: "todo.md"}},
-		{name: "when Parse with a task URL then returns idle without looking for a file", observation: Observation{Source: "https://github.example/issues", SourceFound: false, Default: true}, want: Settled{State: Idle{Source: "https://github.example/issues"}}},
+		{name: "when Parse with a task URL then returns starting without looking for a file", observation: Observation{Source: "https://github.example/issues", SourceFound: false, Default: true}, want: Starting{}},
+		{name: "when Parse with the default branch then returns starting", observation: Observation{Source: source, SourceFound: true, Branch: branch, Default: true}, want: Starting{}},
 		{name: "when Parse with a task branch and a review policy not marked for review then returns ready", observation: Observation{Source: source, SourceFound: true, Branch: branch, Verdict: rule.Outcome("pass"), Policies: []policy.Policy{{ID: "layout"}}}, want: Settled{State: Ready{Branch: branch}}},
-		{name: "when Parse with the default branch then returns idle with the source", observation: Observation{Source: source, SourceFound: true, Branch: branch, Default: true, Verdict: rule.Outcome("pass")}, want: Settled{State: Idle{Source: source}}},
-		{name: "when Parse with the default branch and open questions within the limit then returns idle", observation: Observation{Source: source, SourceFound: true, Default: true, Questions: []string{url}, MaxOpen: 1}, want: Settled{State: Idle{Source: source}}},
-		{name: "when Parse with the default branch and more open questions than the limit then returns blocked by them", observation: Observation{Source: source, SourceFound: true, Default: true, Questions: []string{url, other}, MaxOpen: 1}, want: Settled{State: Blocked{Questions: []string{url, other}}}},
-		{name: "when Parse with the default branch and a steady workflow then returns idle", observation: Observation{Source: source, SourceFound: true, Default: true, Due: budget.Steady{}}, want: Settled{State: Idle{Source: source}}},
-		{name: "when Parse with the default branch and a workflow due for review then returns reviewing it with the tasks", observation: Observation{Source: source, SourceFound: true, Default: true, Due: budget.Review{Asked: []string{first}, Repaired: []string{second}}}, want: DueReview{Asked: []string{first}, Repaired: []string{second}}},
-		{name: "when Parse with the default branch and failing workflow reviews then returns escalating with the tasks", observation: Observation{Source: source, SourceFound: true, Default: true, Due: budget.Escalate{Asked: []string{"a"}, Repaired: []string{"b"}}}, want: Escalating{Title: "Review the workflow: reviews keep failing", Body: "Workflow reviews keep failing: the tasks below still ask a human or repair the harness too often. Review the workflow, then close this issue.\n\nAsked a human:\n- a\n\nRepaired the harness:\n- b\n"}},
-		{name: "when Parse with the default branch and an open escalation then returns blocked by it", observation: Observation{Source: source, SourceFound: true, Default: true, Escalations: []string{url}, Due: budget.Review{Asked: []string{first}}}, want: Settled{State: Blocked{Questions: []string{url}}}},
-		{name: "when Parse with a task branch and a workflow due for review then returns editing", observation: Observation{Source: source, SourceFound: true, Branch: branch, Escalations: []string{url}, Due: budget.Review{Asked: []string{first}}}, want: Settled{State: Editing{Branch: branch}}},
-		{name: "when Parse with a task branch and more open questions than the limit then returns editing", observation: Observation{Source: source, SourceFound: true, Branch: branch, Questions: []string{url, other}, MaxOpen: 1}, want: Settled{State: Editing{Branch: branch}}},
+		{name: "when Parse with a task branch and a workflow due for review then returns editing", observation: Observation{Source: source, SourceFound: true, Branch: branch, Due: budget.Review{Asked: []string{first}}}, want: Settled{State: Editing{Branch: branch}}},
+		{name: "when Parse with a task branch and more open questions than the limit then returns editing", observation: Observation{Source: source, SourceFound: true, Branch: branch, MaxOpen: 1}, want: Settled{State: Editing{Branch: branch}}},
 		{name: "when Parse with a passed task guard then returns ready", observation: Observation{Source: source, SourceFound: true, Branch: branch, Verdict: rule.Outcome("pass")}, want: Settled{State: Ready{Branch: branch}}},
 		{name: "when Parse with a budget exceeded then returns repairing", observation: Observation{Source: source, SourceFound: true, Branch: branch, Verdict: rule.Outcome("budget-exceeded")}, want: Settled{State: Repairing{Branch: branch}}},
 		{name: "when Parse with repairs beyond their limit then returns handed", observation: Observation{Source: source, SourceFound: true, Branch: branch, Verdict: rule.Outcome("repair-exceeded")}, want: Settled{State: Handed{Branch: branch}}},
@@ -72,6 +67,36 @@ func TestParse(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := Parse(tt.observation)
+
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("got %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestStart(t *testing.T) {
+	source := rand.Text()
+	branch := rand.Text()
+	first, second := rand.Text(), rand.Text()
+	url, other := rand.Text(), rand.Text()
+	tests := []struct {
+		name        string
+		opened      question.Open
+		observation Observation
+		want        Observed
+	}{
+		{name: "when Start with the default branch then returns idle with the source", opened: question.Open{}, observation: Observation{Source: source, SourceFound: true, Branch: branch, Default: true, Verdict: rule.Outcome("pass")}, want: Settled{State: Idle{Source: source}}},
+		{name: "when Start with the default branch and open questions within the limit then returns idle", opened: question.Open{Questions: []string{url}}, observation: Observation{Source: source, SourceFound: true, Default: true, MaxOpen: 1}, want: Settled{State: Idle{Source: source}}},
+		{name: "when Start with the default branch and more open questions than the limit then returns blocked by them", opened: question.Open{Questions: []string{url, other}}, observation: Observation{Source: source, SourceFound: true, Default: true, MaxOpen: 1}, want: Settled{State: Blocked{Questions: []string{url, other}}}},
+		{name: "when Start with the default branch and a steady workflow then returns idle", opened: question.Open{}, observation: Observation{Source: source, SourceFound: true, Default: true, Due: budget.Steady{}}, want: Settled{State: Idle{Source: source}}},
+		{name: "when Start with the default branch and a workflow due for review then returns reviewing it with the tasks", opened: question.Open{}, observation: Observation{Source: source, SourceFound: true, Default: true, Due: budget.Review{Asked: []string{first}, Repaired: []string{second}}}, want: DueReview{Asked: []string{first}, Repaired: []string{second}}},
+		{name: "when Start with the default branch and failing workflow reviews then returns escalating with the tasks", opened: question.Open{}, observation: Observation{Source: source, SourceFound: true, Default: true, Due: budget.Escalate{Asked: []string{"a"}, Repaired: []string{"b"}}}, want: Escalating{Title: "Review the workflow: reviews keep failing", Body: "Workflow reviews keep failing: the tasks below still ask a human or repair the harness too often. Review the workflow, then close this issue.\n\nAsked a human:\n- a\n\nRepaired the harness:\n- b\n"}},
+		{name: "when Start with the default branch and an open escalation then returns blocked by it", opened: question.Open{Workflows: []string{url}}, observation: Observation{Source: source, SourceFound: true, Default: true, Due: budget.Review{Asked: []string{first}}}, want: Settled{State: Blocked{Questions: []string{url}}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Start(tt.observation, tt.opened)
 
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("got %#v, want %#v", got, tt.want)
