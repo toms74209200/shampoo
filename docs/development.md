@@ -21,7 +21,7 @@ golangci-lint is pinned in `scripts/golangci-lint.sh`, which installs that versi
 ## 2. Checks
 | Hook | Runs |
 |---|---|
-| `pre-commit` | `make check` |
+| `pre-commit` | `make check` on what is staged, in a clean worktree |
 | `commit-msg` | `scripts/check-commit.sh --msg-file` |
 | Claude Code `PostToolUse` on every tool, and `Stop` (`.claude/settings.json`) | `scripts/hook.sh guard edit` and `scripts/hook.sh guard task`: builds shampoo from the working tree, falling back to the last build when it does not build, and runs `shampoo guard edit` or `shampoo guard task`. A task failure or a budget exceeded, which calls for harness repair, is sent back to the agent (exit 2); a workflow failure or repairs beyond their budget are shown to the human (exit 1) |
 | Claude Code `SessionStart` on `startup`, `clear` and `compact` (`.claude/settings.json`) | `scripts/hook.sh policies`: builds shampoo the same way and prints every policy with `shampoo policies`; the output enters the agent's context (design doc §5.2) |
