@@ -1,7 +1,8 @@
 Feature: Print the policies for the agent's context
   `shampoo policies` prints every policy of the project, its text and its
   code example, for the hook that puts them into the agent's context when
-  a session starts and after the context is compacted.
+  a session starts and after the context is compacted. With `--json` it
+  prints them as one JSON object carrying every agent's fields.
 
   Background:
     Given a git repository with a commit
@@ -41,3 +42,12 @@ Feature: Print the policies for the agent's context
     Given a policy "layout" without a text
     When I run "shampoo policies"
     Then the exit code is 2
+
+  @skip
+  @sha:bf07582ec782
+  Scenario: The policies answer a hook in JSON
+    Given a policy "layout"
+    When I run "shampoo policies --json"
+    Then the exit code is 0
+    And the answer's "additional_context" contains "layout is followed."
+    And the answer's hook output is for "SessionStart" with context containing "layout is followed."
