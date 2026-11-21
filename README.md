@@ -30,15 +30,16 @@ stateDiagram-v2
 
 ## What shampoo is not
 
-What agentic coding usually brings to mind, and how shampoo differs:
+"Humans out of the loop" brings to mind agents turned loose to finish a whole project at once. shampoo is nothing that grand, and does not aim to be:
 
-- **A coding agent**: a model in a loop with tools that reads and writes code. shampoo writes no code and calls no model; it works around the agent you run, through its hooks
-- **An autonomous agent**: one given a goal that decides its own steps and sees it through, often improving itself from experience. shampoo makes no agent autonomous and decides no step; it is the process that can run without a human, because every step is guarded and repeated failure is bounded
-- **An orchestrator** of agent teams: a goal planned into tasks, a planner, coders and reviewers running in parallel, doing more the more agents it runs. shampoo plans nothing, runs and coordinates no agent, and gets no more done with more of them
-- **A collection of skills or rules** that make agents code better: curated prompts, skills and rule files. shampoo ships two skills only to set itself up and a few recommended policies; what good work is stays the project's, and its rules are enforced by checks, not followed by asking
-- **A human-in-the-loop workflow**: approving each step or every pull request. shampoo never waits for a human; it asks through issues and goes on
+- **A coding agent**: a model in a loop with tools that writes code. shampoo writes no code and calls no model; the agent the project already runs calls shampoo from its hooks and its own loop.
+- **An autonomous agent**: one given a goal that decides how to reach it and sees it through. shampoo decides nothing about how the agent works; it tracks where the work stands so the workflow runs without a human.
+- **An agent runner**: a tool that starts sessions, prepares worktrees or sandboxes, and keeps agents going task after task. shampoo starts and prepares nothing.
+- **An orchestrator of agent teams**: a planner, coders, and reviewers as roles working toward a goal together. shampoo plans nothing, assigns no roles, and does not aim to get more done by running more agents.
+- **A collection of skills or rules**: prompts, skills, and rule sets meant to make agents code better. shampoo ships only two skills to set itself up and run the loop, and a few recommended rules and policies as a start; what good work means stays the project's.
+- **A human-in-the-loop workflow**: approving each step or every pull request. shampoo never gates work on approval; it asks humans through issues without waiting, and holds new tasks only when too many questions are open.
 
-What it is: guards on every step of the work, and budgets that tell when to stop and fix the harness instead.
+shampoo is a CLI that governs the loop. It keeps the workflow disciplined and improves it through budgets that show when the workflow itself, not the work, needs fixing.
 
 ## Prerequisites
 
