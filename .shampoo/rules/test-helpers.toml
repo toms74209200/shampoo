@@ -1,5 +1,5 @@
 rule = "Test helpers are prohibited. A test file declares only `Test`, `Fuzz` and `Example` functions, and does not call `t.Helper()`."
 check = "test-helpers"
 transitions = ["edit", "task", "pr"]
-paths = ["**_test.go", "scripts/check-test-helpers.sh", "tools/**"]
+paths = ["**_test.go", "scripts/check-test-helpers.sh", "tools/**", "scripts/list-files.sh"]
 judge = { exit = { 1 = "task-failure", other = "workflow-failure" } }

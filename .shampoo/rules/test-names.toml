@@ -1,5 +1,5 @@
 rule = "Every test is named `when <target> with <given conditions> then returns <expected>`."
 check = "test-names"
 transitions = ["edit", "task", "pr"]
-paths = ["**_test.go", "scripts/check-test-names.sh", "tools/**"]
+paths = ["**_test.go", "scripts/check-test-names.sh", "tools/**", "scripts/list-files.sh"]
 judge = { exit = { 1 = "task-failure", other = "workflow-failure" } }
