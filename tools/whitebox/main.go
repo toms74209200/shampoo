@@ -14,10 +14,8 @@ import (
 )
 
 func main() {
-	name := regexp.MustCompile(`^when (\S+) with `)
 	fset := token.NewFileSet()
-	production := map[string]map[string]bool{}
-	tests := map[string][]*ast.File{}
+	var sources []Source
 	paths := bufio.NewScanner(os.Stdin)
 	for paths.Scan() {
 		file, err := parser.ParseFile(fset, paths.Text(), nil, 0)
@@ -25,8 +23,37 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		dir := filepath.Dir(paths.Text())
-		if strings.HasSuffix(paths.Text(), "_test.go") {
+		sources = append(sources, Source{Path: paths.Text(), File: file})
+	}
+	var found []string
+	for _, use := range Uses(sources) {
+		found = append(found, fmt.Sprintf("%s: %s", fset.Position(use.Pos), use.Text))
+	}
+	if len(found) > 0 {
+		fmt.Fprintln(os.Stderr, "a white-box test depends on its target only, and on types for its arguments (.shampoo/rules/white-box-dependencies.toml):")
+		fmt.Fprintln(os.Stderr, strings.Join(found, "\n"))
+		os.Exit(1)
+	}
+}
+
+type Source struct {
+	Path string
+	File *ast.File
+}
+
+type Use struct {
+	Pos  token.Pos
+	Text string
+}
+
+func Uses(sources []Source) []Use {
+	name := regexp.MustCompile(`^when (\S+) with `)
+	production := map[string]map[string]bool{}
+	tests := map[string][]*ast.File{}
+	for _, source := range sources {
+		file := source.File
+		dir := filepath.Dir(source.Path)
+		if strings.HasSuffix(source.Path, "_test.go") {
 			if !strings.HasSuffix(file.Name.Name, "_test") {
 				tests[dir] = append(tests[dir], file)
 			}
@@ -52,7 +79,7 @@ func main() {
 			}
 		}
 	}
-	var found []string
+	var found []Use
 	for dir, files := range tests {
 		for _, file := range files {
 			for _, decl := range file.Decls {
@@ -85,16 +112,12 @@ func main() {
 				ast.Inspect(fn.Body, func(n ast.Node) bool {
 					id, ok := n.(*ast.Ident)
 					if ok && !names[id] && production[dir][id.Name] && !targets[id.Name] {
-						found = append(found, fmt.Sprintf("%s: %s uses %s", fset.Position(id.Pos()), fn.Name.Name, id.Name))
+						found = append(found, Use{Pos: id.Pos(), Text: fmt.Sprintf("%s uses %s", fn.Name.Name, id.Name)})
 					}
 					return true
 				})
 			}
 		}
 	}
-	if len(found) > 0 {
-		fmt.Fprintln(os.Stderr, "a white-box test depends on its target only, and on types for its arguments (.shampoo/rules/white-box-dependencies.toml):")
-		fmt.Fprintln(os.Stderr, strings.Join(found, "\n"))
-		os.Exit(1)
-	}
+	return found
 }
