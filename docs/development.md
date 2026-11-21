@@ -9,11 +9,13 @@ The devcontainer runs `make setup` on creation, which enables the git hooks in `
 
 | Command | What it does |
 |---|---|
-| `make check` | Every check guarding a commit: lint and small tests |
+| `make check` | Every check guarding a commit: lint, small tests, coverage and rule checks |
 | `make lint` | golangci-lint, including format checks |
 | `make fmt` | Apply formatters |
-| `make test-small` | Small tests (`-tags=small`) |
+| `make test-small` | Small tests (`-tags=small`), recording coverage and tracing syscalls |
+| `make test-medium` | Medium tests (`-tags=medium`) |
 | `make test-acceptance` | Acceptance tests in `tests/acceptance` (pytest-bdd, run with uv) |
+| `make test-tools` | Small tests of the AST checks in `tools/` |
 | `make build` | Build the binary |
 
 golangci-lint is pinned in `scripts/golangci-lint.sh`, which installs that version, so local runs and CI use the same version regardless of what the environment has installed.
@@ -23,14 +25,14 @@ golangci-lint is pinned in `scripts/golangci-lint.sh`, which installs that versi
 |---|---|
 | `pre-commit` | `make check` on what is staged, in a clean worktree |
 | `commit-msg` | `scripts/check-commit.sh --msg-file` |
-| Claude Code `PostToolUse` on every tool, and `Stop` (`.claude/settings.json`) | `scripts/hook.sh guard edit` and `scripts/hook.sh guard task`: builds shampoo from the working tree, falling back to the last build when it does not build, and runs `shampoo guard edit` or `shampoo guard task`. A task failure or a budget exceeded, which calls for harness repair, is sent back to the agent (exit 2); a workflow failure or repairs beyond their budget are shown to the human (exit 1) |
+| Claude Code `PostToolUse` on every tool, and `Stop` (`.claude/settings.json`) | `scripts/hook.sh guard edit` and `scripts/hook.sh guard task`: builds shampoo from the working tree, falling back to the last build when it does not build, and runs `shampoo guard edit` or `shampoo guard task`. A task failure (guard exit 1) or a stop calling for harness repair (guard exit 3) is sent back to the agent (hook exit 2); a workflow failure (guard exit 2) or repairs beyond their budget (guard exit 4) are shown to the human (hook exit 1) |
 | Claude Code `SessionStart` on `startup`, `clear` and `compact` (`.claude/settings.json`) | `scripts/hook.sh policies`: builds shampoo the same way and prints every policy with `shampoo policies`; the output enters the agent's context (design doc §5.2) |
 
 Claude Code permissions in `.claude/settings.json` deny making a branch with `git checkout -b`; branches are made with `git switch -c`.
 
-Checks report by exit code: 0 pass, 1 task failure (the work is wrong), anything else a workflow failure (the check itself misbehaved), following design doc §3. `scripts/check-commit.sh` exits 1 on a rule violation and 2 on its own errors. A check's command calls a script or tool directly, not a make target: make exits 2 whenever a recipe fails, which would turn every task failure into a workflow failure.
+Checks report by exit code: 0 pass, 1 task failure (the work is wrong), and anything else a workflow failure (the check itself misbehaved), following design doc §3. `scripts/check-commit.sh` exits 1 on a rule violation and 2 on its own errors. A check's command calls a script or tool directly, not a make target: make exits 2 whenever a recipe fails, which would turn every task failure into a workflow failure. A rule's judge command reports the same way, and may also exit 3 to charge the rule's budget without failing the transition (as `scripts/judge-coverage.sh` does).
 
-Lint findings have no warnings: a finding fails the check. A sum type is a sealed interface marked `//sumtype:decl`, and `gochecksumtype` fails a type switch over it that misses a case, the check Go's compiler does not make (policy sum-types). The side-effect packages (`scripts/side-effect-packages.txt`) are statements only: `scripts/check-side-effect-statements.sh` fails any choice in them other than handling an error or matching a sum type, since what they do is the libraries' and has nothing of ours to test. Choices belong in pure code, whose share and small-test coverage the coverage job reports. A false positive passes only through `//nolint:<linter> // <reason>`; `nolintlint` rejects a directive without a specific linter or a reason, so exceptions stay countable from the code. `scripts/lint.sh` writes them to `out/exceptions/lint.txt`, which the lint rule declares as its exceptions, at most 3 (design doc §3.1).
+Lint findings have no warnings: a finding fails the check. A sum type is a sealed interface marked `//sumtype:decl`, and `gochecksumtype` fails any type switch over it that misses a case — a check Go's compiler does not perform (see `.shampoo/policies/sum-types.toml`). The side-effect packages (`scripts/side-effect-packages.txt`) are statements only: `scripts/check-side-effect-statements.sh` fails any choice in them other than handling an error or matching a sum type, since their behavior belongs to the underlying libraries or OS and leaves nothing of ours to unit-test. Choices belong in pure code, whose share and small-test coverage the coverage job reports. A false positive passes only through `//nolint:<linter> // <reason>`; `nolintlint` rejects a directive without a specific linter or a reason, so exceptions stay countable from the code. `scripts/lint.sh` writes them to `out/exceptions/lint.txt`, which the lint rule declares as its exceptions, at most 3 (design doc §3.1).
 
 ## 3. Commits
 ### 3.1 Minimal commits
@@ -121,10 +123,10 @@ Each workflow starts from the changes it checks, as in earlier repositories:
 
 | Workflow | Starts when | Checks |
 |---|---|---|
-| `on-pullrequest-commit.yml` | Every PR, since every PR has commits | The message of each commit |
-| `on-pullrequest-go.yml` | Go-related files change (its `paths`) | Applies the formatter and commits the result, then lint; small, medium and acceptance tests; coverage |
-| `on-pullrequest-python.yml` | Acceptance tests change | Acceptance tests |
-| `on-pullrequest-features.yml` | Feature specs change | Scenario annotations, statically (design doc §5.1) |
+| `on-pullrequest-commit.yml` | Every PR, since every PR has commits | Each commit's message format, and that no commit mixes scenario changes with production code |
+| `on-pullrequest-go.yml` | Go-related or workflow files change (its `paths`) | Build; apply formatters and commit the result, then lint and rule checks; small, medium and acceptance tests; coverage and pure-code baseline |
+| `on-pullrequest-python.yml` | Acceptance tests or workflow files change | Acceptance tests |
+| `on-pullrequest-features.yml` | Feature specs change | Scenario annotations statically, then records and commits missing `@sha` tags and verifies the result (design doc §5.1) |
 
 The `job-*.yml` workflows hold the steps, and the `on-*.yml` workflows decide when they run.
 
