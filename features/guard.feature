@@ -252,6 +252,17 @@ Feature: Guard a transition
     And the answer's "additional_context" contains "found TODO"
 
   @skip
+  Scenario: A stop to harness repair answers a hook in JSON that sends the agent back
+    Given a check "lint" that exits 1
+    And a rule "strict" guarding edit with check "lint" and a zero budget
+    And a changed file "main.go"
+    When I run "shampoo guard edit --json"
+    Then the exit code is 0
+    And the answer has "code" 3
+    And the answer has "decision" "block"
+    And the answer's "reason" contains "repair the harness"
+
+  @skip
   Scenario: A pass answers a hook in JSON that lets the agent go on
     Given a check "lint" that exits 0
     And a rule guarding edit with check "lint"
