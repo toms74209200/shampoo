@@ -1,84 +1,77 @@
 ---
 name: shampoo-init
-description: Set up shampoo in a repository, up to the point where it runs (docs/design.md §7.1). Use when asked to adopt, install or set up shampoo in a project, from a brownfield repository or from a reference repository.
+description: Set up shampoo in a repository up to a passing guard. Use when asked to adopt, install, or set up shampoo in a project, alone or from a reference repository.
 ---
 
 # Setting up shampoo
 
-You set up shampoo in the target repository. Decide what the repositories
-settle, ask only what they do not, and leave the project with a guard that
-passes.
+Set up shampoo in the target repository. Decide what the target and any
+reference repository already settle, ask only what remains open, and finish
+with a passing guard.
 
-## 1. Find out what the project already does
+## 1. Inspect the repository
 
-Look at the target repository first, then at the reference repository if one
-is given. A repository shows its checks in what it does, whether it uses
-shampoo or not:
+Check the target repository first, then any reference repository:
 
-- Its linter and the linter's configuration, and how it is run (a Makefile, package scripts, a pinned script)
-- How it runs its tests, and which are small (no network, no files outside a temporary directory, no processes)
-- How it measures coverage, and any threshold it already keeps
-- Its CI workflows in `.github/workflows/`, and how pull requests merge
-- Its commit conventions, from `git log` and any commit message check
+- Linter, its config, and how it is invoked
+- How tests run, and which are small (no network, no files outside a temp dir, no external processes)
+- Coverage command and threshold
+- `.github/workflows/` and how pull requests merge
+- Commit message conventions (`git log`, commit checks)
 
-When the reference repository has `.shampoo/`, carry its rules, checks and
-policies over first, adapted to the target, including rules that are not
-recommended. `shampoo init` keeps every file that exists, so what you carried
-over stays.
+If the reference repository has `.shampoo/`, copy and adapt its rules, checks,
+and policies first. `shampoo init` keeps every existing file.
 
-## 2. Decide, and ask only what is left open
+## 2. Ask only what is open
 
-Decide everything the repositories settle. Ask the human only where they leave
-a choice open, or where the change reaches beyond the project's own files,
-such as changing its CI or the way pull requests merge. Ask all such questions
-at once, each with your proposal, so that setting up is not a dialogue.
+Decide everything the repositories already settle. Ask the human only where
+they leave a choice open, or where setup would change the project's CI
+(including `.github/workflows/`) or how pull requests merge. Ask all such
+questions at once, each with your proposal, so setup does not become a
+dialogue. When asked for hands-off setup, ask nothing and record your decisions
+in the pull request description.
 
-When told to set everything up hands-off, ask nothing: decide it all, and
-write what you decided in the description of the pull request that adds the
-setup.
+## 3. Assemble check commands
 
-## 3. Assemble the checks of the recommended rules
+Provide a command for each recommended rule the project can support (omit the
+rest):
 
-The recommended rules say what to check, not how. Give a command for each one
-the project can have:
-
-| Rule | The command |
+| Rule | Command |
 |---|---|
-| `lint` | Runs the project's linter; exits 1 on a violation. If the linter lets violations pass by an exception in the code, write each exception as one line to a file and give that file as `exceptions` |
-| `small-tests` | Runs the small tests; exits 1 when one fails |
-| `coverage` | Measures small-test coverage; exits 1 below the threshold (80% is a start) |
-| `commit-message` | Checks the message of the commit given as `<commit>`; exits 1 when it does not follow the format |
+| `lint` | Runs the linter; exits `1` on violation. If inline exceptions are allowed, write one line per exception to a file and set `exceptions` |
+| `small-tests` | Runs small tests; exits `1` on failure |
+| `coverage` | Checks small-test coverage; exits `1` below threshold (`80%` is a start) |
+| `commit-message` | Checks commit `<commit>`; exits `1` on format violation |
 
-A command exits 1 for a problem in the work and any other non-zero code for a
-problem in the check itself. Write a script under `scripts/` when the command
-needs more than one line. Give `paths` when a check only concerns some files,
-such as `["**.go", "go.mod"]`.
+Commands must exit `0` on pass, `1` on a task violation, and any other non-zero
+code when the check itself fails. Call tools or `scripts/` directly rather than
+`make` (which exits `2` on recipe failure). Add `paths` (e.g.
+`["**.go", "go.mod"]`) or `size` (`"small"`, `"medium"`, `"large"`) as needed.
 
-## 4. Write the first tasks
+## 4. Add initial tasks
 
-Unless the project already keeps its tasks somewhere with what makes each done,
-the task source is a directory, `tasks/`, with one file per task:
+Unless tasks with completion criteria already exist elsewhere, create `tasks/`
+with a few small one-PR tasks (smallest first):
 
-    # <what to do>
+```markdown
+# <what to do>
 
-    ## Done when
-    - <what a test can check>
-
-Start small: a few tasks, each one pull request, the first the smallest, so
-that one task goes all the way to its merge before more come.
+## Done when
+- <what a test can check>
+```
 
 ## 5. Run `shampoo init`
 
-    echo '{"tasks": "<task source>", "checks": {"lint": {"command": "...", "exceptions": "..."}, "small-tests": {"command": "..."}, "coverage": {"command": "..."}, "commit-message": {"command": "... <commit>"}}}' | shampoo init
+```sh
+echo '{"tasks": "<task source>", "checks": {"lint": {"command": "...", "exceptions": "..."}, "small-tests": {"command": "..."}, "coverage": {"command": "..."}, "commit-message": {"command": "... <commit>"}}}' | shampoo init
+```
 
-It writes the rules, checks, recommended policies, the task source and the
-hooks in `.claude/settings.json`. It needs no label on GitHub.
-It prints what it wrote and what it kept. When it says there is no review
-phase, no policy is marked for review: keep it so only if the project wants no
-review.
+Writes `.shampoo/`, recommended policies, and hooks in `.claude/settings.json`
+without overwriting existing files or settings. If `stderr` reports no review
+phase, keep it so only if the project wants no policy review.
 
-## 6. See it run
+## 6. Verify and open a PR
 
-Run `shampoo guard task` and fix what fails: a failing check on code that is
-fine is a check to fix, not code. Then commit the setup on a branch of its own
-and open a pull request with what you decided.
+Run each check command and `shampoo guard task`; fix any check that fails on
+clean code. Commit the setup on its own branch and open a pull request with
+what you decided.
