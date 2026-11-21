@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/toms74209200/shampoo/internal/budget"
 	"github.com/toms74209200/shampoo/internal/policy"
 	"github.com/toms74209200/shampoo/internal/review"
 	"github.com/toms74209200/shampoo/internal/rule"
@@ -19,6 +20,8 @@ type Observation struct {
 	Default      bool
 	Questions    []string
 	MaxOpen      int
+	Escalations  []string
+	Due          budget.Due
 	Verdict      rule.Outcome
 	Tree         string
 	Policies     []policy.Policy
@@ -62,6 +65,16 @@ type Idle struct{ Source string }
 
 type Blocked struct{ Questions []string }
 
+type ReviewingWorkflow struct {
+	Asked    []string
+	Repaired []string
+}
+
+type Escalating struct {
+	Title string
+	Body  string
+}
+
 type Editing struct{ Branch string }
 
 type Repairing struct{ Branch string }
@@ -96,19 +109,21 @@ type Passed struct{ Branch string }
 
 type Merged struct{ Branch string }
 
-func (NoSource) state()  {}
-func (Idle) state()      {}
-func (Blocked) state()   {}
-func (Editing) state()   {}
-func (Repairing) state() {}
-func (Handed) state()    {}
-func (Done) state()      {}
-func (Ready) state()     {}
-func (Failing) state()   {}
-func (Stalled) state()   {}
-func (Waiting) state()   {}
-func (Passed) state()    {}
-func (Merged) state()    {}
+func (NoSource) state()          {}
+func (Idle) state()              {}
+func (Blocked) state()           {}
+func (ReviewingWorkflow) state() {}
+func (Escalating) state()        {}
+func (Editing) state()           {}
+func (Repairing) state()         {}
+func (Handed) state()            {}
+func (Done) state()              {}
+func (Ready) state()             {}
+func (Failing) state()           {}
+func (Stalled) state()           {}
+func (Waiting) state()           {}
+func (Passed) state()            {}
+func (Merged) state()            {}
 
 type Action struct {
 	Action       string           `json:"action"`
@@ -119,6 +134,8 @@ type Action struct {
 	Requirements map[string]any   `json:"requirements,omitempty"`
 	Findings     []review.Finding `json:"findings,omitempty"`
 	Questions    []string         `json:"questions,omitempty"`
+	Asked        []string         `json:"asked,omitempty"`
+	Repaired     []string         `json:"repaired,omitempty"`
 }
 
 type Failure struct {
@@ -141,10 +158,28 @@ func Parse(o Observation) State {
 	if o.Source == "" || (!strings.Contains(o.Source, "://") && !o.SourceFound) {
 		return NoSource{Source: o.Source}
 	}
+	if o.Default && len(o.Escalations) > 0 {
+		return Blocked{Questions: o.Escalations}
+	}
 	if o.Default && len(o.Questions) > o.MaxOpen {
 		return Blocked{Questions: o.Questions}
 	}
 	if o.Default {
+		switch due := o.Due.(type) {
+		case budget.Review:
+			return ReviewingWorkflow{Asked: due.Asked, Repaired: due.Repaired}
+		case budget.Escalate:
+			body := "Workflow reviews keep failing: the tasks below still ask a human or repair the harness too often. Review the workflow, then close this issue.\n\nAsked a human:\n"
+			for _, task := range due.Asked {
+				body += "- " + task + "\n"
+			}
+			body += "\nRepaired the harness:\n"
+			for _, task := range due.Repaired {
+				body += "- " + task + "\n"
+			}
+			return Escalating{Title: "Review the workflow: reviews keep failing", Body: body}
+		case budget.Steady, nil:
+		}
 		return Idle{Source: o.Source}
 	}
 	pr := o.PullRequest
@@ -214,6 +249,10 @@ func Decide(s State) Action {
 		return Action{Action: "take-task", Source: s.Source}
 	case Blocked:
 		return Action{Action: "wait-for-human", Questions: s.Questions}
+	case ReviewingWorkflow:
+		return Action{Action: "review-workflow", Asked: s.Asked, Repaired: s.Repaired}
+	case Escalating:
+		return Action{Action: "wait-for-human"}
 	case Editing:
 		return Action{Action: "continue", Branch: s.Branch}
 	case Repairing:

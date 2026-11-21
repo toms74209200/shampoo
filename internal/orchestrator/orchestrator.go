@@ -80,6 +80,25 @@ func Next(dir string) (next.Action, error) {
 	for _, question := range questions {
 		state.Questions = append(state.Questions, question.URL)
 	}
+	list, err = gh("issue", "list", "--label", options.WorkflowReview.Label, "--state", "open", "--limit", "1000", "--json", "url")
+	if err != nil {
+		return next.Action{}, fmt.Errorf("next: %w", err)
+	}
+	var escalations []struct {
+		URL string `json:"url"`
+	}
+	if err := json.Unmarshal(list, &escalations); err != nil {
+		return next.Action{}, fmt.Errorf("next: gh issue list: %w", err)
+	}
+	for _, escalation := range escalations {
+		state.Escalations = append(state.Escalations, escalation.URL)
+	}
+	statsPath := filepath.Join(repo.CommonDir, "shampoo", "stats.jsonl")
+	stats, err := files.Optional(statsPath)
+	if err != nil {
+		return next.Action{}, err
+	}
+	state.Due = budget.Reviewing(budget.ParseStats(stats), options.WorkflowReview)
 	state.Policies, err = Policies(repo.Root)
 	if err != nil {
 		return next.Action{}, err
@@ -171,6 +190,28 @@ func Next(dir string) (next.Action, error) {
 			return next.Action{}, fmt.Errorf("next: %w", err)
 		}
 		parsed = next.Merged(s)
+	case next.ReviewingWorkflow:
+		encoded, err := json.Marshal(budget.Stat{Review: "workflow"})
+		if err != nil {
+			return next.Action{}, err
+		}
+		if err := files.Update(statsPath, func(data []byte) ([]byte, error) { return append(append(data, encoded...), '\n'), nil }); err != nil {
+			return next.Action{}, err
+		}
+	case next.Escalating:
+		created, err := gh("issue", "create", "--title", s.Title, "--label", options.WorkflowReview.Label, "--body", s.Body)
+		if err != nil {
+			return next.Action{}, fmt.Errorf("next: %w", err)
+		}
+		issue := strings.TrimSpace(string(created))
+		encoded, err := json.Marshal(budget.Stat{Review: "human", Issue: issue})
+		if err != nil {
+			return next.Action{}, err
+		}
+		if err := files.Update(statsPath, func(data []byte) ([]byte, error) { return append(append(data, encoded...), '\n'), nil }); err != nil {
+			return next.Action{}, err
+		}
+		parsed = next.Blocked{Questions: []string{issue}}
 	case next.NoSource:
 		return next.Action{}, fmt.Errorf("next: the task source %q is not set or not found; set [orchestrator] tasks in .shampoo/settings.toml", s.Source)
 	case next.Stalled:
