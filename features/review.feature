@@ -1,10 +1,12 @@
 Feature: Review a task against its policies
   When a policy is marked for review, a task whose guard has passed is
-  reviewed once before its pull request. `shampoo next` says to review,
-  with the marked policies and the project's requirements on the review.
-  The reviewing agent records its findings with `shampoo review`, and
-  `shampoo next` hands them to the agent that did the work, with the
-  action to open the pull request, as feedback.
+  reviewed before its pull request. `shampoo next` says to review, with
+  the marked policies and the project's requirements on the review. The
+  reviewing agent records its findings with `shampoo review`. Findings
+  send the task back to its editing, with them, and it is reviewed again
+  once changed; a review without findings lets it open its pull request.
+  Findings that do not drop from one review to the next repair the
+  harness.
 
   Background:
     Given a git repository with a commit
@@ -44,14 +46,15 @@ Feature: Review a task against its policies
     Then the next action is "review"
     And the next action has the requirement "model" "claude-opus-5-5"
 
-  @sha:d383c842ee6d
-  Scenario: A reviewed task opens a pull request with the findings
+  @skip
+  Scenario: A review with findings sends the task back with them
     Given a policy "functions" for review
     And "shampoo guard task" has passed
     And the review found "a wrapper used once" on policy "functions"
     And no pull request is open
     When I run "shampoo next"
-    Then the next action is "open-pr"
+    Then the next action is "continue"
+    And the next action has "branch" "task-a"
     And the next action has the finding "a wrapper used once" on policy "functions"
 
   @sha:1fc9463d7c9e
@@ -64,8 +67,8 @@ Feature: Review a task against its policies
     Then the next action is "open-pr"
     And the next action has no findings
 
-  @sha:46fbb3f792f9
-  Scenario: A task changed after its review is not reviewed again
+  @skip
+  Scenario: A task changed after a review with findings is reviewed again
     Given a policy "functions" for review
     And "shampoo guard task" has passed
     And the review found "a wrapper used once" on policy "functions"
@@ -73,8 +76,45 @@ Feature: Review a task against its policies
     And "shampoo guard task" has passed
     And no pull request is open
     When I run "shampoo next"
+    Then the next action is "review"
+
+  @skip
+  Scenario: A task changed after a review without findings is not reviewed again
+    Given a policy "functions" for review
+    And "shampoo guard task" has passed
+    And the review found nothing
+    And a changed file "main.go"
+    And "shampoo guard task" has passed
+    And no pull request is open
+    When I run "shampoo next"
     Then the next action is "open-pr"
-    And the next action has no findings
+
+  @skip
+  Scenario: Findings that drop from one review to the next keep the task going
+    Given a policy "functions" for review
+    And settings allowing 0 reviews whose findings do not drop
+    And "shampoo guard task" has passed
+    And the review found 2 findings on policy "functions"
+    And a changed file "main.go"
+    And "shampoo guard task" has passed
+    And the review found 1 finding on policy "functions"
+    And no pull request is open
+    When I run "shampoo next"
+    Then the next action is "continue"
+
+  @skip
+  Scenario: Findings that do not drop repair the harness
+    Given a policy "functions" for review
+    And settings allowing 0 reviews whose findings do not drop
+    And "shampoo guard task" has passed
+    And the review found 1 finding on policy "functions"
+    And a changed file "main.go"
+    And "shampoo guard task" has passed
+    And the review found 1 finding on policy "functions"
+    And no pull request is open
+    When I run "shampoo next"
+    Then the next action is "repair-harness"
+    And the next action has "branch" "task-a"
 
   @sha:154a9dc4cf1c
   Scenario: A review of another task does not count
