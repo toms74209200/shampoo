@@ -12,8 +12,8 @@ and the ledger each time.
 | Action | What to do |
 |---|---|
 | `take-task` | Take one task from the task source in `source`, make a branch for it from the default branch, and work on it until it meets its Done when. In `tasks/`, delete the task's file in the same pull request. When no task is left, stop |
-| `continue` | Go on with the task on `branch`; the guard sends you back with the reasons |
-| `repair-harness` | The same violations keep coming: find whether the work or the check causes them, and fix that before the task |
+| `continue` | Go on with the task on `branch`; the guard sends you back with the reasons. With `findings`, change what they call for: the task is reviewed again once changed |
+| `repair-harness` | The same violations keep coming: find whether the work or the check causes them, and fix that before the task. With `policies`, review findings did not converge: make those policies say what the work and the review can both settle |
 | `review` | Review the change against the `policies`, under the `requirements`, and record it with `shampoo review` |
 | `open-pr` | Push the branch and open the pull request; put the `findings` in its description |
 | `wait` | Wait for the checks of the pull request, then ask again; do not poll faster than they run |

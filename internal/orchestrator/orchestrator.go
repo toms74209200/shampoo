@@ -107,6 +107,12 @@ func Next(dir string) (next.Action, error) {
 	if err != nil {
 		return next.Action{}, fmt.Errorf("next: %w", err)
 	}
+	ledger, err := files.Optional(filepath.Join(repo.CommonDir, "shampoo", "ledger.jsonl"))
+	if err != nil {
+		return next.Action{}, err
+	}
+	lines := budget.ParseLedger(ledger)
+	state.Convergence = budget.Converge(lines, branch, options.ReviewAttempts, options.RepairAttempts)
 	state.Tree, err = repo.Snapshot()
 	if err != nil {
 		return next.Action{}, err
@@ -319,13 +325,21 @@ func Review(dir string, input io.Reader) error {
 	if err := files.Update(filepath.Join(repo.GitDir, "shampoo", "review.json"), func([]byte) ([]byte, error) { return encoded, nil }); err != nil {
 		return err
 	}
-	run := rand.Text()
-	lines := []budget.Line{{Run: run, Task: branch, Transition: "review", Outcome: rule.Pass}}
-	for _, finding := range findings {
-		lines = append(lines, budget.Line{Run: run, Task: branch, Transition: "review", Policy: finding.Policy, Outcome: rule.Finding})
+	configured, err := files.Optional(filepath.Join(repo.Root, ".shampoo", "settings.toml"))
+	if err != nil {
+		return err
 	}
+	options, err := settings.Parse(configured)
+	if err != nil {
+		return err
+	}
+	var found []string
+	for _, finding := range findings {
+		found = append(found, finding.Policy)
+	}
+	run := rand.Text()
 	return files.Update(filepath.Join(repo.CommonDir, "shampoo", "ledger.jsonl"), func(ledger []byte) ([]byte, error) {
-		for _, line := range lines {
+		for _, line := range budget.Reviewed(ledger, run, branch, found, options.ReviewAttempts) {
 			encoded, err := json.Marshal(line)
 			if err != nil {
 				return nil, err

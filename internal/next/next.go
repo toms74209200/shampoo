@@ -27,6 +27,7 @@ type Observation struct {
 	Policies     []policy.Policy
 	Requirements map[string]any
 	Record       *Record
+	Convergence  budget.Convergence
 	PullRequest  *PullRequest
 	Now          time.Time
 	MaxWait      time.Duration
@@ -75,9 +76,15 @@ type Escalating struct {
 	Body  string
 }
 
-type Editing struct{ Branch string }
+type Editing struct {
+	Branch   string
+	Findings []review.Finding
+}
 
-type Repairing struct{ Branch string }
+type Repairing struct {
+	Branch   string
+	Policies []string
+}
 
 type Handed struct{ Branch string }
 
@@ -87,10 +94,7 @@ type Done struct {
 	Requirements map[string]any
 }
 
-type Ready struct {
-	Branch   string
-	Findings []review.Finding
-}
+type Ready struct{ Branch string }
 
 type Failing struct {
 	Branch   string
@@ -206,11 +210,25 @@ func Parse(o Observation) State {
 			}
 		}
 		mine := o.Record != nil && o.Record.Branch == o.Branch
+		found := mine && len(o.Record.Findings) > 0
 		switch {
-		case !mine && len(marked) > 0:
+		case !mine && len(marked) > 0, found && o.Record.Tree != o.Tree:
 			return Done{Branch: o.Branch, Policies: marked, Requirements: o.Requirements}
-		case mine && o.Record.Tree == o.Tree:
-			return Ready{Branch: o.Branch, Findings: o.Record.Findings}
+		case found:
+			switch o.Convergence.(type) {
+			case budget.Exhausted:
+				return Handed{Branch: o.Branch}
+			case budget.Diverging:
+				var policies []string
+				for _, finding := range o.Record.Findings {
+					if !slices.Contains(policies, finding.Policy) {
+						policies = append(policies, finding.Policy)
+					}
+				}
+				return Repairing{Branch: o.Branch, Policies: policies}
+			case budget.Converging:
+			}
+			return Editing{Branch: o.Branch, Findings: o.Record.Findings}
 		}
 		return Ready{Branch: o.Branch}
 	}
@@ -254,15 +272,15 @@ func Decide(s State) Action {
 	case Escalating:
 		return Action{Action: "wait-for-human"}
 	case Editing:
-		return Action{Action: "continue", Branch: s.Branch}
+		return Action{Action: "continue", Branch: s.Branch, Findings: s.Findings}
 	case Repairing:
-		return Action{Action: "repair-harness", Branch: s.Branch}
+		return Action{Action: "repair-harness", Branch: s.Branch, Policies: s.Policies}
 	case Handed:
 		return Action{Action: "hand-to-human", Branch: s.Branch}
 	case Done:
 		return Action{Action: "review", Branch: s.Branch, Policies: s.Policies, Requirements: s.Requirements}
 	case Ready:
-		return Action{Action: "open-pr", Branch: s.Branch, Findings: s.Findings}
+		return Action{Action: "open-pr", Branch: s.Branch}
 	case Failing:
 		return Action{Action: "fix-pr", Branch: s.Branch, Failures: s.Failures}
 	case Waiting:

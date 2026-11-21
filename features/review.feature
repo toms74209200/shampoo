@@ -46,7 +46,6 @@ Feature: Review a task against its policies
     Then the next action is "review"
     And the next action has the requirement "model" "claude-opus-5-5"
 
-  @skip
   @sha:aeef627ba636
   Scenario: A review with findings sends the task back with them
     Given a policy "functions" for review
@@ -68,7 +67,6 @@ Feature: Review a task against its policies
     Then the next action is "open-pr"
     And the next action has no findings
 
-  @skip
   @sha:e2cf89c81ca9
   Scenario: A task changed after a review with findings is reviewed again
     Given a policy "functions" for review
@@ -80,7 +78,6 @@ Feature: Review a task against its policies
     When I run "shampoo next"
     Then the next action is "review"
 
-  @skip
   @sha:c0ed05b8634f
   Scenario: A task changed after a review without findings is not reviewed again
     Given a policy "functions" for review
@@ -92,7 +89,6 @@ Feature: Review a task against its policies
     When I run "shampoo next"
     Then the next action is "open-pr"
 
-  @skip
   @sha:557091e79251
   Scenario: Findings that drop from one review to the next keep the task going
     Given a policy "functions" for review
@@ -106,7 +102,6 @@ Feature: Review a task against its policies
     When I run "shampoo next"
     Then the next action is "continue"
 
-  @skip
   @sha:03d06d8c939d
   Scenario: Findings that do not drop repair the harness
     Given a policy "functions" for review
@@ -144,7 +139,6 @@ Feature: Review a task against its policies
     When I run "shampoo review" with a finding on policy "layout"
     Then the exit code is 2
 
-  @skip
   @sha:ee438d8f661f
   Scenario: Findings that do not drop count against the repair budget
     Given a policy "functions" for review
