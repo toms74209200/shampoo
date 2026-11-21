@@ -12,7 +12,6 @@ import (
 )
 
 func main() {
-	directives := []string{"//go:", "//nolint:", "//line ", "//sumtype:decl"}
 	fset := token.NewFileSet()
 	var found []string
 	paths := bufio.NewScanner(os.Stdin)
@@ -22,15 +21,8 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		if ast.IsGenerated(file) {
-			continue
-		}
-		for _, group := range file.Comments {
-			for _, c := range group.List {
-				if !slices.ContainsFunc(directives, func(d string) bool { return strings.HasPrefix(c.Text, d) }) {
-					found = append(found, fmt.Sprintf("%s: %s", fset.Position(c.Pos()), c.Text))
-				}
-			}
+		for _, c := range Comments(file) {
+			found = append(found, fmt.Sprintf("%s: %s", fset.Position(c.Pos()), c.Text))
 		}
 	}
 	if len(found) > 0 {
@@ -38,4 +30,20 @@ func main() {
 		fmt.Fprintln(os.Stderr, strings.Join(found, "\n"))
 		os.Exit(1)
 	}
+}
+
+func Comments(file *ast.File) []*ast.Comment {
+	directives := []string{"//go:", "//nolint:", "//line ", "//sumtype:decl"}
+	if ast.IsGenerated(file) {
+		return nil
+	}
+	var found []*ast.Comment
+	for _, group := range file.Comments {
+		for _, c := range group.List {
+			if !slices.ContainsFunc(directives, func(d string) bool { return strings.HasPrefix(c.Text, d) }) {
+				found = append(found, c)
+			}
+		}
+	}
+	return found
 }
