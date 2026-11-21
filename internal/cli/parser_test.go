@@ -22,6 +22,7 @@ func TestParse(t *testing.T) {
 		{name: "when Parse with review then returns review", args: []string{"review"}, want: Review{}},
 		{name: "when Parse with policies then returns policies", args: []string{"policies"}, want: Policies{}},
 		{name: "when Parse with ask then returns ask", args: []string{"ask"}, want: Ask{}},
+		{name: "when Parse with init then returns init", args: []string{"init"}, want: Init{}},
 		{name: "when Parse with guard and a transition checked by CI then returns an error", args: []string{"guard", "pr"}, wantErr: true},
 		{name: "when Parse with guard and an unknown transition then returns an error", args: []string{"guard", "merge"}, wantErr: true},
 		{name: "when Parse with guard and no transition then returns an error", args: []string{"guard"}, wantErr: true},

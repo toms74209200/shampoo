@@ -26,6 +26,7 @@ import (
 	"github.com/toms74209200/shampoo/internal/review"
 	"github.com/toms74209200/shampoo/internal/rule"
 	"github.com/toms74209200/shampoo/internal/settings"
+	"github.com/toms74209200/shampoo/internal/setup"
 	"github.com/toms74209200/shampoo/internal/workflow"
 )
 
@@ -331,4 +332,94 @@ func Review(dir string, input io.Reader) error {
 		}
 		return ledger, nil
 	})
+}
+
+type Setup struct {
+	Written []string `json:"written"`
+	Kept    []string `json:"kept"`
+}
+
+func Init(dir string, input io.Reader) (Setup, string, error) {
+	repo, err := git.Open(dir)
+	if err != nil {
+		return Setup{}, "", err
+	}
+	data, err := io.ReadAll(input)
+	if err != nil {
+		return Setup{}, "", err
+	}
+	plan, err := setup.Parse(data)
+	if err != nil {
+		return Setup{}, "", err
+	}
+	written, err := setup.Files(plan)
+	if err != nil {
+		return Setup{}, "", err
+	}
+	report := Setup{Written: []string{}, Kept: []string{}}
+	for _, file := range written {
+		path := filepath.Join(repo.Root, file.Path)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return report, "", err
+		}
+		created, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+		if errors.Is(err, fs.ErrExist) {
+			report.Kept = append(report.Kept, file.Path)
+			continue
+		}
+		if err != nil {
+			return report, "", err
+		}
+		_, err = created.Write(file.Data)
+		if err := errors.Join(err, created.Close()); err != nil {
+			return report, "", err
+		}
+		report.Written = append(report.Written, file.Path)
+	}
+	claude := filepath.Join(repo.Root, ".claude", "settings.json")
+	if err := files.Update(claude, setup.Hooks); err != nil {
+		return report, "", err
+	}
+	if err := os.Remove(claude + ".lock"); err != nil {
+		return report, "", err
+	}
+	report.Written = append(report.Written, ".claude/settings.json")
+	configured, err := files.Optional(filepath.Join(repo.Root, ".shampoo", "settings.toml"))
+	if err != nil {
+		return report, "", err
+	}
+	options, err := settings.Parse(configured)
+	if err != nil {
+		return report, "", err
+	}
+	cmd := exec.Command("gh", "label", "list", "--limit", "1000", "--json", "name")
+	cmd.Dir = repo.Root
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return report, "", fmt.Errorf("gh label list: %w: %s", err, strings.TrimSpace(stderr.String()))
+	}
+	var labels []struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(out, &labels); err != nil {
+		return report, "", fmt.Errorf("gh label list: %w", err)
+	}
+	var names []string
+	for _, label := range labels {
+		names = append(names, label.Name)
+	}
+	for _, label := range setup.Missing(names, []string{options.QuestionLabel, options.WorkflowReview.Label}) {
+		create := exec.Command("gh", "label", "create", label)
+		create.Dir = repo.Root
+		if out, err := create.CombinedOutput(); err != nil {
+			return report, "", fmt.Errorf("gh label create %s: %w: %s", label, err, strings.TrimSpace(string(out)))
+		}
+	}
+	policies, err := Policies(repo.Root)
+	if err != nil {
+		return report, "", err
+	}
+	return report, setup.Notice(policies), nil
 }

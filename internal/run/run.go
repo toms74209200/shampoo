@@ -46,6 +46,19 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		} else {
 			output = url + "\n"
 		}
+	case cli.Init:
+		report, notice, err := orchestrator.Init("", stdin)
+		message = notice
+		if err != nil {
+			code, message = 2, fmt.Sprintf("shampoo init: %v\n", err)
+			break
+		}
+		encoded, err := json.Marshal(report)
+		if err != nil {
+			code, message = 2, fmt.Sprintf("shampoo init: %v\n", err)
+			break
+		}
+		output = string(encoded) + "\n"
 	case cli.Review:
 		if err := orchestrator.Review("", stdin); err != nil {
 			code, message = 2, fmt.Sprintf("shampoo review: %v\n", err)

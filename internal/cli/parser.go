@@ -7,7 +7,7 @@ import (
 	"github.com/toms74209200/shampoo/internal/rule"
 )
 
-var ErrUsage = errors.New("usage: shampoo guard <transition> | shampoo next | shampoo review | shampoo policies | shampoo ask")
+var ErrUsage = errors.New("usage: shampoo guard <transition> | shampoo next | shampoo review | shampoo policies | shampoo ask | shampoo init")
 
 //sumtype:decl
 type Command interface{ command() }
@@ -22,14 +22,17 @@ type Policies struct{}
 
 type Ask struct{}
 
+type Init struct{}
+
 func (Guard) command()    {}
 func (Next) command()     {}
 func (Review) command()   {}
 func (Policies) command() {}
 func (Ask) command()      {}
+func (Init) command()     {}
 
 func Parse(args []string) (Command, error) {
-	commands := map[string]Command{"next": Next{}, "review": Review{}, "policies": Policies{}, "ask": Ask{}}
+	commands := map[string]Command{"next": Next{}, "review": Review{}, "policies": Policies{}, "ask": Ask{}, "init": Init{}}
 	if len(args) == 1 {
 		if command, ok := commands[args[0]]; ok {
 			return command, nil
