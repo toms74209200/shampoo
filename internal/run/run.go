@@ -9,7 +9,6 @@ import (
 	"github.com/toms74209200/shampoo/internal/guard"
 	"github.com/toms74209200/shampoo/internal/orchestrator"
 	"github.com/toms74209200/shampoo/internal/policy"
-	"github.com/toms74209200/shampoo/internal/rule"
 )
 
 func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
@@ -64,7 +63,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		}
 	case cli.Guard:
 		outcome, report, err := guard.Run("", c.Transition)
-		code, message = rule.ExitCodes[outcome], report
+		code, message = cli.Exits[outcome], report
 		if err != nil {
 			message += fmt.Sprintf("shampoo guard: %v\n", err)
 		}

@@ -19,8 +19,6 @@ const (
 	Question        Outcome = "question"
 )
 
-var ExitCodes = map[Outcome]int{TaskFailure: 1, WorkflowFailure: 2, Exceeded: 3, Handed: 4}
-
 type Exit struct {
 	Codes map[int]Outcome
 	Other Outcome
