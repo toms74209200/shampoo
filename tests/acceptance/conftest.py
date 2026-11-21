@@ -75,6 +75,14 @@ elif args[:2] == ["issue", "list"]:
     label = args[args.index("--label") + 1]
     issues = json.loads((state / "issues.json").read_text())
     print(json.dumps([issue for issue in issues if label in issue["labels"] and issue["state"] == "OPEN"]))
+elif args[:2] == ["label", "list"]:
+    print(json.dumps([{{"name": name}} for name in json.loads((state / "labels.json").read_text())]))
+elif args[:2] == ["label", "create"]:
+    labels = json.loads((state / "labels.json").read_text())
+    if args[2] in labels:
+        print("label already exists", file=sys.stderr)
+        sys.exit(1)
+    (state / "labels.json").write_text(json.dumps(labels + [args[2]]))
 else:
     print("fake gh: unexpected " + " ".join(args), file=sys.stderr)
     sys.exit(1)
@@ -87,6 +95,7 @@ def gh_state(tmp_path):
     state.mkdir()
     (state / "runs.json").write_text("[]")
     (state / "issues.json").write_text("[]")
+    (state / "labels.json").write_text("[]")
     return state
 
 
