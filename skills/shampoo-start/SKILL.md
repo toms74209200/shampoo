@@ -11,7 +11,7 @@ a workflow failure to fix or report rather than guessing.
 
 | Action | What to do |
 |---|---|
-| `take-task` | Pick one task from `source`, create a branch from the default branch (`git switch -c`), and work until its "Done when" holds. In `tasks/`, delete the task file in the same PR. When no tasks remain, stop |
+| `take-task` | Pick one task from `source`, create a branch from the default branch (`git switch -c`) named after the task, such as the task file's name in `tasks/`, and work until its "Done when" holds. In `tasks/`, delete the task file in the same PR. When no tasks remain, stop |
 | `continue` | Continue on `branch`; hooks run `shampoo guard` and send violations back. With `findings`, address them — once the tree changes and passes `shampoo guard task`, `shampoo next` will ask for another review |
 | `repair-harness` | Without `policies`, find whether the work or the check caused the repeated violations, and fix that before going on with the task. With `policies`, review findings did not converge: clarify those `.shampoo/policies/` files so the work and the review agree |
 | `review` | Review the changes on `branch` against `policies` (under `requirements` if set), and record the result with `shampoo review` |
@@ -22,6 +22,10 @@ a workflow failure to fix or report rather than guessing.
 | `review-workflow` | Inspect `.shampoo/policies/`, `.shampoo/settings.toml`, and `.shampoo/checks/` for why the tasks in `asked` or `repaired` asked a human or repaired the harness too often, and fix the cause as a task PR |
 | `wait-for-human` | Stop: the GitHub issues in `questions` await a human |
 | `hand-to-human` | Stop: the task on `branch` is handed to a human |
+
+When the context was compacted, or the policies or the task are no longer in
+it, run `shampoo policies` and read the task again, found by the branch name,
+before going on.
 
 Record a review (`[]` when nothing is found):
 
