@@ -24,12 +24,8 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		for _, decl := range file.Decls {
-			fn, ok := decl.(*ast.FuncDecl)
-			if !ok || !strings.HasPrefix(fn.Name.Name, "Test") || fn.Name.Name == "TestMain" {
-				continue
-			}
-			found = append(found, inspect(fset, fn)...)
+		for _, finding := range Names(file) {
+			found = append(found, fmt.Sprintf("%s: %s", fset.Position(finding.Pos), finding.Text))
 		}
 	}
 	if len(found) > 0 {
@@ -39,8 +35,25 @@ func main() {
 	}
 }
 
-func inspect(fset *token.FileSet, fn *ast.FuncDecl) []string {
-	var found []string
+type Finding struct {
+	Pos  token.Pos
+	Text string
+}
+
+func Names(file *ast.File) []Finding {
+	var found []Finding
+	for _, decl := range file.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || !strings.HasPrefix(fn.Name.Name, "Test") || fn.Name.Name == "TestMain" {
+			continue
+		}
+		found = append(found, inspect(fn)...)
+	}
+	return found
+}
+
+func inspect(fn *ast.FuncDecl) []Finding {
+	var found []Finding
 	literals := map[string]*ast.CompositeLit{}
 	tables := map[string]ast.Expr{}
 	runs := 0
@@ -84,24 +97,24 @@ func inspect(fset *token.FileSet, fn *ast.FuncDecl) []string {
 		case *ast.BasicLit:
 			text, _ := strconv.Unquote(name.Value)
 			if !pattern.MatchString(text) {
-				found = append(found, fmt.Sprintf("%s: %s", fset.Position(name.Pos()), name.Value))
+				found = append(found, Finding{Pos: name.Pos(), Text: name.Value})
 			}
 		case *ast.SelectorExpr:
 			rows, ok := rowsOf(name, tables, literals)
 			if !ok {
-				found = append(found, fmt.Sprintf("%s: a test name is a field of a row of the table the test ranges over", fset.Position(name.Pos())))
+				found = append(found, Finding{Pos: name.Pos(), Text: "a test name is a field of a row of the table the test ranges over"})
 				return true
 			}
 			for _, row := range rows {
-				found = append(found, checkRow(fset, row, name.Sel.Name)...)
+				found = append(found, checkRow(row, name.Sel.Name)...)
 			}
 		default:
-			found = append(found, fmt.Sprintf("%s: a test name is a string literal or a table field", fset.Position(name.Pos())))
+			found = append(found, Finding{Pos: name.Pos(), Text: "a test name is a string literal or a table field"})
 		}
 		return true
 	})
 	if runs == 0 {
-		found = append(found, fmt.Sprintf("%s: %s names no test with t.Run", fset.Position(fn.Pos()), fn.Name.Name))
+		found = append(found, Finding{Pos: fn.Pos(), Text: fmt.Sprintf("%s names no test with t.Run", fn.Name.Name)})
 	}
 	return found
 }
@@ -124,13 +137,13 @@ func rowsOf(name *ast.SelectorExpr, tables map[string]ast.Expr, literals map[str
 	return nil, false
 }
 
-func checkRow(fset *token.FileSet, row ast.Expr, field string) []string {
+func checkRow(row ast.Expr, field string) []Finding {
 	if kv, ok := row.(*ast.KeyValueExpr); ok {
 		row = kv.Value
 	}
 	lit, ok := row.(*ast.CompositeLit)
 	if !ok {
-		return []string{fmt.Sprintf("%s: a table row is a composite literal", fset.Position(row.Pos()))}
+		return []Finding{{Pos: row.Pos(), Text: "a table row is a composite literal"}}
 	}
 	for _, elt := range lit.Elts {
 		kv, ok := elt.(*ast.KeyValueExpr)
@@ -143,13 +156,13 @@ func checkRow(fset *token.FileSet, row ast.Expr, field string) []string {
 		}
 		value, ok := kv.Value.(*ast.BasicLit)
 		if !ok {
-			return []string{fmt.Sprintf("%s: a test name is a string literal", fset.Position(kv.Value.Pos()))}
+			return []Finding{{Pos: kv.Value.Pos(), Text: "a test name is a string literal"}}
 		}
 		text, _ := strconv.Unquote(value.Value)
 		if pattern.MatchString(text) {
 			return nil
 		}
-		return []string{fmt.Sprintf("%s: %s", fset.Position(value.Pos()), value.Value)}
+		return []Finding{{Pos: value.Pos(), Text: value.Value}}
 	}
-	return []string{fmt.Sprintf("%s: the row has no %s", fset.Position(lit.Pos()), field)}
+	return []Finding{{Pos: lit.Pos(), Text: fmt.Sprintf("the row has no %s", field)}}
 }
