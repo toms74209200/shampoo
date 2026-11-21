@@ -152,3 +152,15 @@ Feature: Review a task against its policies
     And no pull request is open
     When I run "shampoo next"
     Then the next action is "hand-to-human"
+
+  @skip
+  Scenario: A task whose commits changed after a review with findings is reviewed again
+    Given a policy "pull-requests" for review
+    And the changes are committed
+    And "shampoo guard task" has passed
+    And the review found "one commit mixes two changes" on policy "pull-requests"
+    And the commits are made again with the same tree
+    And "shampoo guard task" has passed
+    And no pull request is open
+    When I run "shampoo next"
+    Then the next action is "review"
