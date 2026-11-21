@@ -10,6 +10,7 @@ Feature: Ask a human
     And a branch "task-a"
 
   @skip
+  @sha:471e34250a02
   Scenario: A question opens an issue and records it
     When I run "shampoo ask" deciding "Merge by squash" instead of "a merge commit" for "a linear history"
     Then the exit code is 0
