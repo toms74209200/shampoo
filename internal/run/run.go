@@ -9,13 +9,11 @@ import (
 	"github.com/toms74209200/shampoo/internal/guard"
 	"github.com/toms74209200/shampoo/internal/orchestrator"
 	"github.com/toms74209200/shampoo/internal/policy"
-	"github.com/toms74209200/shampoo/internal/rule"
 )
 
 func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	var code int
 	var output, message string
-	exits := map[rule.Outcome]int{rule.TaskFailure: 1, rule.WorkflowFailure: 2, rule.Exceeded: 3, rule.Handed: 4}
 	command, err := cli.Parse(args)
 	if err != nil {
 		code, message = 2, err.Error()+"\n"
@@ -65,7 +63,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		}
 	case cli.Guard:
 		outcome, report, err := guard.Run("", c.Transition)
-		code, message = exits[outcome], report
+		code, message = cli.Exits[outcome], report
 		if err != nil {
 			message += fmt.Sprintf("shampoo guard: %v\n", err)
 		}

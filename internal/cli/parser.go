@@ -7,6 +7,8 @@ import (
 	"github.com/toms74209200/shampoo/internal/rule"
 )
 
+var Exits = map[rule.Outcome]int{rule.TaskFailure: 1, rule.WorkflowFailure: 2, rule.Exceeded: 3, rule.Handed: 4}
+
 var ErrUsage = errors.New("usage: shampoo guard <transition> | shampoo next | shampoo review | shampoo policies | shampoo ask | shampoo init")
 
 //sumtype:decl
