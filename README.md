@@ -28,6 +28,18 @@ stateDiagram-v2
 - **Automatic progression and merge**: `shampoo next` inspects git, GitHub, and a local ledger under `.git` to decide which step a task is in — and merges the PR via `gh` once the GitHub Actions workflows matching the changed files pass.
 - **Bounded retries**: Violations, slow checks, and open questions are counted against budgets. Instead of retrying forever, repeated failures move work to `HarnessRepair`, reaching `Human` only when repairs run out.
 
+## What shampoo is not
+
+What agentic coding usually brings to mind, and how shampoo differs:
+
+- **A coding agent**: a model in a loop with tools that reads and writes code. shampoo writes no code and calls no model; it works around the agent you run, through its hooks
+- **An autonomous agent**: one given a goal that decides its own steps and sees it through, often improving itself from experience. shampoo makes no agent autonomous and decides no step; it is the process that can run without a human, because every step is guarded and repeated failure is bounded
+- **An orchestrator** of agent teams: a goal planned into tasks, a planner, coders and reviewers running in parallel, doing more the more agents it runs. shampoo plans nothing, runs and coordinates no agent, and gets no more done with more of them
+- **A collection of skills or rules** that make agents code better: curated prompts, skills and rule files. shampoo ships two skills only to set itself up and a few recommended policies; what good work is stays the project's, and its rules are enforced by checks, not followed by asking
+- **A human-in-the-loop workflow**: approving each step or every pull request. shampoo never waits for a human; it asks through issues and goes on
+
+What it is: guards on every step of the work, and budgets that tell when to stop and fix the harness instead.
+
 ## Prerequisites
 
 - `git` (repository on GitHub with GitHub Actions)
