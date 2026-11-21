@@ -32,13 +32,15 @@ stateDiagram-v2
 
 - `git` (repository on GitHub with GitHub Actions)
 - GitHub CLI (`gh`), authenticated (`gh auth login`) — views/merges PRs, reads workflow runs, and opens/checks issues
-- Go 1.27+
+- Linux (x86_64, aarch64) or macOS (Apple silicon); Go 1.27+ only to build from source
 
 ## Installation
 
 ```bash
-go install github.com/toms74209200/shampoo@latest
+curl -fsSL https://raw.githubusercontent.com/toms74209200/shampoo/master/install.sh | bash
 ```
+
+The binary is installed to `~/.local/bin/shampoo` (`INSTALL_DIR` overrides it). To build from source instead: `go install github.com/toms74209200/shampoo@latest`.
 
 Make sure `shampoo` is in your `PATH`, then install the skills (`~/.claude/skills/` or your agent's skills directory):
 
