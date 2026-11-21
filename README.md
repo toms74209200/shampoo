@@ -24,7 +24,7 @@ stateDiagram-v2
     HarnessRepair --> Human: repair budget exceeded
 ```
 
-- **Gates on every step**: Hooks in `.claude/settings.json` load `.shampoo/policies/` at session start and run `shampoo guard` on every edit and stop. Review findings and CI failures send the agent back to `Editing`.
+- **Gates on every step**: The agent's hooks load `.shampoo/policies/` at session start and run `shampoo guard` on every edit and stop. Review findings and CI failures send the agent back to `Editing`.
 - **Automatic progression and merge**: `shampoo next` inspects git, GitHub, and a local ledger under `.git` to decide which step a task is in — and merges the PR via `gh` once the GitHub Actions workflows matching the changed files pass.
 - **Bounded retries**: Violations, slow checks, and open questions are counted against budgets. Instead of retrying forever, repeated failures move work to `HarnessRepair`, reaching `Human` only when repairs run out.
 
@@ -56,7 +56,7 @@ curl -fsSL --create-dirs -o ~/.claude/skills/shampoo-start/SKILL.md https://raw.
 
 Run `/shampoo-init` once in the target repository.
 
-The agent inspects existing lint, test, coverage, and CI settings, asks only what remains open, writes `.shampoo/`, `tasks/`, and hooks in `.claude/settings.json` (without overwriting existing files), and opens a setup PR. Merge that PR first.
+The agent inspects existing lint, test, coverage, and CI settings, asks only what remains open, writes `.shampoo/` and `tasks/`, wires the agent's hooks to shampoo (without overwriting existing files), and opens a setup PR. Merge that PR first.
 
 ### 2. Prepare tasks
 
@@ -79,7 +79,7 @@ Called under the hood by skills and hooks:
 
 | Command | What happens |
 |---|---|
-| `shampoo init` | Writes `.shampoo/` and `.claude/settings.json` hooks from JSON on `stdin` (keeps existing files) |
+| `shampoo init` | Writes `.shampoo/` from JSON on `stdin` (keeps existing files); nothing of any agent's |
 | `shampoo next` | Prints the next action as JSON; merges passing PRs via `gh`, or opens an issue if workflow reviews keep failing |
 | `shampoo guard <edit\|task>` | Runs checks for changed files and records outcomes in `.git` (`0` pass, `1` task failure, `2` workflow failure, `3` repair harness, `4` hand to human) |
 | `shampoo policies` | Prints `.shampoo/policies/` and `shampoo ask` instructions to `stdout` |
