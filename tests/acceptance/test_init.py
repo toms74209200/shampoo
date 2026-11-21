@@ -1,4 +1,5 @@
 import json
+import subprocess
 import tomllib
 
 from pytest_bdd import given, parsers, scenarios, then, when
@@ -87,29 +88,14 @@ def then_no_label(gh_state):
     assert labels == [], f"got labels {labels!r}"
 
 
-def claude_settings(workspace) -> dict:
-    return json.loads((workspace / ".claude" / "settings.json").read_text())
-
-
-@given(parsers.parse('Claude Code settings with the permission "{permission}"'))
-def given_claude_settings(workspace, permission):
-    (workspace / ".claude").mkdir(parents=True, exist_ok=True)
-    (workspace / ".claude" / "settings.json").write_text(json.dumps({"permissions": {"allow": [permission]}}))
-
-
 @then(parsers.parse('the policy "{policy_id}" is marked for review'))
 def then_policy_review(workspace, policy_id):
     policy = tomllib.loads((workspace / ".shampoo" / "policies" / f"{policy_id}.toml").read_text())
     assert policy.get("review") is True, f"got {policy!r}"
 
 
-@then(parsers.parse('the Claude Code settings have a "{event}" hook running "{command}"'))
-def then_hook(workspace, event, command):
-    commands = [hook["command"] for entry in claude_settings(workspace)["hooks"][event] for hook in entry["hooks"]]
-    assert any(command in got for got in commands), f"got {commands!r}"
-
-
-@then(parsers.parse('the Claude Code settings allow "{permission}"'))
-def then_permission(workspace, permission):
-    allowed = claude_settings(workspace)["permissions"]["allow"]
-    assert permission in allowed, f"got {allowed!r}"
+@then(parsers.parse('nothing is written outside "{directory}"'))
+def then_only_under(workspace, directory):
+    status = subprocess.run(["git", "-C", str(workspace), "status", "--porcelain", "--untracked-files=all"], check=True, capture_output=True, text=True).stdout
+    outside = [line[3:] for line in status.splitlines() if not line[3:].startswith(directory)]
+    assert outside == [], f"written outside {directory}: {outside!r}"
