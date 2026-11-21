@@ -12,12 +12,8 @@ import (
 )
 
 func main() {
-	primitive := map[string]bool{"string": true, "bool": true, "byte": true, "rune": true, "error": true, "any": true,
-		"int": true, "int8": true, "int16": true, "int32": true, "int64": true,
-		"uint": true, "uint8": true, "uint16": true, "uint32": true, "uint64": true, "uintptr": true,
-		"float32": true, "float64": true, "complex64": true, "complex128": true}
 	fset := token.NewFileSet()
-	packages := map[string][]*ast.File{}
+	var sources []Source
 	paths := bufio.NewScanner(os.Stdin)
 	for paths.Scan() {
 		file, err := parser.ParseFile(fset, paths.Text(), nil, 0)
@@ -25,10 +21,40 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		dir := filepath.Dir(paths.Text())
-		packages[dir] = append(packages[dir], file)
+		sources = append(sources, Source{Path: paths.Text(), File: file})
 	}
 	var found []string
+	for _, finding := range Prohibited(sources) {
+		found = append(found, fmt.Sprintf("%s: %s", fset.Position(finding.Pos), finding.Text))
+	}
+	if len(found) > 0 {
+		fmt.Fprintln(os.Stderr, "prohibited functions; write them inline where they are used (.shampoo/rules/prohibited-functions.toml):")
+		fmt.Fprintln(os.Stderr, strings.Join(found, "\n"))
+		os.Exit(1)
+	}
+}
+
+type Source struct {
+	Path string
+	File *ast.File
+}
+
+type Finding struct {
+	Pos  token.Pos
+	Text string
+}
+
+func Prohibited(sources []Source) []Finding {
+	primitive := map[string]bool{"string": true, "bool": true, "byte": true, "rune": true, "error": true, "any": true,
+		"int": true, "int8": true, "int16": true, "int32": true, "int64": true,
+		"uint": true, "uint8": true, "uint16": true, "uint32": true, "uint64": true, "uintptr": true,
+		"float32": true, "float64": true, "complex64": true, "complex128": true}
+	packages := map[string][]*ast.File{}
+	for _, source := range sources {
+		dir := filepath.Dir(source.Path)
+		packages[dir] = append(packages[dir], source.File)
+	}
+	var found []Finding
 	for _, files := range packages {
 		calls := map[string]int{}
 		for _, file := range files {
@@ -120,14 +146,10 @@ func main() {
 					reasons = append(reasons, "wraps statements used in one place")
 				}
 				if len(reasons) > 0 {
-					found = append(found, fmt.Sprintf("%s: func %s: %s", fset.Position(fn.Pos()), fn.Name.Name, strings.Join(reasons, "; ")))
+					found = append(found, Finding{Pos: fn.Pos(), Text: fmt.Sprintf("func %s: %s", fn.Name.Name, strings.Join(reasons, "; "))})
 				}
 			}
 		}
 	}
-	if len(found) > 0 {
-		fmt.Fprintln(os.Stderr, "prohibited functions; write them inline where they are used (.shampoo/rules/prohibited-functions.toml):")
-		fmt.Fprintln(os.Stderr, strings.Join(found, "\n"))
-		os.Exit(1)
-	}
+	return found
 }
