@@ -29,7 +29,6 @@ Feature: Stop taking tasks while too many questions to a human are open
     When I run "shampoo next"
     Then the next action is "take-task"
 
-  @skip
   @sha:a77cb0a77be8
   Scenario: The settings override the limit
     Given settings allowing at most 0 open questions
@@ -37,7 +36,6 @@ Feature: Stop taking tasks while too many questions to a human are open
     When I run "shampoo next"
     Then the next action is "wait-for-human"
 
-  @skip
   @sha:76eba69f6475
   Scenario: Issues shampoo did not open are not counted
     Given 4 issues are open that shampoo did not open

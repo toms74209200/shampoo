@@ -84,7 +84,7 @@ def handing(workspace) -> list:
 
 @given("an issue handing the workflow to a human is open")
 def given_open_issue(workspace, gh_state):
-    open_issue(workspace, gh_state, "workflow-review", "workflow", recorded=True)
+    open_issue(workspace, gh_state, "workflow", recorded=True)
 
 
 @given("the issue handing the workflow to a human is closed")

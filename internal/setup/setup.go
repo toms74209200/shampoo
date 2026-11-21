@@ -285,16 +285,6 @@ func Hooks(data []byte) ([]byte, error) {
 	return data, nil
 }
 
-func Missing(labels, wanted []string) []string {
-	var missing []string
-	for _, label := range wanted {
-		if !slices.Contains(labels, label) && !slices.Contains(missing, label) {
-			missing = append(missing, label)
-		}
-	}
-	return missing
-}
-
 func Notice(policies []policy.Policy) string {
 	if slices.ContainsFunc(policies, func(p policy.Policy) bool { return p.Review }) {
 		return ""

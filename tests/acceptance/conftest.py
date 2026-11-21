@@ -314,10 +314,10 @@ def issues_record(workspace: Path) -> Path:
     return Path(common) / "shampoo" / "issues.jsonl"
 
 
-def open_issue(workspace: Path, gh_state: Path, label: str, kind: str, recorded: bool, state: str = "OPEN") -> str:
+def open_issue(workspace: Path, gh_state: Path, kind: str, recorded: bool, state: str = "OPEN") -> str:
     issues = json.loads((gh_state / "issues.json").read_text())
     url = f"https://github.example/issues/{len(issues) + 1}"
-    issues.append({"url": url, "labels": [label], "state": state})
+    issues.append({"url": url, "labels": [], "state": state})
     (gh_state / "issues.json").write_text(json.dumps(issues))
     if recorded:
         record = issues_record(workspace)

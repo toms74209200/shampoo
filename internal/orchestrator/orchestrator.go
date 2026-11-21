@@ -68,32 +68,27 @@ func Next(dir string) (next.Action, error) {
 		}
 		return out, nil
 	}
-	list, err := gh("issue", "list", "--label", options.QuestionLabel, "--state", "open", "--limit", "1000", "--json", "url")
+	list, err := gh("issue", "list", "--state", "open", "--limit", "1000", "--json", "url")
 	if err != nil {
 		return next.Action{}, fmt.Errorf("next: %w", err)
 	}
-	var questions []struct {
+	var issues []struct {
 		URL string `json:"url"`
 	}
-	if err := json.Unmarshal(list, &questions); err != nil {
+	if err := json.Unmarshal(list, &issues); err != nil {
 		return next.Action{}, fmt.Errorf("next: gh issue list: %w", err)
 	}
-	for _, question := range questions {
-		state.Questions = append(state.Questions, question.URL)
+	var open []string
+	for _, issue := range issues {
+		open = append(open, issue.URL)
 	}
-	list, err = gh("issue", "list", "--label", options.WorkflowReview.Label, "--state", "open", "--limit", "1000", "--json", "url")
+	issuesPath := filepath.Join(repo.CommonDir, "shampoo", "issues.jsonl")
+	recorded, err := files.Optional(issuesPath)
 	if err != nil {
-		return next.Action{}, fmt.Errorf("next: %w", err)
+		return next.Action{}, err
 	}
-	var escalations []struct {
-		URL string `json:"url"`
-	}
-	if err := json.Unmarshal(list, &escalations); err != nil {
-		return next.Action{}, fmt.Errorf("next: gh issue list: %w", err)
-	}
-	for _, escalation := range escalations {
-		state.Escalations = append(state.Escalations, escalation.URL)
-	}
+	opened := question.Opened(recorded, open)
+	state.Questions, state.Escalations = opened.Questions, opened.Workflows
 	statsPath := filepath.Join(repo.CommonDir, "shampoo", "stats.jsonl")
 	stats, err := files.Optional(statsPath)
 	if err != nil {
@@ -104,11 +99,11 @@ func Next(dir string) (next.Action, error) {
 	if err != nil {
 		return next.Action{}, err
 	}
-	recorded, err := files.Optional(filepath.Join(repo.GitDir, "shampoo", "review.json"))
+	reviewed, err := files.Optional(filepath.Join(repo.GitDir, "shampoo", "review.json"))
 	if err != nil {
 		return next.Action{}, err
 	}
-	state.Record, err = next.ParseRecord(recorded)
+	state.Record, err = next.ParseRecord(reviewed)
 	if err != nil {
 		return next.Action{}, fmt.Errorf("next: %w", err)
 	}
@@ -200,11 +195,18 @@ func Next(dir string) (next.Action, error) {
 			return next.Action{}, err
 		}
 	case next.Escalating:
-		created, err := gh("issue", "create", "--title", s.Title, "--label", options.WorkflowReview.Label, "--body", s.Body)
+		created, err := gh("issue", "create", "--title", s.Title, "--body", s.Body)
 		if err != nil {
 			return next.Action{}, fmt.Errorf("next: %w", err)
 		}
 		issue := strings.TrimSpace(string(created))
+		entry, err := json.Marshal(question.Record{Issue: issue, Kind: "workflow", Task: branch})
+		if err != nil {
+			return next.Action{}, err
+		}
+		if err := files.Update(issuesPath, func(data []byte) ([]byte, error) { return append(append(data, entry...), '\n'), nil }); err != nil {
+			return next.Action{}, err
+		}
 		encoded, err := json.Marshal(budget.StatLine{Review: "human", Issue: issue})
 		if err != nil {
 			return next.Action{}, err
@@ -247,14 +249,6 @@ func Ask(dir string, input io.Reader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	data, err := files.Optional(filepath.Join(repo.Root, ".shampoo", "settings.toml"))
-	if err != nil {
-		return "", err
-	}
-	options, err := settings.Parse(data)
-	if err != nil {
-		return "", err
-	}
 	branch, err := repo.Branch()
 	if err != nil {
 		return "", err
@@ -267,13 +261,21 @@ func Ask(dir string, input io.Reader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	cmd := exec.Command("gh", "issue", "create", "--title", issue.Title, "--label", options.QuestionLabel, "--body", issue.Body)
+	cmd := exec.Command("gh", "issue", "create", "--title", issue.Title, "--body", issue.Body)
 	cmd.Dir = repo.Root
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("gh issue create: %w: %s", err, strings.TrimSpace(stderr.String()))
+	}
+	url := strings.TrimSpace(string(out))
+	entry, err := json.Marshal(question.Record{Issue: url, Kind: "question", Task: branch})
+	if err != nil {
+		return "", err
+	}
+	if err := files.Update(filepath.Join(repo.CommonDir, "shampoo", "issues.jsonl"), func(data []byte) ([]byte, error) { return append(append(data, entry...), '\n'), nil }); err != nil {
+		return "", err
 	}
 	encoded, err := json.Marshal(budget.Line{Run: rand.Text(), Task: branch, Transition: "ask", Outcome: rule.Question})
 	if err != nil {
@@ -282,7 +284,7 @@ func Ask(dir string, input io.Reader) (string, error) {
 	err = files.Update(filepath.Join(repo.CommonDir, "shampoo", "ledger.jsonl"), func(ledger []byte) ([]byte, error) {
 		return append(append(ledger, encoded...), '\n'), nil
 	})
-	return strings.TrimSpace(string(out)), err
+	return url, err
 }
 
 func Review(dir string, input io.Reader) error {
@@ -384,39 +386,6 @@ func Init(dir string, input io.Reader) (Setup, string, error) {
 		return report, "", err
 	}
 	report.Written = append(report.Written, ".claude/settings.json")
-	configured, err := files.Optional(filepath.Join(repo.Root, ".shampoo", "settings.toml"))
-	if err != nil {
-		return report, "", err
-	}
-	options, err := settings.Parse(configured)
-	if err != nil {
-		return report, "", err
-	}
-	cmd := exec.Command("gh", "label", "list", "--limit", "1000", "--json", "name")
-	cmd.Dir = repo.Root
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
-	if err != nil {
-		return report, "", fmt.Errorf("gh label list: %w: %s", err, strings.TrimSpace(stderr.String()))
-	}
-	var labels []struct {
-		Name string `json:"name"`
-	}
-	if err := json.Unmarshal(out, &labels); err != nil {
-		return report, "", fmt.Errorf("gh label list: %w", err)
-	}
-	var names []string
-	for _, label := range labels {
-		names = append(names, label.Name)
-	}
-	for _, label := range setup.Missing(names, []string{options.QuestionLabel, options.WorkflowReview.Label}) {
-		create := exec.Command("gh", "label", "create", label)
-		create.Dir = repo.Root
-		if out, err := create.CombinedOutput(); err != nil {
-			return report, "", fmt.Errorf("gh label create %s: %w: %s", label, err, strings.TrimSpace(string(out)))
-		}
-	}
 	policies, err := Policies(repo.Root)
 	if err != nil {
 		return report, "", err

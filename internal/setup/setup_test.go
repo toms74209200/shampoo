@@ -93,28 +93,6 @@ func TestHooks(t *testing.T) {
 	}
 }
 
-func TestMissing(t *testing.T) {
-	tests := []struct {
-		name   string
-		labels []string
-		wanted []string
-		want   []string
-	}{
-		{name: "when Missing with no labels then returns every wanted label once", labels: nil, wanted: []string{"ask", "look", "ask"}, want: []string{"ask", "look"}},
-		{name: "when Missing with a wanted label there then returns the others", labels: []string{"bug", "ask"}, wanted: []string{"ask", "look"}, want: []string{"look"}},
-		{name: "when Missing with every wanted label there then returns nothing", labels: []string{"ask", "look"}, wanted: []string{"ask", "look"}, want: nil},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := Missing(tt.labels, tt.wanted)
-
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("got %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestNotice(t *testing.T) {
 	tests := []struct {
 		name  string

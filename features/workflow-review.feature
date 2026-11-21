@@ -52,7 +52,6 @@ Feature: Review the workflow when tasks ask a human or repair too often
     When I run "shampoo next"
     Then the next action is "review-workflow"
 
-  @skip
   @sha:2b9cd8cc2b42
   Scenario: Reviews failing more times than the limit hand the workflow to a human
     Given settings allowing 0 failed workflow reviews
@@ -63,14 +62,12 @@ Feature: Review the workflow when tasks ask a human or repair too often
     And an issue handing the workflow to a human is open
     And the next action names 1 question
 
-  @skip
   @sha:adece96e9e44
   Scenario: An open issue handing the workflow to a human takes no new task
     Given an issue handing the workflow to a human is open
     When I run "shampoo next"
     Then the next action is "wait-for-human"
 
-  @skip
   @sha:0a41dd259625
   Scenario: A closed issue handing the workflow to a human lets the work go on
     Given settings allowing 0 failed workflow reviews
