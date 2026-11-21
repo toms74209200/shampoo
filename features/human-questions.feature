@@ -1,6 +1,6 @@
 Feature: Stop taking tasks while too many questions to a human are open
-  An agent asks a human, when the policies say so, as a GitHub issue with
-  the label for questions, and goes on without waiting. When more
+  An agent asks a human, when the policies say so, as a GitHub issue that
+  shampoo records, and goes on without waiting. When more of the recorded
   questions are open than the limit, `shampoo next` hands no new task and
   says to wait for a human, with the questions.
 
@@ -29,12 +29,18 @@ Feature: Stop taking tasks while too many questions to a human are open
     When I run "shampoo next"
     Then the next action is "take-task"
 
-  @sha:79bce7a4e815
-  Scenario: The settings override the label and the limit
-    Given settings asking a human with the label "ask" and at most 0 open questions
-    And 1 question to a human labeled "ask" is open
+  @skip
+  Scenario: The settings override the limit
+    Given settings allowing at most 0 open questions
+    And 1 question to a human is open
     When I run "shampoo next"
     Then the next action is "wait-for-human"
+
+  @skip
+  Scenario: Issues shampoo did not open are not counted
+    Given 4 issues are open that shampoo did not open
+    When I run "shampoo next"
+    Then the next action is "take-task"
 
   @sha:20646b13e53c
   Scenario: A task already taken goes on

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from pytest_bdd import given, parsers, scenarios, then
 
-from conftest import new_id, next_action, run_shampoo, write_settings
+from conftest import issues_record, new_id, next_action, open_issue, run_shampoo, write_settings
 
 scenarios("../../features/workflow-review.feature")
 
@@ -76,22 +76,29 @@ def given_handed(workspace, shampoo_binary, fake_bin):
     )
 
 
-@given(parsers.parse('1 issue labeled "{label}" is open'))
-def given_open_issue(gh_state, label):
-    opened = issues(gh_state) + [{"url": f"https://github.example/issues/{new_id()}", "labels": [label], "state": "OPEN"}]
-    (gh_state / "issues.json").write_text(json.dumps(opened))
+def handing(workspace) -> list:
+    record = issues_record(workspace)
+    lines = [json.loads(line) for line in record.read_text().splitlines()] if record.exists() else []
+    return [line["issue"] for line in lines if line["kind"] == "workflow"]
 
 
-@given(parsers.parse('the issue labeled "{label}" is closed'))
-def given_closed_issue(gh_state, label):
-    closed = [{**issue, "state": "CLOSED"} if label in issue["labels"] else issue for issue in issues(gh_state)]
+@given("an issue handing the workflow to a human is open")
+def given_open_issue(workspace, gh_state):
+    open_issue(workspace, gh_state, "workflow-review", "workflow", recorded=True)
+
+
+@given("the issue handing the workflow to a human is closed")
+def given_closed_issue(workspace, gh_state):
+    urls = handing(workspace)
+    closed = [{**issue, "state": "CLOSED"} if issue["url"] in urls else issue for issue in issues(gh_state)]
     (gh_state / "issues.json").write_text(json.dumps(closed))
 
 
-@then(parsers.parse('an issue labeled "{label}" is open'))
-def then_issue_open(gh_state, label):
-    got = [issue for issue in issues(gh_state) if label in issue["labels"] and issue["state"] == "OPEN"]
-    assert len(got) == 1, f"got issues {issues(gh_state)!r}"
+@then("an issue handing the workflow to a human is open")
+def then_issue_open(workspace, gh_state):
+    urls = handing(workspace)
+    got = [issue for issue in issues(gh_state) if issue["url"] in urls and issue["state"] == "OPEN"]
+    assert len(got) == 1, f"got issues {issues(gh_state)!r}, recorded {urls!r}"
 
 
 @then(parsers.parse("the next action names {count:d} question"))

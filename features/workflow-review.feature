@@ -52,29 +52,29 @@ Feature: Review the workflow when tasks ask a human or repair too often
     When I run "shampoo next"
     Then the next action is "review-workflow"
 
-  @sha:0eddbe3687a8
+  @skip
   Scenario: Reviews failing more times than the limit hand the workflow to a human
     Given settings allowing 0 failed workflow reviews
     And "shampoo next" has said to review the workflow
     And 11 merged tasks that asked a human
     When I run "shampoo next"
     Then the next action is "wait-for-human"
-    And an issue labeled "workflow-review" is open
+    And an issue handing the workflow to a human is open
     And the next action names 1 question
 
-  @sha:75b12967825e
+  @skip
   Scenario: An open issue handing the workflow to a human takes no new task
-    Given 1 issue labeled "workflow-review" is open
+    Given an issue handing the workflow to a human is open
     When I run "shampoo next"
     Then the next action is "wait-for-human"
 
-  @sha:08f10dd1dd67
+  @skip
   Scenario: A closed issue handing the workflow to a human lets the work go on
     Given settings allowing 0 failed workflow reviews
     And "shampoo next" has said to review the workflow
     And 11 merged tasks that asked a human
     And "shampoo next" has handed the workflow to a human
-    And the issue labeled "workflow-review" is closed
+    And the issue handing the workflow to a human is closed
     When I run "shampoo next"
     Then the next action is "take-task"
 
