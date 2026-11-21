@@ -5,8 +5,8 @@ Feature: Review a task against its policies
   reviewing agent records its findings with `shampoo review`. Findings
   send the task back to its editing, with them, and it is reviewed again
   once changed; a review without findings lets it open its pull request.
-  Findings that do not drop from one review to the next repair the
-  harness.
+  Findings that do not drop from one review to the next show a policy
+  that does not settle what to do, and send the work to repair it.
 
   Background:
     Given a git repository with a commit
@@ -120,6 +120,7 @@ Feature: Review a task against its policies
     When I run "shampoo next"
     Then the next action is "repair-harness"
     And the next action has "branch" "task-a"
+    And the next action has the policies "functions"
 
   @sha:154a9dc4cf1c
   Scenario: A review of another task does not count
