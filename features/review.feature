@@ -137,3 +137,17 @@ Feature: Review a task against its policies
     And "shampoo guard task" has passed
     When I run "shampoo review" with a finding on policy "layout"
     Then the exit code is 2
+
+  @skip
+  Scenario: Findings that do not drop count against the repair budget
+    Given a policy "functions" for review
+    And settings allowing 0 reviews whose findings do not drop
+    And settings allowing 0 failed attempt in harness repair
+    And "shampoo guard task" has passed
+    And the review found 1 finding on policy "functions"
+    And a changed file "main.go"
+    And "shampoo guard task" has passed
+    And the review found 1 finding on policy "functions"
+    And no pull request is open
+    When I run "shampoo next"
+    Then the next action is "hand-to-human"
