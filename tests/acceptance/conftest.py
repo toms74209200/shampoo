@@ -68,13 +68,16 @@ elif args[:2] == ["issue", "create"]:
     issues = json.loads((state / "issues.json").read_text())
     url = "https://github.example/issues/" + str(len(issues) + 1)
     value = lambda flag: args[args.index(flag) + 1]
-    issues.append({{"url": url, "labels": [value("--label")], "state": "OPEN", "title": value("--title"), "body": value("--body")}})
+    labels = [value("--label")] if "--label" in args else []
+    issues.append({{"url": url, "labels": labels, "state": "OPEN", "title": value("--title"), "body": value("--body")}})
     (state / "issues.json").write_text(json.dumps(issues))
     print(url)
 elif args[:2] == ["issue", "list"]:
-    label = args[args.index("--label") + 1]
     issues = json.loads((state / "issues.json").read_text())
-    print(json.dumps([issue for issue in issues if label in issue["labels"] and issue["state"] == "OPEN"]))
+    if "--label" in args:
+        label = args[args.index("--label") + 1]
+        issues = [issue for issue in issues if label in issue["labels"]]
+    print(json.dumps([issue for issue in issues if issue["state"] == "OPEN"]))
 elif args[:2] == ["label", "list"]:
     print(json.dumps([{{"name": name}} for name in json.loads((state / "labels.json").read_text())]))
 elif args[:2] == ["label", "create"]:
@@ -295,10 +298,33 @@ def given_rule_zero_budget(workspace, transition, check_id):
     write_rule(workspace, new_id(), transition, check_id, budget="{ violations = 0, runs = 1 }")
 
 
-@given(parsers.parse('settings asking a human with the label "{label}" and at most {limit:d} open questions'))
-def given_human_review_settings(workspace, settings_sections, label, limit):
-    settings_sections["human-review"] = {"label": label, "max-open": limit}
+@given(parsers.parse("settings allowing at most {limit:d} open questions"))
+def given_human_review_settings(workspace, settings_sections, limit):
+    settings_sections["human-review"] = {"max-open": limit}
     write_settings(workspace, settings_sections)
+
+
+def issues_record(workspace: Path) -> Path:
+    common = subprocess.run(
+        ["git", "-C", str(workspace), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    return Path(common) / "shampoo" / "issues.jsonl"
+
+
+def open_issue(workspace: Path, gh_state: Path, label: str, kind: str, recorded: bool, state: str = "OPEN") -> str:
+    issues = json.loads((gh_state / "issues.json").read_text())
+    url = f"https://github.example/issues/{len(issues) + 1}"
+    issues.append({"url": url, "labels": [label], "state": state})
+    (gh_state / "issues.json").write_text(json.dumps(issues))
+    if recorded:
+        record = issues_record(workspace)
+        record.parent.mkdir(parents=True, exist_ok=True)
+        with record.open("a") as file:
+            file.write(json.dumps({"issue": url, "kind": kind, "task": "task-a"}) + "\n")
+    return url
 
 
 @given(parsers.parse('a task source "{path}"'))

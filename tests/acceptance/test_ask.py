@@ -4,7 +4,7 @@ from pathlib import Path
 
 from pytest_bdd import given, parsers, scenarios, then, when
 
-from conftest import run_shampoo
+from conftest import issues_record, run_shampoo
 
 scenarios("../../features/ask.feature")
 
@@ -31,10 +31,18 @@ def given_asked(workspace, shampoo_binary, fake_bin, decision):
     )
 
 
-@then(parsers.parse('an issue labeled "{label}" is open titled "{title}"'))
-def then_issue(gh_state, label, title):
+@then(parsers.parse('an issue without a label is open titled "{title}"'))
+def then_issue(gh_state, title):
     got = [(issue["labels"], issue["state"], issue["title"]) for issue in issues(gh_state)]
-    assert got == [([label], "OPEN", title)], f"got issues {got!r}"
+    assert got == [([], "OPEN", title)], f"got issues {got!r}"
+
+
+@then(parsers.parse('the issue is recorded as a question of the task "{task}"'))
+def then_issue_recorded(workspace, gh_state, task):
+    record = issues_record(workspace)
+    lines = [json.loads(line) for line in record.read_text().splitlines()] if record.exists() else []
+    want = [{"issue": issue["url"], "kind": "question", "task": task} for issue in issues(gh_state)]
+    assert lines == want, f"got {lines!r}, want {want!r}"
 
 
 @then(parsers.parse('the issue says "{text}"'))

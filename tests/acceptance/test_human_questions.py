@@ -1,33 +1,26 @@
-import json
-
 from pytest_bdd import given, parsers, scenarios, then
 
-from conftest import next_action
+from conftest import next_action, open_issue
 
 scenarios("../../features/human-questions.feature")
 
 
-def add_questions(gh_state, count: int, label: str, state: str) -> None:
-    issues = json.loads((gh_state / "issues.json").read_text())
-    for _ in range(count):
-        number = len(issues) + 1
-        issues.append({"url": f"https://github.example/issues/{number}", "labels": [label], "state": state})
-    (gh_state / "issues.json").write_text(json.dumps(issues))
-
-
 @given(parsers.re(r"(?P<count>\d+) questions? to a human (?:is|are) open"))
-def given_open_questions(gh_state, count):
-    add_questions(gh_state, int(count), "human-review", "OPEN")
+def given_open_questions(workspace, gh_state, count):
+    for _ in range(int(count)):
+        open_issue(workspace, gh_state, "human-review", "question", recorded=True)
 
 
 @given(parsers.re(r"(?P<count>\d+) questions? to a human (?:is|are) closed"))
-def given_closed_questions(gh_state, count):
-    add_questions(gh_state, int(count), "human-review", "CLOSED")
+def given_closed_questions(workspace, gh_state, count):
+    for _ in range(int(count)):
+        open_issue(workspace, gh_state, "human-review", "question", recorded=True, state="CLOSED")
 
 
-@given(parsers.re(r'(?P<count>\d+) questions? to a human labeled "(?P<label>[^"]+)" (?:is|are) open'))
-def given_labeled_questions(gh_state, count, label):
-    add_questions(gh_state, int(count), label, "OPEN")
+@given(parsers.parse("{count:d} issues are open that shampoo did not open"))
+def given_foreign_issues(workspace, gh_state, count):
+    for _ in range(count):
+        open_issue(workspace, gh_state, "human-review", "question", recorded=False)
 
 
 @then(parsers.parse("the next action names {count:d} questions"))

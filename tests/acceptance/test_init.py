@@ -38,10 +38,7 @@ def given_hand_written_rule(workspace, rule_id):
     (rules / f"{rule_id}.toml").write_text(HAND_WRITTEN)
 
 
-@given(parsers.parse('a label "{name}" exists'))
-def given_label(gh_state, name):
-    labels = json.loads((gh_state / "labels.json").read_text())
-    (gh_state / "labels.json").write_text(json.dumps(labels + [name]))
+
 
 
 @then(parsers.parse('the file "{path}" exists'))
@@ -84,10 +81,10 @@ def then_reported_kept(run_result, path):
     assert path in report["kept"], f"got {report!r}"
 
 
-@then(parsers.parse('the labels are "{first}" and "{second}"'))
-def then_labels(gh_state, first, second):
+@then("no label is created")
+def then_no_label(gh_state):
     labels = json.loads((gh_state / "labels.json").read_text())
-    assert sorted(labels) == sorted([first, second]), f"got labels {labels!r}"
+    assert labels == [], f"got labels {labels!r}"
 
 
 def claude_settings(workspace) -> dict:

@@ -2,28 +2,24 @@ Feature: Ask a human
   An agent that cannot settle a decision, or that the policies tell to,
   decides, goes on, and asks a human with `shampoo ask`: what it decided,
   how else it could be built, and the trade-offs. shampoo opens a GitHub
-  issue with the label for questions and records the question for the
-  task, without waiting for the answer.
+  issue and records it as a question of the task, without waiting for the
+  answer. It needs no label: it tells its issues by its record.
 
   Background:
     Given a git repository with a commit
     And a branch "task-a"
 
-  @sha:e45133b166eb
-  Scenario: A question opens a labeled issue
+  @skip
+  @sha:471e34250a02
+  Scenario: A question opens an issue and records it
     When I run "shampoo ask" deciding "Merge by squash" instead of "a merge commit" for "a linear history"
     Then the exit code is 0
     And stdout contains "https://github.example/issues/1"
-    And an issue labeled "human-review" is open titled "Merge by squash"
+    And an issue without a label is open titled "Merge by squash"
+    And the issue is recorded as a question of the task "task-a"
     And the issue says "a merge commit"
     And the issue says "a linear history"
     And the issue says "task-a"
-
-  @sha:7be9ad8b2526
-  Scenario: The label comes from the settings
-    Given settings asking a human with the label "ask" and at most 3 open questions
-    When I run "shampoo ask" deciding "Merge by squash" instead of "a merge commit" for "a linear history"
-    Then an issue labeled "ask" is open titled "Merge by squash"
 
   @sha:4ea4a408d347
   Scenario: A question without alternatives is a workflow failure

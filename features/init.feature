@@ -1,9 +1,9 @@
 Feature: Write the recommended rules for the checks a project decided
   `shampoo init` reads the check commands an agent decided for the
   project, and writes the recommended rules for them, their checks, the
-  recommended policies, the task source, the hooks that run shampoo and
-  the labels for asking a human. It decides nothing about the project and
-  overwrites nothing.
+  recommended policies, the task source and the hooks that run shampoo.
+  It decides nothing about the project, overwrites nothing and needs no
+  label.
 
   Background:
     Given a git repository with a commit
@@ -77,17 +77,12 @@ Feature: Write the recommended rules for the checks a project decided
     And the rule "lint" is the one written by hand
     And init reports ".shampoo/rules/lint.toml" as kept
 
-  @sha:8169e431a1e1
-  Scenario: The labels for asking a human are created when missing
-    Given a label "human-review" exists
+  @skip
+  @sha:f20f2f61095e
+  Scenario: No label is created
     When shampoo init runs with the task source "todo.md" and the check "lint" running "make lint"
-    Then the labels are "human-review" and "workflow-review"
-
-  @sha:7eef11fd701e
-  Scenario: The labels follow the settings that exist
-    Given settings asking a human with the label "ask" and at most 3 open questions
-    When shampoo init runs with the task source "todo.md" and the check "lint" running "make lint"
-    Then the labels are "ask" and "workflow-review"
+    Then the exit code is 0
+    And no label is created
 
   @sha:d8186ec052ab
   Scenario: A check for a rule that is not recommended is refused
