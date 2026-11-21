@@ -78,6 +78,15 @@ elif args[:2] == ["issue", "list"]:
         label = args[args.index("--label") + 1]
         issues = [issue for issue in issues if label in issue["labels"]]
     print(json.dumps([issue for issue in issues if issue["state"] == "OPEN"]))
+elif args[:2] == ["api", "graphql"]:
+    import re
+    query = next(arg[len("query="):] for arg in args if arg.startswith("query="))
+    issues = {{issue["url"]: issue for issue in json.loads((state / "issues.json").read_text())}}
+    data = {{"__typename": "Query"}}
+    for alias, url in re.findall(r'(i\d+): resource\(url: "([^"]*)"\)', query):
+        issue = issues.get(url)
+        data[alias] = {{"state": issue["state"]}} if issue else None
+    print(json.dumps({{"data": data}}))
 elif args[:2] == ["label", "list"]:
     print(json.dumps([{{"name": name}} for name in json.loads((state / "labels.json").read_text())]))
 elif args[:2] == ["label", "create"]:

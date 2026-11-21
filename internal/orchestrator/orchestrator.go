@@ -68,27 +68,7 @@ func Next(dir string) (next.Action, error) {
 		}
 		return out, nil
 	}
-	list, err := gh("issue", "list", "--state", "open", "--limit", "1000", "--json", "url")
-	if err != nil {
-		return next.Action{}, fmt.Errorf("next: %w", err)
-	}
-	var issues []struct {
-		URL string `json:"url"`
-	}
-	if err := json.Unmarshal(list, &issues); err != nil {
-		return next.Action{}, fmt.Errorf("next: gh issue list: %w", err)
-	}
-	var open []string
-	for _, issue := range issues {
-		open = append(open, issue.URL)
-	}
 	issuesPath := filepath.Join(repo.CommonDir, "shampoo", "issues.jsonl")
-	recorded, err := files.Optional(issuesPath)
-	if err != nil {
-		return next.Action{}, err
-	}
-	opened := question.Opened(recorded, open)
-	state.Questions, state.Escalations = opened.Questions, opened.Workflows
 	statsPath := filepath.Join(repo.CommonDir, "shampoo", "stats.jsonl")
 	stats, err := files.Optional(statsPath)
 	if err != nil {
@@ -164,7 +144,7 @@ func Next(dir string) (next.Action, error) {
 		if err != nil {
 			return next.Action{}, err
 		}
-		list, err = gh("run", "list", "--branch", branch, "--limit", "200", "--json", "workflowName,headSha,status,conclusion,url,createdAt")
+		list, err := gh("run", "list", "--branch", branch, "--limit", "200", "--json", "workflowName,headSha,status,conclusion,url,createdAt")
 		if err != nil {
 			return next.Action{}, fmt.Errorf("next: %w", err)
 		}
@@ -185,49 +165,71 @@ func Next(dir string) (next.Action, error) {
 	}
 	state.Now = time.Now()
 	state.MaxWait = time.Duration(options.MaxWaitMinutes) * time.Minute
-	var settled next.State
-	switch s := next.Parse(state).(type) {
-	case next.Settled:
-		settled = s.State
-	case next.Passed:
-		if _, err := gh("pr", "merge", strconv.Itoa(pr.Number), "--"+options.Merge); err != nil {
-			return next.Action{}, fmt.Errorf("next: %w", err)
+	var act func(next.Observed) (next.State, error)
+	act = func(observed next.Observed) (next.State, error) {
+		switch s := observed.(type) {
+		case next.Starting:
+			recorded, err := files.Optional(issuesPath)
+			if err != nil {
+				return nil, err
+			}
+			records := question.Records(recorded)
+			response, err := gh("api", "graphql", "-f", "query="+question.Query(records))
+			if err != nil {
+				return nil, fmt.Errorf("next: %w", err)
+			}
+			opened, err := question.Opened(records, response)
+			if err != nil {
+				return nil, fmt.Errorf("next: %w", err)
+			}
+			return act(next.Start(state, opened))
+		case next.Settled:
+			return s.State, nil
+		case next.Passed:
+			if _, err := gh("pr", "merge", strconv.Itoa(pr.Number), "--"+options.Merge); err != nil {
+				return nil, fmt.Errorf("next: %w", err)
+			}
+			return next.Merged(s), nil
+		case next.DueReview:
+			encoded, err := json.Marshal(budget.StatLine{Review: "workflow"})
+			if err != nil {
+				return nil, err
+			}
+			if err := files.Update(statsPath, func(data []byte) ([]byte, error) { return append(append(data, encoded...), '\n'), nil }); err != nil {
+				return nil, err
+			}
+			return next.ReviewingWorkflow(s), nil
+		case next.Escalating:
+			created, err := gh("issue", "create", "--title", s.Title, "--body", s.Body)
+			if err != nil {
+				return nil, fmt.Errorf("next: %w", err)
+			}
+			issue := strings.TrimSpace(string(created))
+			entry, err := json.Marshal(question.Record{Issue: issue, Kind: question.Escalated, Task: branch})
+			if err != nil {
+				return nil, err
+			}
+			if err := files.Update(issuesPath, func(data []byte) ([]byte, error) { return append(append(data, entry...), '\n'), nil }); err != nil {
+				return nil, err
+			}
+			encoded, err := json.Marshal(budget.StatLine{Review: "human", Issue: issue})
+			if err != nil {
+				return nil, err
+			}
+			if err := files.Update(statsPath, func(data []byte) ([]byte, error) { return append(append(data, encoded...), '\n'), nil }); err != nil {
+				return nil, err
+			}
+			return next.Blocked{Questions: []string{issue}}, nil
+		case next.NoSource:
+			return nil, fmt.Errorf("next: the task source %q is not set or not found; set [orchestrator] tasks in .shampoo/settings.toml", s.Source)
+		case next.Stalled:
+			return nil, fmt.Errorf("next: %s has waited for its checks since %s, longer than [orchestrator] max-wait-minutes (%d)", s.Branch, s.Since.Format(time.RFC3339), int(s.MaxWait.Minutes()))
 		}
-		settled = next.Merged(s)
-	case next.DueReview:
-		encoded, err := json.Marshal(budget.StatLine{Review: "workflow"})
-		if err != nil {
-			return next.Action{}, err
-		}
-		if err := files.Update(statsPath, func(data []byte) ([]byte, error) { return append(append(data, encoded...), '\n'), nil }); err != nil {
-			return next.Action{}, err
-		}
-		settled = next.ReviewingWorkflow(s)
-	case next.Escalating:
-		created, err := gh("issue", "create", "--title", s.Title, "--body", s.Body)
-		if err != nil {
-			return next.Action{}, fmt.Errorf("next: %w", err)
-		}
-		issue := strings.TrimSpace(string(created))
-		entry, err := json.Marshal(question.Record{Issue: issue, Kind: question.Escalated, Task: branch})
-		if err != nil {
-			return next.Action{}, err
-		}
-		if err := files.Update(issuesPath, func(data []byte) ([]byte, error) { return append(append(data, entry...), '\n'), nil }); err != nil {
-			return next.Action{}, err
-		}
-		encoded, err := json.Marshal(budget.StatLine{Review: "human", Issue: issue})
-		if err != nil {
-			return next.Action{}, err
-		}
-		if err := files.Update(statsPath, func(data []byte) ([]byte, error) { return append(append(data, encoded...), '\n'), nil }); err != nil {
-			return next.Action{}, err
-		}
-		settled = next.Blocked{Questions: []string{issue}}
-	case next.NoSource:
-		return next.Action{}, fmt.Errorf("next: the task source %q is not set or not found; set [orchestrator] tasks in .shampoo/settings.toml", s.Source)
-	case next.Stalled:
-		return next.Action{}, fmt.Errorf("next: %s has waited for its checks since %s, longer than [orchestrator] max-wait-minutes (%d)", s.Branch, s.Since.Format(time.RFC3339), int(s.MaxWait.Minutes()))
+		return nil, fmt.Errorf("next: unknown observation %T", observed)
+	}
+	settled, err := act(next.Parse(state))
+	if err != nil {
+		return next.Action{}, err
 	}
 	return next.Decide(settled), nil
 }
