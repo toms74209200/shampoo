@@ -62,6 +62,7 @@ Transitions are governed by budgets, in the manner of SRE error budgets. When to
 | False positive | Exceptions to a check | Fix the check |
 | Human review | Questions to a human that are still open | Take no new task until they are answered |
 | Repair | Each entry into harness repair within a task | Hand the task to a human |
+| Workflow review | Recent merged tasks that asked a human or entered harness repair | Review the workflow; when reviews keep failing, hand it to a human |
 
 Charging the right budget requires telling a task failure (the check found a problem in the work) from a workflow failure (the harness misbehaved). Every check reports which one it is.
 
@@ -161,6 +162,12 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 - **A question is a GitHub issue with the label `[human-review] label`** (default `human-review`), opened by `shampoo ask`, so that its form and label do not depend on the agent, and so that the ledger records which task asked: what the agent decided, and how else it could be built, with the trade-offs, such as ease of use. The agent does not wait for the answer; the human answers in the issue, and the answer is feedback for later tasks
 - **Open questions are a stock** (§3.1): when more than `[human-review] max-open` (default 3) are open, `shampoo next` hands no new task and says to wait for a human, with the questions. Work on a task already taken goes on
 
+### 5.4 Reviewing the workflow
+Asking a human and repairing the harness are each right once, and wrong as a habit: a policy that asks too often keeps a human in the loop, and a harness repaired again and again is unstable. Neither shows in one task, so they are counted over the latest merged tasks, from the statistics (§12), and the workflow itself is reviewed, as harness repair is for one task.
+- **When to review:** among the latest `[state-machine.workflow-review] tasks` merged tasks (default 20), more than `max-questions` asked a human (default 10), or more than `max-repairs` entered harness repair (default 10). Only tasks merged after the latest workflow review count, so that a review is judged by the tasks after it, not by those that led to it
+- **What to do:** `shampoo next` says to review the workflow instead of handing a new task: `review-workflow`, with the tasks that asked and those that repaired. It records the review in the statistics when it says so. The agent looks at the policies, the settings and the checks for what made them ask or repair, and changes what needs changing, as a task like any other. Work on a task already taken goes on
+- **A failed review** is one followed by another within `tasks` merged tasks: it did not bring the counts down. When more reviews in a row than `max-failed-attempts` (default 3) failed, `shampoo next` hands the workflow to a human instead: it opens an issue labeled `[state-machine.workflow-review] label` (default `workflow-review`) with the same tasks, records it in the statistics as a review, and says to wait for a human. While such an issue is open, it hands no new task; closing it lets the work go on, counted afresh
+
 ## 6. Non-goals
 - Project-specific checks: these come from the project (§7)
 - Replacing CI or the code host: shampoo drives GitHub and GitHub Actions rather than reimplementing them. Where one of their mechanisms falls short for agentic coding, shampoo has its own instead of depending on it: auto-merge (§10)
@@ -229,11 +236,12 @@ Each transition is split by what agent mechanisms (hooks, skills) do, what the d
 
 | Transition | Agent mechanisms | Platform | shampoo |
 |---|---|---|---|
-| Task created → Editing | Launch the agent, in a worktree of its own. The `SessionStart` hook puts the policies into its context, again after compaction | | `shampoo next` hands over the task source, unless too many questions to a human are open (§5.3); `shampoo policies` prints the policies for the hook |
+| Task created → Editing | Launch the agent, in a worktree of its own. The `SessionStart` hook puts the policies into its context, again after compaction | | `shampoo next` hands over the task source, unless too many questions to a human are open (§5.3) or the workflow is due for review (§5.4); `shampoo policies` prints the policies for the hook |
 | Edit done (Editing → Editing) | The PostToolUse hook on every tool [3] calls `shampoo guard edit` | | Which rules judge, and how budgets count. The guard ignores which tool ran (agents also edit through Bash, Python, sed) and looks at files: what changed since the last passed guard, recorded as a git tree at each pass. If nothing changed, it does nothing |
 | Task done (Editing → TaskDone) | The Stop hook [3] calls `shampoo guard task`. Every stop is an attempt at task done: the agent either thinks it is done or is stuck, and in both cases the guard decides | | Same as edit done |
 | Review (TaskDone → Review → PR), when a policy is marked for review | An agent reviews, under the project's requirements | | `shampoo next` says to review, with the marked policies and the requirements, once the task guard passes; `shampoo review` records the findings for the task's branch and the reviewed tree; a review of another task does not count. Then `shampoo next` gives the findings with the action to open the PR, while the tree is the reviewed one |
 | Asking a human, at any time | The agent opens the issue, as the policies say | Issues | `shampoo next` counts the open ones |
+| Workflow review, instead of a new task | An agent reviews the workflow | Issues, when handed to a human | `shampoo next` counts the recent merged tasks that asked or repaired, and says to review (§5.4) |
 | PR opened (TaskDone → PR) | The agent opens it | Opens the PR | `shampoo next` says to, once the task guard passes |
 | PR checks | | The repository's own CI | |
 | PR checks fail (PR → Editing) | An agent fixes them | | `shampoo next` says to, with the failure |
@@ -270,7 +278,7 @@ The flow of one task:
 ## 12. State and ledger
 - **State** is derived from git and GitHub (a branch per task in its own worktree, the PR, whether it is merged). There is no separate state file to drift
 - **Ledger**: JSON Lines in the git common directory, shared by all worktrees and not tracked. Each judgment at a transition is appended as one line: task (its branch), transition, rule, check, outcome, the check's duration and, for a rule that allows exceptions, their count. Rate, repair, workflow-failure and time budgets are counted from it. A line is written in one append, so worktrees writing at once do not interleave lines, and a broken last line is skipped
-- **Statistics**: a separate JSON Lines file beside the ledger, one line per merged task: attempts per transition, violations per rule, findings per policy, questions to a human, run time per check. It is the evidence for tuning budgets and for drift (§3.2)
+- **Statistics**: a separate JSON Lines file beside the ledger, one line per merged task: attempts per transition, violations per rule, findings per policy, questions to a human, entries into harness repair, run time per check. It is the evidence for tuning budgets and for drift (§3.2), and for the workflow review (§5.4), whose reviews are lines of their own, `{"review": "workflow"}`, or `{"review": "human", "issue": "<url>"}` when handed to a human
 - **Compaction is automatic**: when a guard starts, the tasks whose branch is merged are summarized into statistics, and their lines leave the ledger, except the latest runs of each check within the window (§3.1). The ledger stays the size of the windows and the open tasks
 - **JSON Lines rather than SQLite**: SQLite in Go needs cgo, which complicates cross-building and distributing one static binary, or a pure-Go port with many dependencies. The ledger only appends and reads the latest lines
 - **Not in the ledger**: the freeze flag is a labeled issue on GitHub, so CI can enforce it too; PR failures come from GitHub's check history
