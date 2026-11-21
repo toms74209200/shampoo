@@ -154,7 +154,7 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 - **Every rule passes on every code example.** A rule that fails on one contradicts the policy, and the rule is fixed
 - **A policy may be marked for review** (`review = true`). If any is, the state machine has the review phase (§2): before the PR, an agent reviews the task's change against the marked policies, without a human. Which agent does it is the agents' setup; the requirements on it, such as the model or that it is not the agent that did the work, are the project's, in `[state-machine.review.requirements]`, and shampoo hands them over as they are
 - **Findings are feedback, and statistics.** The agent that did the work gets them with the next action and decides what to change. Each finding is recorded in the ledger by policy, so that a policy often found violated shows in the statistics, as a candidate for a rule or for repairing the harness (§3.2). Whether a review met its requirements is not checked; how well reviews work is read from the statistics
-- **Policies and rules are defined independently**, in the project's configuration (§7). shampoo provides no defaults: their content is the project's own
+- **Policies and rules are defined independently**, in the project's configuration (§7). shampoo applies no defaults at run time: their content is the project's own. `shampoo init` writes recommended rules once, as a starting point (§7.1); from then on they are the project's to change
 
 ### 5.3 Asking a human
 - **An agent asks a human when it cannot settle a decision, or when the policies say so**, a decision made by the agent and so probabilistic, never fixed by the kind of change: a human who must look at every change of a kind is in the loop. It decides, goes on, and asks
@@ -197,11 +197,45 @@ A guard:
 
 The state machine (§2) is shampoo's own. Its transitions are bound to Claude Code hooks, CI and GitHub, so a project names them (`edit`, `task`, `pr`, `milestone`) and does not define them.
 
+### 7.1 Adopting shampoo
+What a project provides depends on the project: its linter and its configuration, how it runs tests and measures coverage, its CI and how it merges, the form of its commit messages. So adopting shampoo is split between an agent, which finds out and decides, and `shampoo init`, which writes what was decided:
+- **The skill `shampoo-init`** guides an agent through it, up to the point where shampoo runs: it looks at what the project already does and at what a reference repository does, assembles the checks from them, calls `shampoo init` with them, and runs the guard to see it pass. **The skill `shampoo-start`** is for every session after: it says how to work through `shampoo next` (§11), which action to take for each answer, and when to stop. Both live in this repository, under `.claude/skills/`, and are not distributed
+- **What the project and its references already do comes first.** A rule needs a concrete check, and a repository shows one in what it does, whether it uses shampoo or not: its linter and that linter's configuration, how it runs its tests and measures coverage, its CI workflows, its commit conventions. The agent assembles the checks of the recommended rules from those of the project itself, then from those of the reference repository, adapted to the project; the recommended rules only give what to check, not how. A reference repository set up for shampoo is better still: its rules, checks and policies are carried over, adapted, including those that are not recommended. `shampoo init` keeps every file that exists, so what was carried over stays
+- **The agent decides what the repositories settle, and asks only what they do not**: where they leave a choice open, or where the change reaches beyond the project's own files, such as changing its CI or the way PRs merge; all such questions at once, each with the agent's proposal, so that setting up is not a dialogue. When told to set everything up hands-off, the agent asks nothing and decides it all; what it decided goes in the description of the PR that adds the setup
+- **`shampoo init` writes what was decided**, without judging it, and what makes shampoo run, which is shampoo's own: the recommended rules for the checks it is given and those checks, the recommended policies, the task source in the settings, the labels of §5.3 and §5.4, and the hooks of §10 in `.claude/settings.json`, merged into the settings there. A recommended rule whose check is not given is not written. It never overwrites a file, a hook or a setting that exists, so it can run again on a project already set up. When no policy is marked for review, it says that there is no review phase (§2)
+- **The recommended rules are those every project has a use for**, each guarding its transitions with the default budgets (§3.1). How long a check may run needs no rule: the time budget (§3.1) applies to every check
+
+  | Rule | Statement | Transitions | Its check |
+  |---|---|---|---|
+  | `lint` | The code passes the project's linter | `edit`, `task`, `pr` | `lint`; its exceptions, if it writes them (§3.1) |
+  | `small-tests` | Every small test passes | `edit`, `task`, `pr` | `small-tests` |
+  | `coverage` | Small-test coverage is at least the project's threshold | `task`, `pr` | `coverage`, which fails below the threshold (80% is a start) |
+  | `commit-message` | Every commit message follows the project's format | `pr` | `commit-message`, given the commit as `<commit>` |
+
+  Acceptance tests are not recommended: whether a project has them, and how, is its own
+- **The recommended policies are mistakes agents often make**, each marked for review, so that a project set up by `shampoo init` has the review phase:
+
+  | Policy | Guidance |
+  |---|---|
+  | `tests` | As many small tests as possible; code with side effects is tested by medium or larger tests, written knowing their cost; DAMP over DRY; Arrange-Act-Assert |
+  | `functions` | No function that adds nothing: a wrapper used in one place, or one that only calls one level down |
+  | `comments` | No comment that restates the code |
+  | `errors` | No error ignored or only logged |
+  | `scope` | No change outside the task, such as refactoring or reformatting on the way |
+  | `reuse` | No new code for what the project or its dependencies already do |
+  | `assertions` | No test that asserts nothing or restates the implementation |
+  | `overfitting` | No code written only to make a test pass, such as a hard-coded value or a branch for the test's case |
+  | `dead-code` | No code, argument or setting left unused |
+  | `pull-requests` | A pull request is one task, kept small: what can merge on its own is a pull request of its own |
+
+  Guarding against states the code cannot be in is not a policy: whether a state can occur is for the types to settle, such as a type that only a parse function makes, not for guidance to judge case by case
+
 ## 8. Commands
 - `shampoo next`: the orchestrator. Says what to do next from the current state (§11), as a JSON object naming the action and its details, such as `{"action": "open-pr", "branch": "task/add-readme"}`, readable by agents and by scripts that run them, and open to new fields without breaking either; merges what its own auto-merge allows. Whoever runs the agents calls it
 - `shampoo guard <transition>`: runs the guard for a transition (`edit`, `task`). Called by hooks
 - `shampoo policies`: prints every policy, its text and its code example, then shampoo's own section on asking a human (§5.3), for the hook that puts them into the agent's context (§5.2)
 - `shampoo ask`: asks a human (§5.3), read as JSON from stdin: `{"decision": "...", "alternatives": "...", "tradeoffs": "..."}`, none empty. Opens the issue, its title the decision's first line, records the question in the ledger for the current branch, and prints the issue's URL
+- `shampoo init`: sets up shampoo in a project (§7.1), read as JSON from stdin: `{"tasks": "...", "checks": {"<rule>": {"command": "...", "size": "small", "paths": ["..."], "exceptions": "..."}}}`, each key a recommended rule, each `command` not empty; `size` (default `small`), `paths` (default all) and `exceptions` (for `lint` only) are optional. Writes `.shampoo/settings.toml` with the task source, `.shampoo/checks/<rule>.toml` and `.shampoo/rules/<rule>.toml` for each check given, and the recommended policies in `.shampoo/policies/`, keeping every file that exists; adds the hooks of §10 to `.claude/settings.json`, keeping what is there; creates the labels of `[human-review] label` and `[state-machine.workflow-review] label` when missing; prints `{"written": [...], "kept": [...]}`, the paths, and says when no policy is marked for review. Called by the skill `shampoo-init`
 - `shampoo review`: records a review of the current tree, read as JSON from stdin: `{"findings": [{"policy": "<id>", "comment": "..."}]}`. Each finding names a policy marked for review. Called by the reviewing agent
 
 ---
@@ -236,7 +270,7 @@ Each transition is split by what agent mechanisms (hooks, skills) do, what the d
 
 | Transition | Agent mechanisms | Platform | shampoo |
 |---|---|---|---|
-| Task created → Editing | Launch the agent, in a worktree of its own. The `SessionStart` hook puts the policies into its context, again after compaction | | `shampoo next` hands over the task source, unless too many questions to a human are open (§5.3) or the workflow is due for review (§5.4); `shampoo policies` prints the policies for the hook |
+| Task created → Editing | Launch the agent, in a worktree of its own. The `SessionStart` hook, added by `shampoo init` (§7.1), puts the policies into its context, again after compaction | | `shampoo next` hands over the task source, unless too many questions to a human are open (§5.3) or the workflow is due for review (§5.4); `shampoo policies` prints the policies for the hook |
 | Edit done (Editing → Editing) | The PostToolUse hook on every tool [3] calls `shampoo guard edit` | | Which rules judge, and how budgets count. The guard ignores which tool ran (agents also edit through Bash, Python, sed) and looks at files: what changed since the last passed guard, recorded as a git tree at each pass. If nothing changed, it does nothing |
 | Task done (Editing → TaskDone) | The Stop hook [3] calls `shampoo guard task`. Every stop is an attempt at task done: the agent either thinks it is done or is stuck, and in both cases the guard decides | | Same as edit done |
 | Review (TaskDone → Review → PR), when a policy is marked for review | An agent reviews, under the project's requirements | | `shampoo next` says to review, with the marked policies and the requirements, once the task guard passes; `shampoo review` records the findings for the task's branch and the reviewed tree; a review of another task does not count. Then `shampoo next` gives the findings with the action to open the PR, while the tree is the reviewed one |
