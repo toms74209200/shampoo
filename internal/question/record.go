@@ -6,9 +6,16 @@ import (
 	"slices"
 )
 
+type Kind string
+
+const (
+	Asked     Kind = "question"
+	Escalated Kind = "workflow"
+)
+
 type Record struct {
 	Issue string `json:"issue"`
-	Kind  string `json:"kind"`
+	Kind  Kind   `json:"kind"`
 	Task  string `json:"task"`
 }
 
@@ -24,7 +31,7 @@ func Opened(records []byte, open []string) Open {
 		if err := json.Unmarshal(raw, &record); err != nil || !slices.Contains(open, record.Issue) {
 			continue
 		}
-		kinds := map[string]*[]string{"question": &opened.Questions, "workflow": &opened.Workflows}
+		kinds := map[Kind]*[]string{Asked: &opened.Questions, Escalated: &opened.Workflows}
 		if found, ok := kinds[record.Kind]; ok && !slices.Contains(*found, record.Issue) {
 			*found = append(*found, record.Issue)
 		}
