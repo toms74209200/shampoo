@@ -68,31 +68,6 @@ func TestFiles(t *testing.T) {
 	}
 }
 
-func TestHooks(t *testing.T) {
-	tests := []struct {
-		name    string
-		data    string
-		want    string
-		wantErr bool
-	}{
-		{name: "when Hooks with no settings then returns the three hooks", data: "", want: "{\n  \"hooks\": {\n    \"PostToolUse\": [\n      {\n        \"hooks\": [\n          {\n            \"command\": \"sh -c 'shampoo guard edit; case $? in 0) exit 0 ;; 1|3) exit 2 ;; *) exit 1 ;; esac'\",\n            \"timeout\": 600,\n            \"type\": \"command\"\n          }\n        ],\n        \"matcher\": \"*\"\n      }\n    ],\n    \"Stop\": [\n      {\n        \"hooks\": [\n          {\n            \"command\": \"sh -c 'shampoo guard task; case $? in 0) exit 0 ;; 1|3) exit 2 ;; *) exit 1 ;; esac'\",\n            \"timeout\": 600,\n            \"type\": \"command\"\n          }\n        ]\n      }\n    ],\n    \"SessionStart\": [\n      {\n        \"hooks\": [\n          {\n            \"command\": \"shampoo policies\",\n            \"timeout\": 600,\n            \"type\": \"command\"\n          }\n        ],\n        \"matcher\": \"startup|clear|compact\"\n      }\n    ]\n  }\n}\n"},
-		{name: "when Hooks with other settings and hooks then returns them as they were with the hooks inserted", data: "{\n  \"model\": \"opus\",\n  \"hooks\": {\n    \"Stop\": [\n      {\n        \"hooks\": [{\"type\": \"command\", \"command\": \"say done\"}]\n      }\n    ]\n  }\n}\n", want: "{\n  \"model\": \"opus\",\n  \"hooks\": {\n    \"Stop\": [\n      {\n        \"hooks\": [{\"type\": \"command\", \"command\": \"say done\"}]\n      },\n      {\n        \"hooks\": [\n          {\n            \"command\": \"sh -c 'shampoo guard task; case $? in 0) exit 0 ;; 1|3) exit 2 ;; *) exit 1 ;; esac'\",\n            \"timeout\": 600,\n            \"type\": \"command\"\n          }\n        ]\n      }\n    ],\n    \"PostToolUse\": [\n      {\n        \"hooks\": [\n          {\n            \"command\": \"sh -c 'shampoo guard edit; case $? in 0) exit 0 ;; 1|3) exit 2 ;; *) exit 1 ;; esac'\",\n            \"timeout\": 600,\n            \"type\": \"command\"\n          }\n        ],\n        \"matcher\": \"*\"\n      }\n    ],\n    \"SessionStart\": [\n      {\n        \"hooks\": [\n          {\n            \"command\": \"shampoo policies\",\n            \"timeout\": 600,\n            \"type\": \"command\"\n          }\n        ],\n        \"matcher\": \"startup|clear|compact\"\n      }\n    ]\n  }\n}\n"},
-		{name: "when Hooks with the hooks already there then returns the settings unchanged", data: "{\"hooks\": {\"PostToolUse\": [{\"matcher\": \"*\", \"hooks\": [{\"type\": \"command\", \"command\": \"sh -c 'shampoo guard edit; case $? in 0) exit 0 ;; 1|3) exit 2 ;; *) exit 1 ;; esac'\"}]}], \"SessionStart\": [{\"hooks\": [{\"type\": \"command\", \"command\": \"shampoo policies\"}]}], \"Stop\": [{\"hooks\": [{\"type\": \"command\", \"command\": \"sh -c 'shampoo guard task; case $? in 0) exit 0 ;; 1|3) exit 2 ;; *) exit 1 ;; esac'\"}]}]}}", want: "{\"hooks\": {\"PostToolUse\": [{\"matcher\": \"*\", \"hooks\": [{\"type\": \"command\", \"command\": \"sh -c 'shampoo guard edit; case $? in 0) exit 0 ;; 1|3) exit 2 ;; *) exit 1 ;; esac'\"}]}], \"SessionStart\": [{\"hooks\": [{\"type\": \"command\", \"command\": \"shampoo policies\"}]}], \"Stop\": [{\"hooks\": [{\"type\": \"command\", \"command\": \"sh -c 'shampoo guard task; case $? in 0) exit 0 ;; 1|3) exit 2 ;; *) exit 1 ;; esac'\"}]}]}}"},
-		{name: "when Hooks with invalid JSON then returns an error", data: "{", wantErr: true},
-		{name: "when Hooks with settings that are not an object then returns an error", data: "[]", wantErr: true},
-		{name: "when Hooks with hooks that are not an object then returns an error", data: "{\"hooks\": []}", wantErr: true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := Hooks([]byte(tt.data))
-
-			if (err != nil) != tt.wantErr || string(got) != tt.want {
-				t.Errorf("got %q, %v, want %q, error %v", got, err, tt.want, tt.wantErr)
-			}
-		})
-	}
-}
-
 func TestNotice(t *testing.T) {
 	tests := []struct {
 		name  string

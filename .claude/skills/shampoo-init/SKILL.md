@@ -66,9 +66,10 @@ with a few small one-PR tasks (smallest first):
 echo '{"tasks": "<task source>", "checks": {"lint": {"command": "...", "exceptions": "..."}, "small-tests": {"command": "..."}, "coverage": {"command": "..."}, "commit-message": {"command": "... <commit>"}}}' | shampoo init
 ```
 
-Writes `.shampoo/`, recommended policies, and hooks in `.claude/settings.json`
-without overwriting existing files or settings. If `stderr` reports no review
-phase, keep it so only if the project wants no policy review.
+Writes `.shampoo/` only, rules, checks, recommended policies and settings,
+without overwriting existing files. It writes nothing of the agent's: wire the
+agent's hooks to shampoo yourself. If `stderr` reports no review phase, keep it
+so only if the project wants no policy review.
 
 ## 6. Verify and open a PR
 

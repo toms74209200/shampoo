@@ -10,7 +10,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	"github.com/toms74209200/shampoo/internal/cli"
 	"github.com/toms74209200/shampoo/internal/policy"
 	"github.com/toms74209200/shampoo/internal/rule"
 )
@@ -164,126 +163,6 @@ func Files(plan Plan) ([]File, error) {
 		files = append(files, File{Path: document.path, Data: data.Bytes()})
 	}
 	return files, nil
-}
-
-func Hooks(data []byte) ([]byte, error) {
-	if len(bytes.TrimSpace(data)) == 0 {
-		data = []byte("{}\n")
-	}
-	if !json.Valid(data) {
-		return nil, fmt.Errorf("%w: .claude/settings.json is not JSON", ErrInvalid)
-	}
-	type span struct{ start, end int }
-	members := func(at span) (map[string]span, error) {
-		decoder := json.NewDecoder(bytes.NewReader(data[at.start:at.end]))
-		if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
-			return nil, fmt.Errorf("%w: .claude/settings.json: an object is expected", ErrInvalid)
-		}
-		found := map[string]span{}
-		for decoder.More() {
-			key, err := decoder.Token()
-			if err != nil {
-				return nil, err
-			}
-			var raw json.RawMessage
-			if err := decoder.Decode(&raw); err != nil {
-				return nil, err
-			}
-			end := at.start + int(decoder.InputOffset())
-			found[key.(string)] = span{start: end - len(raw), end: end}
-		}
-		return found, nil
-	}
-	insert := func(at span, empty bool, text []byte) []byte {
-		closing := at.end - 1
-		line := bytes.LastIndexByte(data[:closing], '\n') + 1
-		indent := data[line : line+len(data[line:closing])-len(bytes.TrimLeft(data[line:closing], " \t"))]
-		if len(bytes.TrimSpace(data[line:closing])) > 0 {
-			indent = nil
-		}
-		point := len(bytes.TrimRight(data[:closing], " \t\r\n"))
-		var added bytes.Buffer
-		if !empty {
-			added.WriteByte(',')
-		}
-		added.WriteString("\n" + string(indent) + "  ")
-		added.Write(bytes.ReplaceAll(text, []byte("\n"), []byte("\n"+string(indent)+"  ")))
-		if !bytes.Contains(data[point:closing], []byte("\n")) {
-			added.WriteString("\n" + string(indent))
-		}
-		return slices.Concat(data[:point], added.Bytes(), data[point:])
-	}
-	guard := func(transition string) string {
-		return fmt.Sprintf("sh -c 'shampoo guard %s; case $? in 0) exit 0 ;; %d|%d) exit 2 ;; *) exit 1 ;; esac'", transition, cli.Exits[rule.TaskFailure], cli.Exits[rule.Exceeded])
-	}
-	wanted := []struct {
-		event   string
-		matcher string
-		command string
-	}{
-		{event: "PostToolUse", matcher: "*", command: guard("edit")},
-		{event: "Stop", command: guard("task")},
-		{event: "SessionStart", matcher: "startup|clear|compact", command: "shampoo policies"},
-	}
-	for _, want := range wanted {
-		entry := map[string]any{"hooks": []any{map[string]any{"type": "command", "command": want.command, "timeout": 600}}}
-		if want.matcher != "" {
-			entry["matcher"] = want.matcher
-		}
-		top, err := members(span{start: 0, end: len(bytes.TrimRight(data, " \t\r\n"))})
-		if err != nil {
-			return nil, err
-		}
-		hooks, ok := top["hooks"]
-		if !ok {
-			text, err := json.MarshalIndent(map[string]any{want.event: []any{entry}}, "", "  ")
-			if err != nil {
-				return nil, err
-			}
-			data = insert(span{start: 0, end: len(bytes.TrimRight(data, " \t\r\n"))}, len(top) == 0, append([]byte(`"hooks": `), text...))
-			continue
-		}
-		events, err := members(hooks)
-		if err != nil {
-			return nil, err
-		}
-		event, ok := events[want.event]
-		if !ok {
-			text, err := json.MarshalIndent([]any{entry}, "", "  ")
-			if err != nil {
-				return nil, err
-			}
-			data = insert(hooks, len(events) == 0, append([]byte(`"`+want.event+`": `), text...))
-			continue
-		}
-		var present []struct {
-			Hooks []struct {
-				Command string `json:"command"`
-			} `json:"hooks"`
-		}
-		if err := json.Unmarshal(data[event.start:event.end], &present); err != nil {
-			return nil, fmt.Errorf("%w: .claude/settings.json: hooks of %s: %v", ErrInvalid, want.event, err)
-		}
-		if slices.ContainsFunc(present, func(p struct {
-			Hooks []struct {
-				Command string `json:"command"`
-			} `json:"hooks"`
-		}) bool {
-			return slices.ContainsFunc(p.Hooks, func(h struct {
-				Command string `json:"command"`
-			}) bool {
-				return h.Command == want.command
-			})
-		}) {
-			continue
-		}
-		text, err := json.MarshalIndent(entry, "", "  ")
-		if err != nil {
-			return nil, err
-		}
-		data = insert(event, len(present) == 0, text)
-	}
-	return data, nil
 }
 
 func Notice(policies []policy.Policy) string {
