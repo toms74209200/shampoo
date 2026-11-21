@@ -44,6 +44,7 @@ Feature: Print the policies for the agent's context
     Then the exit code is 2
 
   @skip
+  @sha:bf07582ec782
   Scenario: The policies answer a hook in JSON
     Given a policy "layout"
     When I run "shampoo policies --json"
