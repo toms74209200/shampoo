@@ -191,7 +191,7 @@ func Next(dir string) (next.Action, error) {
 		}
 		parsed = next.Merged(s)
 	case next.ReviewingWorkflow:
-		encoded, err := json.Marshal(budget.Stat{Review: "workflow"})
+		encoded, err := json.Marshal(budget.StatLine{Review: "workflow"})
 		if err != nil {
 			return next.Action{}, err
 		}
@@ -204,7 +204,7 @@ func Next(dir string) (next.Action, error) {
 			return next.Action{}, fmt.Errorf("next: %w", err)
 		}
 		issue := strings.TrimSpace(string(created))
-		encoded, err := json.Marshal(budget.Stat{Review: "human", Issue: issue})
+		encoded, err := json.Marshal(budget.StatLine{Review: "human", Issue: issue})
 		if err != nil {
 			return next.Action{}, err
 		}

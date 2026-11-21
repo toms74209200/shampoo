@@ -8,7 +8,7 @@ import (
 	"github.com/toms74209200/shampoo/internal/settings"
 )
 
-type Stat struct {
+type StatLine struct {
 	Task      string `json:"task,omitempty"`
 	Questions int    `json:"questions,omitempty"`
 	Repairs   int    `json:"repairs,omitempty"`
@@ -16,11 +16,36 @@ type Stat struct {
 	Issue     string `json:"issue,omitempty"`
 }
 
+//sumtype:decl
+type Stat interface{ stat() }
+
+type MergedTask struct {
+	Task      string
+	Questions int
+	Repairs   int
+}
+
+type WorkflowReviewed struct{}
+
+type HumanReviewed struct{ Issue string }
+
+func (MergedTask) stat()       {}
+func (WorkflowReviewed) stat() {}
+func (HumanReviewed) stat()    {}
+
 func ParseStats(data []byte) []Stat {
 	var stats []Stat
 	for _, raw := range bytes.Split(data, []byte("\n")) {
-		var stat Stat
-		if err := json.Unmarshal(raw, &stat); err == nil {
+		var line StatLine
+		if err := json.Unmarshal(raw, &line); err != nil {
+			continue
+		}
+		parsed := map[string]Stat{
+			"":         MergedTask{Task: line.Task, Questions: line.Questions, Repairs: line.Repairs},
+			"workflow": WorkflowReviewed{},
+			"human":    HumanReviewed{Issue: line.Issue},
+		}
+		if stat, ok := parsed[line.Review]; ok {
 			stats = append(stats, stat)
 		}
 	}
@@ -50,16 +75,21 @@ func Reviewing(stats []Stat, limits settings.WorkflowReview) Due {
 	merged := 0
 	var reviews []int
 	var humans []bool
-	var since []Stat
+	var since []MergedTask
 	for _, stat := range stats {
-		if stat.Review != "" {
+		switch stat := stat.(type) {
+		case WorkflowReviewed:
 			reviews = append(reviews, merged)
-			humans = append(humans, stat.Review == "human")
+			humans = append(humans, false)
 			since = nil
-			continue
+		case HumanReviewed:
+			reviews = append(reviews, merged)
+			humans = append(humans, true)
+			since = nil
+		case MergedTask:
+			merged++
+			since = append(since, stat)
 		}
-		merged++
-		since = append(since, stat)
 	}
 	var asked, repaired []string
 	for _, stat := range since[max(0, len(since)-limits.Tasks):] {
