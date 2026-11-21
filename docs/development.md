@@ -127,6 +127,7 @@ Each workflow starts from the changes it checks, as in earlier repositories:
 | `on-pullrequest-go.yml` | Go-related or workflow files change (its `paths`) | Build; apply formatters and commit the result, then lint and rule checks; small, medium and acceptance tests; coverage and pure-code baseline |
 | `on-pullrequest-python.yml` | Acceptance tests or workflow files change | Acceptance tests |
 | `on-pullrequest-features.yml` | Feature specs change | Scenario annotations statically, then records and commits missing `@sha` tags and verifies the result (design doc §5.1) |
+| `on-tag.yml` | A tag is pushed | Acceptance tests, then builds the binaries (linux x86_64 and aarch64, macOS aarch64, static) and creates the release with them; `install.sh` installs the latest |
 
 The `job-*.yml` workflows hold the steps, and the `on-*.yml` workflows decide when they run.
 

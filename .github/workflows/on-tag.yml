@@ -1,0 +1,18 @@
+name: On tag push
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance-test:
+    uses: ./.github/workflows/job-test-acceptance.yml
+  release:
+    needs: [acceptance-test]
+    permissions:
+      contents: write
+    uses: ./.github/workflows/job-release.yml
