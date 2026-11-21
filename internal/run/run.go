@@ -7,6 +7,7 @@ import (
 
 	"github.com/toms74209200/shampoo/internal/cli"
 	"github.com/toms74209200/shampoo/internal/guard"
+	"github.com/toms74209200/shampoo/internal/hook"
 	"github.com/toms74209200/shampoo/internal/orchestrator"
 	"github.com/toms74209200/shampoo/internal/policy"
 )
@@ -61,6 +62,29 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		if err := orchestrator.Review("", stdin); err != nil {
 			code, message = 2, fmt.Sprintf("shampoo review: %v\n", err)
 		}
+	case cli.GuardHook:
+		outcome, report, err := guard.Run("", c.Transition)
+		if err != nil {
+			report += fmt.Sprintf("shampoo guard: %v\n", err)
+		}
+		encoded, err := json.Marshal(hook.Guard(outcome, report))
+		if err != nil {
+			code, message = 2, fmt.Sprintf("shampoo guard: %v\n", err)
+			break
+		}
+		output = string(encoded) + "\n"
+	case cli.PoliciesHook:
+		policies, err := orchestrator.Policies("")
+		if err != nil {
+			code, message = 2, fmt.Sprintf("shampoo policies: %v\n", err)
+			break
+		}
+		encoded, err := json.Marshal(hook.Policies(policy.Render(policies)))
+		if err != nil {
+			code, message = 2, fmt.Sprintf("shampoo policies: %v\n", err)
+			break
+		}
+		output = string(encoded) + "\n"
 	case cli.Guard:
 		outcome, report, err := guard.Run("", c.Transition)
 		code, message = cli.Exits[outcome], report

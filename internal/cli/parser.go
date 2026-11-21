@@ -9,12 +9,14 @@ import (
 
 var Exits = map[rule.Outcome]int{rule.TaskFailure: 1, rule.WorkflowFailure: 2, rule.Exceeded: 3, rule.Handed: 4}
 
-var ErrUsage = errors.New("usage: shampoo guard <transition> | shampoo next | shampoo review | shampoo policies | shampoo ask | shampoo init")
+var ErrUsage = errors.New("usage: shampoo guard <transition> [--json] | shampoo next | shampoo review | shampoo policies [--json] | shampoo ask | shampoo init")
 
 //sumtype:decl
 type Command interface{ command() }
 
 type Guard struct{ Transition rule.Transition }
+
+type GuardHook struct{ Transition rule.Transition }
 
 type Next struct{}
 
@@ -22,16 +24,20 @@ type Review struct{}
 
 type Policies struct{}
 
+type PoliciesHook struct{}
+
 type Ask struct{}
 
 type Init struct{}
 
-func (Guard) command()    {}
-func (Next) command()     {}
-func (Review) command()   {}
-func (Policies) command() {}
-func (Ask) command()      {}
-func (Init) command()     {}
+func (Guard) command()        {}
+func (GuardHook) command()    {}
+func (PoliciesHook) command() {}
+func (Next) command()         {}
+func (Review) command()       {}
+func (Policies) command()     {}
+func (Ask) command()          {}
+func (Init) command()         {}
 
 func Parse(args []string) (Command, error) {
 	commands := map[string]Command{"next": Next{}, "review": Review{}, "policies": Policies{}, "ask": Ask{}, "init": Init{}}
@@ -40,7 +46,11 @@ func Parse(args []string) (Command, error) {
 			return command, nil
 		}
 	}
-	if len(args) != 2 || args[0] != "guard" {
+	if len(args) == 2 && args[0] == "policies" && args[1] == "--json" {
+		return PoliciesHook{}, nil
+	}
+	hooked := len(args) == 3 && args[2] == "--json"
+	if (len(args) != 2 && !hooked) || args[0] != "guard" {
 		return nil, ErrUsage
 	}
 	transition, err := rule.ParseTransition(args[1])
@@ -49,6 +59,9 @@ func Parse(args []string) (Command, error) {
 	}
 	if transition != rule.Edit && transition != rule.Task {
 		return nil, fmt.Errorf("shampoo guard: %s is checked by the repository's CI, not by shampoo", transition)
+	}
+	if hooked {
+		return GuardHook{Transition: transition}, nil
 	}
 	return Guard{Transition: transition}, nil
 }
