@@ -107,7 +107,7 @@ Feature: Review a task against its policies
     Then the next action is "continue"
 
   @skip
-  @sha:33f56fb74ba4
+  @sha:03d06d8c939d
   Scenario: Findings that do not drop repair the harness
     Given a policy "functions" for review
     And settings allowing 0 reviews whose findings do not drop
