@@ -39,3 +39,26 @@ func Reviewed(ledger []byte, run, task string, policies []string, attempts int) 
 	}
 	return lines
 }
+
+//sumtype:decl
+type Convergence interface{ convergence() }
+
+type Converging struct{}
+
+type Diverging struct{}
+
+type Exhausted struct{}
+
+func (Converging) convergence() {}
+func (Diverging) convergence()  {}
+func (Exhausted) convergence()  {}
+
+func Converge(lines []Line, task string, reviewAttempts, repairAttempts int) Convergence {
+	if !Diverged(lines, task, reviewAttempts) {
+		return Converging{}
+	}
+	if Repairs(lines, task) > repairAttempts {
+		return Exhausted{}
+	}
+	return Diverging{}
+}

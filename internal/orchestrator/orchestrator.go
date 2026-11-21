@@ -112,7 +112,7 @@ func Next(dir string) (next.Action, error) {
 		return next.Action{}, err
 	}
 	lines := budget.ParseLedger(ledger)
-	state.Diverged, state.Repairs, state.Attempts = budget.Diverged(lines, branch, options.ReviewAttempts), budget.Repairs(lines, branch), options.RepairAttempts
+	state.Convergence = budget.Converge(lines, branch, options.ReviewAttempts, options.RepairAttempts)
 	state.Tree, err = repo.Snapshot()
 	if err != nil {
 		return next.Action{}, err

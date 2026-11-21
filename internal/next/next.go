@@ -27,9 +27,7 @@ type Observation struct {
 	Policies     []policy.Policy
 	Requirements map[string]any
 	Record       *Record
-	Diverged     bool
-	Repairs      int
-	Attempts     int
+	Convergence  budget.Convergence
 	PullRequest  *PullRequest
 	Now          time.Time
 	MaxWait      time.Duration
@@ -216,17 +214,20 @@ func Parse(o Observation) State {
 		switch {
 		case !mine && len(marked) > 0, found && o.Record.Tree != o.Tree:
 			return Done{Branch: o.Branch, Policies: marked, Requirements: o.Requirements}
-		case found && o.Diverged && o.Repairs > o.Attempts:
-			return Handed{Branch: o.Branch}
-		case found && o.Diverged:
-			var policies []string
-			for _, finding := range o.Record.Findings {
-				if !slices.Contains(policies, finding.Policy) {
-					policies = append(policies, finding.Policy)
-				}
-			}
-			return Repairing{Branch: o.Branch, Policies: policies}
 		case found:
+			switch o.Convergence.(type) {
+			case budget.Exhausted:
+				return Handed{Branch: o.Branch}
+			case budget.Diverging:
+				var policies []string
+				for _, finding := range o.Record.Findings {
+					if !slices.Contains(policies, finding.Policy) {
+						policies = append(policies, finding.Policy)
+					}
+				}
+				return Repairing{Branch: o.Branch, Policies: policies}
+			case budget.Converging:
+			}
 			return Editing{Branch: o.Branch, Findings: o.Record.Findings}
 		}
 		return Ready{Branch: o.Branch}

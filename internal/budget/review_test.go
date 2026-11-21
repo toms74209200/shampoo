@@ -61,3 +61,27 @@ func TestReviewed(t *testing.T) {
 		})
 	}
 }
+
+func TestConverge(t *testing.T) {
+	task := rand.Text()
+	tests := []struct {
+		name   string
+		lines  []Line
+		review int
+		repair int
+		want   Convergence
+	}{
+		{name: "when Converge with findings that drop then returns converging", lines: []Line{{Run: "a", Task: task, Transition: "review", Outcome: rule.Outcome("finding")}, {Run: "a", Task: task, Transition: "review", Outcome: rule.Outcome("finding")}, {Run: "b", Task: task, Transition: "review", Outcome: rule.Outcome("finding")}}, review: 0, repair: 1, want: Converging{}},
+		{name: "when Converge with findings that do not drop within the repair attempts then returns diverging", lines: []Line{{Run: "a", Task: task, Transition: "review", Outcome: rule.Outcome("finding")}, {Run: "b", Task: task, Transition: "review", Outcome: rule.Outcome("finding")}, {Run: "b", Task: task, Transition: "review", Outcome: rule.Outcome("budget-exceeded")}}, review: 0, repair: 1, want: Diverging{}},
+		{name: "when Converge with findings that do not drop beyond the repair attempts then returns exhausted", lines: []Line{{Run: "a", Task: task, Transition: "review", Outcome: rule.Outcome("finding")}, {Run: "b", Task: task, Transition: "review", Outcome: rule.Outcome("finding")}, {Run: "b", Task: task, Transition: "review", Outcome: rule.Outcome("budget-exceeded")}}, review: 0, repair: 0, want: Exhausted{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Converge(tt.lines, task, tt.review, tt.repair)
+
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("got %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+}
