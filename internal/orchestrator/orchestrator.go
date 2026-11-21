@@ -396,14 +396,6 @@ func Init(dir string, input io.Reader) (Setup, string, error) {
 		}
 		report.Written = append(report.Written, file.Path)
 	}
-	claude := filepath.Join(repo.Root, ".claude", "settings.json")
-	if err := files.Update(claude, setup.Hooks); err != nil {
-		return report, "", err
-	}
-	if err := os.Remove(claude + ".lock"); err != nil {
-		return report, "", err
-	}
-	report.Written = append(report.Written, ".claude/settings.json")
 	policies, err := Policies(repo.Root)
 	if err != nil {
 		return report, "", err
