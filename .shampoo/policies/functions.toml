@@ -1,7 +1,7 @@
 review = true
 text = '''
 Creating a function is prohibited, except when it meets both of these:
-- It satisfies parse, don't validate and the Curry–Howard isomorphism
+- It satisfies "parse, don't validate" and the Curry–Howard isomorphism
 - It is a deep module: it hides branches behind an interface much smaller than what it hides
 
 Functions of the two kinds in the structure policy leave no room for the
