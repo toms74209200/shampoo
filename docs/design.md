@@ -184,7 +184,7 @@ A project provides these in `.shampoo/`, one file per item, named by its id:
 - **Checks** (`.shampoo/checks/`), each with its command, its test size and the checks it needs
 - **Settings** (`.shampoo/settings.toml`), optional: shampoo's own settings by bounded context, such as the limits of the state machine (§3.1)
 - **Policies** (`.shampoo/policies/`), each with its code example, and whether it is used in review (§5.2)
-- **Task source** (`[orchestrator] tasks` in the settings): the URI of where the tasks are, a URL or a file path, such as an issue list or a `todo.md`. shampoo checks that it exists and hands it to the agent, which reads it, takes a task and marks it done there; shampoo does not parse it. Instructions in natural language go in a file it points to
+- **Task source** (`[orchestrator] tasks` in the settings): the URI of where the tasks are, a URL or a path, such as an issue list, a `todo.md`, or `tasks/` with one file per task and what makes it done, the default of the skill `shampoo-init` (§7.1). shampoo checks that it exists and hands it to the agent, which reads it, takes a task and marks it done there; shampoo does not parse it. Instructions in natural language go in a file it points to
 
 A check runs; a judge decides. A check only leaves results (its exit code, its output, the files it writes). A judge maps them to pass, task failure, workflow failure or a charge to its rule's budget: either the check's exit code through a mapping, or a command run on the check's results, through a mapping of that command's exit code.
 
