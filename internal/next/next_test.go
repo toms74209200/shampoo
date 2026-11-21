@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/toms74209200/shampoo/internal/budget"
 	"github.com/toms74209200/shampoo/internal/policy"
 	"github.com/toms74209200/shampoo/internal/review"
 	"github.com/toms74209200/shampoo/internal/rule"
@@ -36,6 +37,11 @@ func TestParse(t *testing.T) {
 		{name: "when Parse with the default branch then returns idle with the source", observation: Observation{Source: source, SourceFound: true, Branch: branch, Default: true, Verdict: rule.Outcome("pass")}, want: Idle{Source: source}},
 		{name: "when Parse with the default branch and open questions within the limit then returns idle", observation: Observation{Source: source, SourceFound: true, Default: true, Questions: []string{url}, MaxOpen: 1}, want: Idle{Source: source}},
 		{name: "when Parse with the default branch and more open questions than the limit then returns blocked by them", observation: Observation{Source: source, SourceFound: true, Default: true, Questions: []string{url, other}, MaxOpen: 1}, want: Blocked{Questions: []string{url, other}}},
+		{name: "when Parse with the default branch and a steady workflow then returns idle", observation: Observation{Source: source, SourceFound: true, Default: true, Due: budget.Steady{}}, want: Idle{Source: source}},
+		{name: "when Parse with the default branch and a workflow due for review then returns reviewing it with the tasks", observation: Observation{Source: source, SourceFound: true, Default: true, Due: budget.Review{Asked: []string{first}, Repaired: []string{second}}}, want: ReviewingWorkflow{Asked: []string{first}, Repaired: []string{second}}},
+		{name: "when Parse with the default branch and failing workflow reviews then returns escalating with the tasks", observation: Observation{Source: source, SourceFound: true, Default: true, Due: budget.Escalate{Asked: []string{"a"}, Repaired: []string{"b"}}}, want: Escalating{Title: "Review the workflow: reviews keep failing", Body: "Workflow reviews keep failing: the tasks below still ask a human or repair the harness too often. Review the workflow, then close this issue.\n\nAsked a human:\n- a\n\nRepaired the harness:\n- b\n"}},
+		{name: "when Parse with the default branch and an open escalation then returns blocked by it", observation: Observation{Source: source, SourceFound: true, Default: true, Escalations: []string{url}, Due: budget.Review{Asked: []string{first}}}, want: Blocked{Questions: []string{url}}},
+		{name: "when Parse with a task branch and a workflow due for review then returns editing", observation: Observation{Source: source, SourceFound: true, Branch: branch, Escalations: []string{url}, Due: budget.Review{Asked: []string{first}}}, want: Editing{Branch: branch}},
 		{name: "when Parse with a task branch and more open questions than the limit then returns editing", observation: Observation{Source: source, SourceFound: true, Branch: branch, Questions: []string{url, other}, MaxOpen: 1}, want: Editing{Branch: branch}},
 		{name: "when Parse with a passed task guard then returns ready", observation: Observation{Source: source, SourceFound: true, Branch: branch, Verdict: rule.Outcome("pass")}, want: Ready{Branch: branch}},
 		{name: "when Parse with a budget exceeded then returns repairing", observation: Observation{Source: source, SourceFound: true, Branch: branch, Verdict: rule.Outcome("budget-exceeded")}, want: Repairing{Branch: branch}},
@@ -81,6 +87,8 @@ func TestDecide(t *testing.T) {
 		want  Action
 	}{
 		{name: "when Decide with no source then returns setting the task source", state: NoSource{Source: source}, want: Action{Action: "set-task-source", Source: source}},
+		{name: "when Decide with reviewing the workflow then returns reviewing it with the tasks", state: ReviewingWorkflow{Asked: []string{url}, Repaired: []string{branch}}, want: Action{Action: "review-workflow", Asked: []string{url}, Repaired: []string{branch}}},
+		{name: "when Decide with escalating then returns waiting for a human", state: Escalating{Title: url, Body: branch}, want: Action{Action: "wait-for-human"}},
 		{name: "when Decide with idle then returns taking a task from the source", state: Idle{Source: source}, want: Action{Action: "take-task", Source: source}},
 		{name: "when Decide with blocked then returns waiting for a human with the questions", state: Blocked{Questions: []string{url}}, want: Action{Action: "wait-for-human", Questions: []string{url}}},
 		{name: "when Decide with editing then returns going on with the task", state: Editing{Branch: branch}, want: Action{Action: "continue", Branch: branch}},

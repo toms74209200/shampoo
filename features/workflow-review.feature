@@ -8,7 +8,6 @@ Feature: Review the workflow when tasks ask a human or repair too often
     Given a git repository with a commit
     And a task source "todo.md"
 
-  @skip
   @sha:0b0578368b64
   Scenario: Tasks asking a human within the limit let a new task be taken
     Given 10 merged tasks that asked a human
@@ -16,7 +15,6 @@ Feature: Review the workflow when tasks ask a human or repair too often
     When I run "shampoo next"
     Then the next action is "take-task"
 
-  @skip
   @sha:f647f3791f02
   Scenario: More tasks asking a human than the limit review the workflow
     Given 11 merged tasks that asked a human
@@ -26,7 +24,6 @@ Feature: Review the workflow when tasks ask a human or repair too often
     And the next action is "review-workflow"
     And the next action names 11 tasks that asked a human
 
-  @skip
   @sha:457925501354
   Scenario: More tasks repairing the harness than the limit review the workflow
     Given 11 merged tasks that entered harness repair
@@ -34,7 +31,6 @@ Feature: Review the workflow when tasks ask a human or repair too often
     Then the next action is "review-workflow"
     And the next action names 11 tasks that repaired the harness
 
-  @skip
   @sha:218f7d457a07
   Scenario: Only the latest merged tasks count
     Given 11 merged tasks that asked a human
@@ -42,7 +38,6 @@ Feature: Review the workflow when tasks ask a human or repair too often
     When I run "shampoo next"
     Then the next action is "take-task"
 
-  @skip
   @sha:ce661fd400f2
   Scenario: Tasks merged before the latest review do not count
     Given 11 merged tasks that asked a human
@@ -50,7 +45,6 @@ Feature: Review the workflow when tasks ask a human or repair too often
     When I run "shampoo next"
     Then the next action is "take-task"
 
-  @skip
   @sha:5845450c744b
   Scenario: The settings override the window and the limits
     Given settings reviewing the workflow over 2 tasks with at most 0 questions and 0 repairs
@@ -58,7 +52,6 @@ Feature: Review the workflow when tasks ask a human or repair too often
     When I run "shampoo next"
     Then the next action is "review-workflow"
 
-  @skip
   @sha:0eddbe3687a8
   Scenario: Reviews failing more times than the limit hand the workflow to a human
     Given settings allowing 0 failed workflow reviews
@@ -69,14 +62,12 @@ Feature: Review the workflow when tasks ask a human or repair too often
     And an issue labeled "workflow-review" is open
     And the next action names 1 question
 
-  @skip
   @sha:75b12967825e
   Scenario: An open issue handing the workflow to a human takes no new task
     Given 1 issue labeled "workflow-review" is open
     When I run "shampoo next"
     Then the next action is "wait-for-human"
 
-  @skip
   @sha:08f10dd1dd67
   Scenario: A closed issue handing the workflow to a human lets the work go on
     Given settings allowing 0 failed workflow reviews
@@ -87,7 +78,6 @@ Feature: Review the workflow when tasks ask a human or repair too often
     When I run "shampoo next"
     Then the next action is "take-task"
 
-  @skip
   @sha:966f5c25e7f1
   Scenario: A task already taken goes on
     Given 11 merged tasks that asked a human
