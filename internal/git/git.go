@@ -85,6 +85,16 @@ func (r Repository) Record(transition rule.Transition, tree string) error {
 	return nil
 }
 
+func (r Repository) Head() (string, error) {
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = r.Root
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("git rev-parse HEAD: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
 func (r Repository) Branch() (string, error) {
 	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
 	cmd.Dir = r.Root
