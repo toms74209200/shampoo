@@ -213,7 +213,7 @@ func Hooks(data []byte) ([]byte, error) {
 		return slices.Concat(data[:point], added.Bytes(), data[point:])
 	}
 	guard := func(transition string) string {
-		return "sh -c 'shampoo guard " + transition + "; case $? in 0) exit 0 ;; 1|3) exit 2 ;; *) exit 1 ;; esac'"
+		return fmt.Sprintf("sh -c 'shampoo guard %s; case $? in 0) exit 0 ;; %d|%d) exit 2 ;; *) exit 1 ;; esac'", transition, rule.ExitCodes[rule.TaskFailure], rule.ExitCodes[rule.Exceeded])
 	}
 	wanted := []struct {
 		event   string
