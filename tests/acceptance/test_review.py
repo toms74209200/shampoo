@@ -30,6 +30,18 @@ def given_review_found(workspace, shampoo_binary, fake_bin, comment, policy_id):
     record_review(workspace, shampoo_binary, fake_bin, [{"policy": policy_id, "comment": comment}])
 
 
+@given(parsers.re(r'the review found (?P<count>\d+) findings? on policy "(?P<policy_id>[^"]+)"'))
+def given_review_found_count(workspace, shampoo_binary, fake_bin, count, policy_id):
+    findings = [{"policy": policy_id, "comment": f"finding {i}"} for i in range(int(count))]
+    record_review(workspace, shampoo_binary, fake_bin, findings)
+
+
+@given(parsers.parse("settings allowing {count:d} reviews whose findings do not drop"))
+def given_review_attempts(workspace, settings_sections, count):
+    settings_sections.setdefault("state-machine.review", {})["max-failed-attempts"] = count
+    write_settings(workspace, settings_sections)
+
+
 @given("the review found nothing")
 def given_review_found_nothing(workspace, shampoo_binary, fake_bin):
     record_review(workspace, shampoo_binary, fake_bin, [])

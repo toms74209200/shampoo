@@ -37,7 +37,9 @@ stateDiagram-v2
     Editing --> Editing: edit done / edit checks
     Editing --> TaskDone: task done / task checks
     TaskDone --> Review: policies for review exist
-    Review --> PR: reviewed / findings as feedback
+    Review --> Editing: findings
+    Review --> PR: reviewed without findings
+    Review --> HarnessRepair: findings do not converge
     TaskDone --> PR: PR opened or updated / PR checks
     PR --> Editing: PR checks fail
     PR --> Merged: auto-merge
@@ -48,7 +50,7 @@ stateDiagram-v2
     HarnessRepair --> Human: repair budget exceeded
 ```
 
-Review is a phase, not a check: it exists only when a policy is marked for review (§5.2). An agent reviews the task's change against those policies once per task, and its findings go back to the agent that did the work as feedback; they fail no transition.
+Review is a phase, not a check: it exists only when a policy is marked for review (§5.2). An agent reviews the task's change against those policies; findings send the work back through Editing, and the task reaches the PR once a review finds nothing. The findings of one review after another should converge: a review whose findings do not drop charges the task's review budget (§5.2).
 
 Triggers do not add a schedule: an observed trigger creates a task, which enters the machine at Editing like any other.
 
@@ -62,6 +64,7 @@ Transitions are governed by budgets, in the manner of SRE error budgets. When to
 | False positive | Exceptions to a check | Fix the check |
 | Human review | Questions to a human that are still open | Take no new task until they are answered |
 | Repair | Each entry into harness repair within a task | Hand the task to a human |
+| Review convergence | A review within a task whose findings are not fewer than the previous review's | Repair the policies of the findings |
 | Workflow review | Recent merged tasks that asked a human or entered harness repair | Review the workflow; when reviews keep failing, hand it to a human |
 
 Charging the right budget requires telling a task failure (the check found a problem in the work) from a workflow failure (the harness misbehaved). Every check reports which one it is.
@@ -153,7 +156,8 @@ Tests come in two kinds, and only one of them belongs to the implementation:
 - **A policy may carry a code example**: written inline, a reference `path#L<start>-L<end>` at a fixed commit, or none
 - **Every rule passes on every code example.** A rule that fails on one contradicts the policy, and the rule is fixed
 - **A policy may be marked for review** (`review = true`). If any is, the state machine has the review phase (§2): before the PR, an agent reviews the task's change against the marked policies, without a human. Which agent does it is the agents' setup; the requirements on it, such as the model or that it is not the agent that did the work, are the project's, in `[state-machine.review.requirements]`, and shampoo hands them over as they are
-- **Findings are feedback, and statistics.** The agent that did the work gets them with the next action and decides what to change. Each finding is recorded in the ledger by policy, so that a policy often found violated shows in the statistics, as a candidate for a rule or for repairing the harness (§3.2). Whether a review met its requirements is not checked; how well reviews work is read from the statistics
+- **Findings send the work back, until they converge.** A review with findings returns the task to Editing: the agent that did the work gets them with the next action, changes what they call for, passes the task guard again, and is reviewed again. A review without findings lets the task open its PR; a change after it, such as a fix for CI, is not reviewed again. What is watched is the curve of findings over the reviews of a task, not their number: a review whose findings are not fewer than the previous review's charges the task's review budget, and more charges than `[state-machine.review] max-failed-attempts` (default 2) send the work to harness repair, as an entry counted by the repair budget. Findings that do not converge show a policy that does not settle what to do, so the repair is of the policies: `repair-harness` names those of the latest review's findings, and the agent makes them say what the work and the review can both settle. Findings that keep dropping charge nothing, however many reviews they take
+- **Findings are also statistics.** Each finding is recorded in the ledger by policy, so that a policy often found violated shows in the statistics, as a candidate for a rule or for repairing the harness (§3.2). Whether a review met its requirements is not checked; how well reviews work is read from the statistics
 - **Policies and rules are defined independently**, in the project's configuration (§7). shampoo applies no defaults at run time: their content is the project's own. `shampoo init` writes recommended rules once, as a starting point (§7.1); from then on they are the project's to change
 
 ### 5.3 Asking a human
@@ -274,7 +278,7 @@ Each transition is split by what agent mechanisms (hooks, skills) do, what the d
 | Task created → Editing | Launch the agent, in a worktree of its own. The `SessionStart` hook, added by `shampoo init` (§7.1), puts the policies into its context, again after compaction | | `shampoo next` hands over the task source, unless too many questions to a human are open (§5.3) or the workflow is due for review (§5.4); `shampoo policies` prints the policies for the hook |
 | Edit done (Editing → Editing) | The PostToolUse hook on every tool [3] calls `shampoo guard edit` | | Which rules judge, and how budgets count. The guard ignores which tool ran (agents also edit through Bash, Python, sed) and looks at files: what changed since the last passed guard, recorded as a git tree at each pass. If nothing changed, it does nothing |
 | Task done (Editing → TaskDone) | The Stop hook [3] calls `shampoo guard task`. Every stop is an attempt at task done: the agent either thinks it is done or is stuck, and in both cases the guard decides | | Same as edit done |
-| Review (TaskDone → Review → PR), when a policy is marked for review | An agent reviews, under the project's requirements | | `shampoo next` says to review, with the marked policies and the requirements, once the task guard passes; `shampoo review` records the findings for the task's branch and the reviewed tree; a review of another task does not count. Then `shampoo next` gives the findings with the action to open the PR, while the tree is the reviewed one |
+| Review (TaskDone → Review → PR), when a policy is marked for review | An agent reviews, under the project's requirements | | `shampoo next` says to review, with the marked policies and the requirements, once the task guard passes; `shampoo review` records the findings for the task's branch and the reviewed tree; a review of another task does not count. With findings, `shampoo next` says to continue, with them, and to review again once the task guard passes on a changed tree; without, to open the PR. Findings that do not converge send the work to harness repair, with their policies |
 | Asking a human, at any time | The agent opens the issue, as the policies say | Issues | `shampoo next` counts the open ones |
 | Workflow review, instead of a new task | An agent reviews the workflow | Issues, when handed to a human | `shampoo next` counts the recent merged tasks that asked or repaired, and says to review (§5.4) |
 | PR opened (TaskDone → PR) | The agent opens it | Opens the PR | `shampoo next` says to, once the task guard passes |
@@ -307,7 +311,7 @@ The flow of one task:
 1. An agent, launched however the project sets agents up, asks `shampoo next`, which hands over the task source; the agent takes a task from it
 2. On every tool call, the PostToolUse hook calls `shampoo guard edit`; on failure the agent gets the reason and fixes it
 3. When the agent tries to stop, the Stop hook calls `shampoo guard task`. On a violation, the agent is sent back with the reason; the rules' budgets and the repair budget decide when it stops being sent back. On pass, the stop is allowed. Every judgment is recorded in the ledger
-4. Asked again, `shampoo next` sees the recorded outcome: on pass it says to review if a policy is marked for review and the task has not been reviewed, and otherwise to push the branch and open a PR, with the review's findings; on escape, to repair the harness
+4. Asked again, `shampoo next` sees the recorded outcome: on pass it says to review if a policy is marked for review and the task has not been reviewed, or its latest review found something and the tree has changed since; to continue with the findings while the tree is the one so reviewed; and otherwise to push the branch and open a PR; on escape, or on findings that do not converge, to repair the harness
 5. The PR's CI runs. Asked again, `shampoo next` merges the PR once the checks the change calls for have passed, or says to fix the failure, with its reason
 
 ## 12. State and ledger
