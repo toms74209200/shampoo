@@ -7,5 +7,5 @@ Each of these is prohibited as a function, and is written inline where it is use
 - A conversion whose result type carries nothing new: `string -> string`, `string -> int`, `int -> int`, `User -> User`'''
 check = "functions"
 transitions = ["edit", "task", "pr"]
-paths = ["**.go", "scripts/check-functions.sh", "tools/**"]
+paths = ["**.go", "scripts/check-functions.sh", "tools/**", "scripts/list-files.sh"]
 judge = { exit = { 1 = "task-failure", other = "workflow-failure" } }
