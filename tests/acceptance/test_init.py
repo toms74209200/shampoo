@@ -1,4 +1,5 @@
 import json
+import subprocess
 import tomllib
 
 from pytest_bdd import given, parsers, scenarios, then, when
@@ -91,3 +92,10 @@ def then_no_label(gh_state):
 def then_policy_review(workspace, policy_id):
     policy = tomllib.loads((workspace / ".shampoo" / "policies" / f"{policy_id}.toml").read_text())
     assert policy.get("review") is True, f"got {policy!r}"
+
+
+@then(parsers.parse('nothing is written outside "{directory}"'))
+def then_only_under(workspace, directory):
+    status = subprocess.run(["git", "-C", str(workspace), "status", "--porcelain", "--untracked-files=all"], check=True, capture_output=True, text=True).stdout
+    outside = [line[3:] for line in status.splitlines() if not line[3:].startswith(directory)]
+    assert outside == [], f"written outside {directory}: {outside!r}"

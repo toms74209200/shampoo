@@ -54,7 +54,7 @@ Feature: Write the recommended rules for the checks a project decided
   Scenario: Nothing of any agent's is written
     When shampoo init runs with the task source "todo.md" and the check "lint" running "make lint"
     Then the exit code is 0
-    And the file ".claude/settings.json" does not exist
+    And nothing is written outside ".shampoo/"
 
   @sha:5f571019ce48
   Scenario: The exceptions of the linter are declared on its rule
