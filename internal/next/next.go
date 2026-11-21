@@ -178,7 +178,7 @@ func Parse(o Observation) State {
 				body += "- " + task + "\n"
 			}
 			return Escalating{Title: "Review the workflow: reviews keep failing", Body: body}
-		case budget.Steady, nil:
+		case budget.Steady:
 		}
 		return Idle{Source: o.Source}
 	}
