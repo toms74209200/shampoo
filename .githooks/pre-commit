@@ -1,4 +1,16 @@
 #!/bin/sh
-make check && exit 0
-echo "pre-commit: checks failed; every commit must pass them on its own (docs/development.md §2, §3.1)" >&2
+set -u
+
+tree=$(mktemp -d) || exit 1
+staged=$(mktemp) || exit 1
+trap 'git worktree remove --force "$tree" >/dev/null 2>&1; rm -rf "$tree" "$staged"' EXIT
+git diff --cached --binary > "$staged" || exit 1
+unset GIT_INDEX_FILE GIT_DIR GIT_WORK_TREE
+git worktree add --quiet --detach "$tree" HEAD || exit 1
+git -C "$tree" apply --index --allow-empty "$staged" || {
+	echo "pre-commit: cannot apply the staged changes to a clean tree" >&2
+	exit 1
+}
+make -C "$tree" check && exit 0
+echo "pre-commit: checks failed on what is staged; every commit must pass them on its own (docs/development.md §2, §3.1)" >&2
 exit 1
