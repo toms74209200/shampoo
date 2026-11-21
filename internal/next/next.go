@@ -58,7 +58,17 @@ type Run struct {
 }
 
 //sumtype:decl
+type Observed interface{ observed() }
+
+//sumtype:decl
 type State interface{ state() }
+
+type Settled struct{ State State }
+
+type DueReview struct {
+	Asked    []string
+	Repaired []string
+}
 
 type NoSource struct{ Source string }
 
@@ -113,21 +123,24 @@ type Passed struct{ Branch string }
 
 type Merged struct{ Branch string }
 
-func (NoSource) state()          {}
 func (Idle) state()              {}
 func (Blocked) state()           {}
 func (ReviewingWorkflow) state() {}
-func (Escalating) state()        {}
 func (Editing) state()           {}
 func (Repairing) state()         {}
 func (Handed) state()            {}
 func (Done) state()              {}
 func (Ready) state()             {}
 func (Failing) state()           {}
-func (Stalled) state()           {}
 func (Waiting) state()           {}
-func (Passed) state()            {}
 func (Merged) state()            {}
+
+func (Settled) observed()    {}
+func (NoSource) observed()   {}
+func (DueReview) observed()  {}
+func (Escalating) observed() {}
+func (Stalled) observed()    {}
+func (Passed) observed()     {}
 
 type Action struct {
 	Action       string           `json:"action"`
@@ -158,20 +171,20 @@ func ParseRecord(data []byte) (*Record, error) {
 	return &record, nil
 }
 
-func Parse(o Observation) State {
+func Parse(o Observation) Observed {
 	if o.Source == "" || (!strings.Contains(o.Source, "://") && !o.SourceFound) {
 		return NoSource{Source: o.Source}
 	}
 	if o.Default && len(o.Escalations) > 0 {
-		return Blocked{Questions: o.Escalations}
+		return Settled{State: Blocked{Questions: o.Escalations}}
 	}
 	if o.Default && len(o.Questions) > o.MaxOpen {
-		return Blocked{Questions: o.Questions}
+		return Settled{State: Blocked{Questions: o.Questions}}
 	}
 	if o.Default {
 		switch due := o.Due.(type) {
 		case budget.Review:
-			return ReviewingWorkflow{Asked: due.Asked, Repaired: due.Repaired}
+			return DueReview{Asked: due.Asked, Repaired: due.Repaired}
 		case budget.Escalate:
 			body := "Workflow reviews keep failing: the tasks below still ask a human or repair the harness too often. Review the workflow, then close this issue.\n\nAsked a human:\n"
 			for _, task := range due.Asked {
@@ -184,23 +197,23 @@ func Parse(o Observation) State {
 			return Escalating{Title: "Review the workflow: reviews keep failing", Body: body}
 		case budget.Steady:
 		}
-		return Idle{Source: o.Source}
+		return Settled{State: Idle{Source: o.Source}}
 	}
 	pr := o.PullRequest
 	if pr != nil && pr.State == "MERGED" {
-		return Merged{Branch: o.Branch}
+		return Settled{State: Merged{Branch: o.Branch}}
 	}
 	if pr != nil && pr.State == "CLOSED" {
-		return Handed{Branch: o.Branch}
+		return Settled{State: Handed{Branch: o.Branch}}
 	}
 	switch o.Verdict {
 	case rule.Exceeded:
-		return Repairing{Branch: o.Branch}
+		return Settled{State: Repairing{Branch: o.Branch}}
 	case rule.Handed:
-		return Handed{Branch: o.Branch}
+		return Settled{State: Handed{Branch: o.Branch}}
 	}
 	if o.Verdict != rule.Pass {
-		return Editing{Branch: o.Branch}
+		return Settled{State: Editing{Branch: o.Branch}}
 	}
 	if pr == nil || !pr.Pushed {
 		var marked []string
@@ -213,11 +226,11 @@ func Parse(o Observation) State {
 		found := mine && len(o.Record.Findings) > 0
 		switch {
 		case !mine && len(marked) > 0, found && o.Record.Tree != o.Tree:
-			return Done{Branch: o.Branch, Policies: marked, Requirements: o.Requirements}
+			return Settled{State: Done{Branch: o.Branch, Policies: marked, Requirements: o.Requirements}}
 		case found:
 			switch o.Convergence.(type) {
 			case budget.Exhausted:
-				return Handed{Branch: o.Branch}
+				return Settled{State: Handed{Branch: o.Branch}}
 			case budget.Diverging:
 				var policies []string
 				for _, finding := range o.Record.Findings {
@@ -225,12 +238,12 @@ func Parse(o Observation) State {
 						policies = append(policies, finding.Policy)
 					}
 				}
-				return Repairing{Branch: o.Branch, Policies: policies}
+				return Settled{State: Repairing{Branch: o.Branch, Policies: policies}}
 			case budget.Converging:
 			}
-			return Editing{Branch: o.Branch, Findings: o.Record.Findings}
+			return Settled{State: Editing{Branch: o.Branch, Findings: o.Record.Findings}}
 		}
-		return Ready{Branch: o.Branch}
+		return Settled{State: Ready{Branch: o.Branch}}
 	}
 	var failures []Failure
 	waiting := false
@@ -250,27 +263,23 @@ func Parse(o Observation) State {
 	}
 	switch {
 	case len(failures) > 0:
-		return Failing{Branch: o.Branch, Failures: failures}
+		return Settled{State: Failing{Branch: o.Branch, Failures: failures}}
 	case waiting && o.Now.Sub(pr.Latest) >= o.MaxWait:
 		return Stalled{Branch: o.Branch, Since: pr.Latest, MaxWait: o.MaxWait}
 	case waiting:
-		return Waiting{Branch: o.Branch}
+		return Settled{State: Waiting{Branch: o.Branch}}
 	}
 	return Passed{Branch: o.Branch}
 }
 
 func Decide(s State) Action {
 	switch s := s.(type) {
-	case NoSource:
-		return Action{Action: "set-task-source", Source: s.Source}
 	case Idle:
 		return Action{Action: "take-task", Source: s.Source}
 	case Blocked:
 		return Action{Action: "wait-for-human", Questions: s.Questions}
 	case ReviewingWorkflow:
 		return Action{Action: "review-workflow", Asked: s.Asked, Repaired: s.Repaired}
-	case Escalating:
-		return Action{Action: "wait-for-human"}
 	case Editing:
 		return Action{Action: "continue", Branch: s.Branch, Findings: s.Findings}
 	case Repairing:
@@ -285,10 +294,6 @@ func Decide(s State) Action {
 		return Action{Action: "fix-pr", Branch: s.Branch, Failures: s.Failures}
 	case Waiting:
 		return Action{Action: "wait", Branch: s.Branch}
-	case Stalled:
-		return Action{Action: "wait", Branch: s.Branch}
-	case Passed:
-		return Action{Action: "merge", Branch: s.Branch}
 	case Merged:
 		return Action{Action: "merged", Branch: s.Branch}
 	}
