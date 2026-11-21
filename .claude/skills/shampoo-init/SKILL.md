@@ -54,7 +54,20 @@ problem in the check itself. Write a script under `scripts/` when the command
 needs more than one line. Give `paths` when a check only concerns some files,
 such as `["**.go", "go.mod"]`.
 
-## 4. Run `shampoo init`
+## 4. Write the first tasks
+
+Unless the project already keeps its tasks somewhere with what makes each done,
+the task source is a directory, `tasks/`, with one file per task:
+
+    # <what to do>
+
+    ## Done when
+    - <what a test can check>
+
+Start small: a few tasks, each one pull request, the first the smallest, so
+that one task goes all the way to its merge before more come.
+
+## 5. Run `shampoo init`
 
     echo '{"tasks": "<task source>", "checks": {"lint": {"command": "...", "exceptions": "..."}, "small-tests": {"command": "..."}, "coverage": {"command": "..."}, "commit-message": {"command": "... <commit>"}}}' | shampoo init
 
@@ -64,7 +77,7 @@ It prints what it wrote and what it kept. When it says there is no review
 phase, no policy is marked for review: keep it so only if the project wants no
 review.
 
-## 5. See it run
+## 6. See it run
 
 Run `shampoo guard task` and fix what fails: a failing check on code that is
 fine is a check to fix, not code. Then commit the setup on a branch of its own
