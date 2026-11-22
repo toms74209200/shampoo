@@ -79,10 +79,17 @@ def then_statistics_tokens(workspace, task, input, creation, read, output):
     assert got == [want], f"got tokens {got!r}"
 
 
-@then(parsers.parse('the statistics of task "{task}" have {count:d} changed line'))
-def then_statistics_changed(workspace, task, count):
+@then(parsers.parse('the statistics of task "{task}" have the lines its merge changed'))
+def then_statistics_changed(workspace, task):
+    numstat = subprocess.run(
+        ["git", "-C", str(workspace), "diff", "--numstat", "--no-renames", "HEAD^1", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    want = sum(int(added) + int(removed) for added, removed, _ in (row.split("\t") for row in numstat.splitlines()))
     got = [line.get("changed") for line in statistics(workspace, task)]
-    assert got == [count], f"got changed lines {got!r}"
+    assert want > 0 and got == [want], f"got changed lines {got!r}, want {want}"
 
 
 @then(parsers.parse('the statistics of task "{task}" have no tokens'))
