@@ -219,3 +219,27 @@ func TestCompact(t *testing.T) {
 		})
 	}
 }
+
+func TestUsed(t *testing.T) {
+	run := rand.Text()
+	tests := []struct {
+		name          string
+		branch        string
+		defaultBranch string
+		tokens        usage.Tokens
+		changed       int
+		want          []Line
+	}{
+		{name: "when Used with a task branch then returns a usage line of the task", branch: "task-a", defaultBranch: "main", tokens: usage.Tokens{Input: 1, CacheCreation: 2, CacheRead: 3, Output: 4}, changed: 5, want: []Line{{Run: run, Task: "task-a", Transition: "usage", Tokens: &usage.Tokens{Input: 1, CacheCreation: 2, CacheRead: 3, Output: 4}, Changed: 5}}},
+		{name: "when Used with the default branch then returns no line", branch: "main", defaultBranch: "main", tokens: usage.Tokens{Input: 1}, changed: 5, want: nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Used(run, tt.branch, tt.defaultBranch, tt.tokens, tt.changed)
+
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("got %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+}
