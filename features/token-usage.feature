@@ -83,6 +83,7 @@ Feature: Token usage of a task
     And the statistics have no line for the default branch
 
   @skip
+  @sha:0ef2d0f458ce
   Scenario: The tokens of a subagent count for the task
     Given a transcript with a message using 1 input, 2 cache creation, 3 cache read and 4 output tokens
     And a subagent transcript with a message using 10 input, 20 cache creation, 30 cache read and 40 output tokens
@@ -92,6 +93,7 @@ Feature: Token usage of a task
     Then the statistics of task "task-a" have 11 input, 22 cache creation, 33 cache read and 44 output tokens
 
   @skip
+  @sha:c4b63877e818
   Scenario: A subagent transcript counts only what it added since the previous stop
     Given a transcript with a message using 1 input, 2 cache creation, 3 cache read and 4 output tokens
     And a subagent transcript with a message using 10 input, 20 cache creation, 30 cache read and 40 output tokens
