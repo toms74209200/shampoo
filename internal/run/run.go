@@ -10,6 +10,7 @@ import (
 	"github.com/toms74209200/shampoo/internal/hook"
 	"github.com/toms74209200/shampoo/internal/orchestrator"
 	"github.com/toms74209200/shampoo/internal/policy"
+	"github.com/toms74209200/shampoo/internal/rule"
 )
 
 func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
@@ -63,7 +64,14 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			code, message = 2, fmt.Sprintf("shampoo review: %v\n", err)
 		}
 	case cli.GuardHook:
-		outcome, report, err := guard.Run("", c.Transition)
+		input, err := io.ReadAll(stdin)
+		if err == nil {
+			err = guard.Usage("", hook.Stop(c.Transition, input))
+		}
+		outcome, report := rule.WorkflowFailure, ""
+		if err == nil {
+			outcome, report, err = guard.Run("", c.Transition)
+		}
 		if err != nil {
 			report += fmt.Sprintf("shampoo guard: %v\n", err)
 		}

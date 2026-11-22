@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/toms74209200/shampoo/internal/rule"
+	"github.com/toms74209200/shampoo/internal/usage"
 )
 
 func TestParseLedger(t *testing.T) {
@@ -189,6 +190,23 @@ func TestCompact(t *testing.T) {
 				{Run: "2", Transition: "edit", Rule: "lint", Check: "lint", Outcome: rule.Outcome("pass"), Millis: 3},
 			},
 				Summaries: []Summary{{Task: merged, Attempts: map[string]int{"review": 1, "edit": 1}, Violations: map[string]int{}, Findings: map[string]int{"functions": 1}, Millis: map[string]int64{"lint": 3}}}},
+		},
+		{
+			name: "when Compact with token usage of a merged task then returns its tokens summed by kind and its latest changed lines without keeping them",
+			lines: []Line{
+				{Run: "1", Task: merged, Transition: "usage", Tokens: &usage.Tokens{Input: 1, CacheCreation: 2, CacheRead: 3, Output: 4}, Changed: 5},
+				{Run: "2", Task: merged, Transition: "usage", Tokens: &usage.Tokens{Input: 10, CacheCreation: 20, CacheRead: 30, Output: 40}, Changed: 7},
+			},
+			window: 4,
+			want:   Compaction{Summaries: []Summary{{Task: merged, Attempts: map[string]int{}, Violations: map[string]int{}, Findings: map[string]int{}, Millis: map[string]int64{}, Tokens: &usage.Tokens{Input: 11, CacheCreation: 22, CacheRead: 33, Output: 44}, Changed: 7}}},
+		},
+		{
+			name: "when Compact with token usage of an open task then returns it kept",
+			lines: []Line{
+				{Run: "1", Task: open, Transition: "usage", Tokens: &usage.Tokens{Input: 1}, Changed: 5},
+			},
+			window: 0,
+			want:   Compaction{Kept: []Line{{Run: "1", Task: open, Transition: "usage", Tokens: &usage.Tokens{Input: 1}, Changed: 5}}},
 		},
 	}
 	for _, tt := range tests {
