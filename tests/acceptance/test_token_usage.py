@@ -96,3 +96,9 @@ def then_statistics_changed(workspace, task):
 def then_statistics_no_tokens(workspace, task):
     got = [line.get("tokens") for line in statistics(workspace, task)]
     assert got == [None], f"got tokens {got!r}"
+
+
+@then("the statistics have no line for the default branch")
+def then_statistics_no_default(workspace, default_branch):
+    got = statistics(workspace, default_branch)
+    assert got == [], f"got statistics {got!r} for {default_branch}"
