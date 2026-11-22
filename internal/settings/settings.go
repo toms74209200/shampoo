@@ -15,6 +15,7 @@ var ErrInvalid = errors.New("invalid settings")
 type Settings struct {
 	RepairAttempts int
 	ReviewAttempts int
+	MaxReviews     int
 	Tasks          string
 	MaxWaitMinutes int
 	Merge          string
@@ -44,6 +45,7 @@ func Parse(data []byte) (Settings, error) {
 			Review struct {
 				Requirements      map[string]any `toml:"requirements"`
 				MaxFailedAttempts int            `toml:"max-failed-attempts"`
+				MaxReviews        int            `toml:"max-reviews"`
 			} `toml:"review"`
 			WorkflowReview WorkflowReview `toml:"workflow-review"`
 		} `toml:"state-machine"`
@@ -69,6 +71,7 @@ func Parse(data []byte) (Settings, error) {
 	}
 	file.StateMachine.HarnessRepair.MaxFailedAttempts = 3
 	file.StateMachine.Review.MaxFailedAttempts = 2
+	file.StateMachine.Review.MaxReviews = 5
 	file.Orchestrator.MaxWaitMinutes = 60
 	file.Orchestrator.Merge = "merge"
 	file.TimeBudget.Budget = rule.Count{Violations: 2, Runs: 20}
@@ -86,6 +89,9 @@ func Parse(data []byte) (Settings, error) {
 	}
 	if file.StateMachine.Review.MaxFailedAttempts < 0 {
 		return Settings{}, fmt.Errorf("%w: max-failed-attempts %d of the review is negative", ErrInvalid, file.StateMachine.Review.MaxFailedAttempts)
+	}
+	if file.StateMachine.Review.MaxReviews < 1 {
+		return Settings{}, fmt.Errorf("%w: max-reviews %d of the review is less than one", ErrInvalid, file.StateMachine.Review.MaxReviews)
 	}
 	if file.StateMachine.HarnessRepair.MaxFailedAttempts < 0 {
 		return Settings{}, fmt.Errorf("%w: max-failed-attempts %d is negative", ErrInvalid, file.StateMachine.HarnessRepair.MaxFailedAttempts)
@@ -123,5 +129,5 @@ func Parse(data []byte) (Settings, error) {
 	if !slices.Contains([]string{"merge", "squash", "rebase"}, file.Orchestrator.Merge) {
 		return Settings{}, fmt.Errorf("%w: merge %q is not merge, squash or rebase", ErrInvalid, file.Orchestrator.Merge)
 	}
-	return Settings{RepairAttempts: file.StateMachine.HarnessRepair.MaxFailedAttempts, ReviewAttempts: file.StateMachine.Review.MaxFailedAttempts, Tasks: file.Orchestrator.Tasks, MaxWaitMinutes: file.Orchestrator.MaxWaitMinutes, Merge: file.Orchestrator.Merge, Requirements: file.StateMachine.Review.Requirements, MaxSeconds: maxSeconds, TimeBudget: file.TimeBudget.Budget, TimeStop: file.TimeBudget.Stop, FailureBudget: file.WorkflowFailure.Budget, FailureStop: file.WorkflowFailure.Stop, MaxOpen: file.HumanReview.MaxOpen, WorkflowReview: file.StateMachine.WorkflowReview}, nil
+	return Settings{RepairAttempts: file.StateMachine.HarnessRepair.MaxFailedAttempts, ReviewAttempts: file.StateMachine.Review.MaxFailedAttempts, MaxReviews: file.StateMachine.Review.MaxReviews, Tasks: file.Orchestrator.Tasks, MaxWaitMinutes: file.Orchestrator.MaxWaitMinutes, Merge: file.Orchestrator.Merge, Requirements: file.StateMachine.Review.Requirements, MaxSeconds: maxSeconds, TimeBudget: file.TimeBudget.Budget, TimeStop: file.TimeBudget.Stop, FailureBudget: file.WorkflowFailure.Budget, FailureStop: file.WorkflowFailure.Stop, MaxOpen: file.HumanReview.MaxOpen, WorkflowReview: file.StateMachine.WorkflowReview}, nil
 }

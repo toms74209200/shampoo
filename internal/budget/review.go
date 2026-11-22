@@ -2,7 +2,12 @@ package budget
 
 import "github.com/toms74209200/shampoo/internal/rule"
 
-func Diverged(lines []Line, task string, attempts int) bool {
+type Reviews struct {
+	Attempts int
+	Max      int
+}
+
+func Diverged(lines []Line, task string, limit Reviews) bool {
 	var counts []int
 	runs := map[string]int{}
 	for _, line := range lines {
@@ -26,15 +31,15 @@ func Diverged(lines []Line, task string, attempts int) bool {
 		}
 	}
 	last := len(counts) - 1
-	return last > 0 && counts[last] > 0 && counts[last] >= counts[last-1] && charges > attempts
+	return last >= 0 && counts[last] > 0 && (len(counts) > limit.Max || last > 0 && counts[last] >= counts[last-1] && charges > limit.Attempts)
 }
 
-func Reviewed(ledger []byte, run, task string, policies []string, attempts int) []Line {
+func Reviewed(ledger []byte, run, task string, policies []string, limit Reviews) []Line {
 	lines := []Line{{Run: run, Task: task, Transition: "review", Outcome: rule.Pass}}
 	for _, policy := range policies {
 		lines = append(lines, Line{Run: run, Task: task, Transition: "review", Policy: policy, Outcome: rule.Finding})
 	}
-	if Diverged(append(ParseLedger(ledger), lines...), task, attempts) {
+	if Diverged(append(ParseLedger(ledger), lines...), task, limit) {
 		lines = append(lines, Line{Run: run, Task: task, Transition: "review", Outcome: rule.Exceeded})
 	}
 	return lines
@@ -53,8 +58,8 @@ func (Converging) convergence() {}
 func (Diverging) convergence()  {}
 func (Exhausted) convergence()  {}
 
-func Converge(lines []Line, task string, reviewAttempts, repairAttempts int) Convergence {
-	if !Diverged(lines, task, reviewAttempts) {
+func Converge(lines []Line, task string, limit Reviews, repairAttempts int) Convergence {
+	if !Diverged(lines, task, limit) {
 		return Converging{}
 	}
 	if Repairs(lines, task) > repairAttempts {

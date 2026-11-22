@@ -92,7 +92,7 @@ func Next(dir string) (next.Action, error) {
 		return next.Action{}, err
 	}
 	lines := budget.ParseLedger(ledger)
-	state.Convergence = budget.Converge(lines, branch, options.ReviewAttempts, options.RepairAttempts)
+	state.Convergence = budget.Converge(lines, branch, budget.Reviews{Attempts: options.ReviewAttempts, Max: options.MaxReviews}, options.RepairAttempts)
 	state.Tree, err = repo.Snapshot()
 	if err != nil {
 		return next.Action{}, err
@@ -345,7 +345,7 @@ func Review(dir string, input io.Reader) error {
 	}
 	run := rand.Text()
 	return files.Update(filepath.Join(repo.CommonDir, "shampoo", "ledger.jsonl"), func(ledger []byte) ([]byte, error) {
-		for _, line := range budget.Reviewed(ledger, run, branch, found, options.ReviewAttempts) {
+		for _, line := range budget.Reviewed(ledger, run, branch, found, budget.Reviews{Attempts: options.ReviewAttempts, Max: options.MaxReviews}) {
 			encoded, err := json.Marshal(line)
 			if err != nil {
 				return nil, err
