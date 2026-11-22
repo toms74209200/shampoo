@@ -28,6 +28,19 @@ def add_merged_tasks(workspace: Path, count: int, questions: int, repairs: int) 
             file.write(json.dumps(summary) + "\n")
 
 
+def add_costed_task(workspace: Path, task: str, changed: int, tokens: int) -> None:
+    stats = stats_path(workspace)
+    stats.parent.mkdir(parents=True, exist_ok=True)
+    kinds = {"input": tokens // 10, "cache-creation": tokens // 10, "cache-read": tokens - 3 * (tokens // 10), "output": tokens // 10}
+    summary = {"task": task, "attempts": {}, "violations": {}, "findings": {}, "millis": {}, "repairs": 0, "questions": 0, "tokens": kinds, "changed": changed}
+    with stats.open("a") as file:
+        file.write(json.dumps(summary) + "\n")
+
+
+def predicted(changed: int) -> float:
+    return 20000 * changed**0.5
+
+
 def issues(gh_state) -> list:
     return json.loads((gh_state / "issues.json").read_text())
 
@@ -117,3 +130,28 @@ def then_asked(run_result, count):
 def then_repaired(run_result, count):
     got = next_action(run_result).get("repaired", [])
     assert len(got) == count, f"got repaired {got!r}"
+
+
+@given(parsers.parse("{count:d} merged tasks whose tokens follow their changed lines"))
+def given_costed_tasks(workspace, count):
+    for i in range(count):
+        changed = round(10 * 1.6**i)
+        jitter = 1.1 if i % 2 == 0 else 0.9
+        add_costed_task(workspace, new_id(), changed, round(predicted(changed) * jitter))
+
+
+@given(parsers.parse('a merged task "{task}" with {factor:g} times the tokens its changed lines predict'))
+def given_costly_task(workspace, task, factor):
+    add_costed_task(workspace, task, 300, round(predicted(300) * factor))
+
+
+@given(parsers.parse("settings judging a cost beyond {deviations:d} deviations"))
+def given_cost_settings(workspace, settings_sections, deviations):
+    settings_sections.setdefault("state-machine.workflow-review", {})["cost-deviations"] = deviations
+    write_settings(workspace, settings_sections)
+
+
+@then(parsers.parse('the next action names the costly task "{task}"'))
+def then_costly(run_result, task):
+    got = next_action(run_result).get("costly", [])
+    assert got == [task], f"got costly {got!r}"

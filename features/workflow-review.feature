@@ -1,7 +1,8 @@
 Feature: Review the workflow when tasks ask a human or repair too often
   Among the latest merged tasks, too many that asked a human or entered
-  harness repair mean the workflow itself needs a review: `shampoo next`
-  says to review it instead of handing a new task. Reviews that keep
+  harness repair, or one that used far more tokens than its size explains,
+  mean the workflow itself needs a review: `shampoo next` says to review it
+  instead of handing a new task. Reviews that keep
   failing hand the workflow to a human, through an issue.
 
   Background:
@@ -85,3 +86,33 @@ Feature: Review the workflow when tasks ask a human or repair too often
     And no pull request is open
     When I run "shampoo next"
     Then the next action is "continue"
+
+  @skip
+  Scenario: A task costing far more than its size explains reviews the workflow
+    Given 12 merged tasks whose tokens follow their changed lines
+    And a merged task "task-x" with 5 times the tokens its changed lines predict
+    When I run "shampoo next"
+    Then the next action is "review-workflow"
+    And the next action names the costly task "task-x"
+
+  @skip
+  Scenario: A task costing within the spread lets a new task be taken
+    Given 12 merged tasks whose tokens follow their changed lines
+    And a merged task "task-x" with 1.2 times the tokens its changed lines predict
+    When I run "shampoo next"
+    Then the next action is "take-task"
+
+  @skip
+  Scenario: Too few tasks to compare judge no cost
+    Given 8 merged tasks whose tokens follow their changed lines
+    And a merged task "task-x" with 5 times the tokens its changed lines predict
+    When I run "shampoo next"
+    Then the next action is "take-task"
+
+  @skip
+  Scenario: The settings widen the spread a cost may take
+    Given settings judging a cost beyond 20 deviations
+    And 12 merged tasks whose tokens follow their changed lines
+    And a merged task "task-x" with 5 times the tokens its changed lines predict
+    When I run "shampoo next"
+    Then the next action is "take-task"
