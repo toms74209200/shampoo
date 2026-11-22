@@ -166,7 +166,6 @@ Feature: Review a task against its policies
     When I run "shampoo next"
     Then the next action is "review"
 
-  @skip
   @sha:066f30448959
   Scenario: Findings still found after too many reviews repair the harness
     Given a policy "functions" for review
@@ -184,7 +183,6 @@ Feature: Review a task against its policies
     Then the next action is "repair-harness"
     And the next action has the policies "functions"
 
-  @skip
   @sha:7f4c6d2b412e
   Scenario: Findings that drop within the reviews of a task go on editing
     Given a policy "functions" for review
