@@ -71,6 +71,7 @@ type Starting struct{}
 type DueReview struct {
 	Asked    []string
 	Repaired []string
+	Costly   []string
 }
 
 type NoSource struct{ Source string }
@@ -82,6 +83,7 @@ type Blocked struct{ Questions []string }
 type ReviewingWorkflow struct {
 	Asked    []string
 	Repaired []string
+	Costly   []string
 }
 
 type Escalating struct {
@@ -157,6 +159,7 @@ type Action struct {
 	Questions    []string         `json:"questions,omitempty"`
 	Asked        []string         `json:"asked,omitempty"`
 	Repaired     []string         `json:"repaired,omitempty"`
+	Costly       []string         `json:"costly,omitempty"`
 }
 
 type Failure struct {
@@ -264,14 +267,18 @@ func Start(o Observation, opened question.Open) Observed {
 	}
 	switch due := o.Due.(type) {
 	case budget.Review:
-		return DueReview{Asked: due.Asked, Repaired: due.Repaired}
+		return DueReview{Asked: due.Asked, Repaired: due.Repaired, Costly: due.Costly}
 	case budget.Escalate:
-		body := "Workflow reviews keep failing: the tasks below still ask a human or repair the harness too often. Review the workflow, then close this issue.\n\nAsked a human:\n"
+		body := "Workflow reviews keep failing: the tasks below still ask a human, repair the harness too often or cost far more tokens than their size explains. Review the workflow, then close this issue.\n\nAsked a human:\n"
 		for _, task := range due.Asked {
 			body += "- " + task + "\n"
 		}
 		body += "\nRepaired the harness:\n"
 		for _, task := range due.Repaired {
+			body += "- " + task + "\n"
+		}
+		body += "\nCostly:\n"
+		for _, task := range due.Costly {
 			body += "- " + task + "\n"
 		}
 		return Escalating{Title: "Review the workflow: reviews keep failing", Body: body}
@@ -287,7 +294,7 @@ func Decide(s State) Action {
 	case Blocked:
 		return Action{Action: "wait-for-human", Questions: s.Questions}
 	case ReviewingWorkflow:
-		return Action{Action: "review-workflow", Asked: s.Asked, Repaired: s.Repaired}
+		return Action{Action: "review-workflow", Asked: s.Asked, Repaired: s.Repaired, Costly: s.Costly}
 	case Editing:
 		return Action{Action: "continue", Branch: s.Branch, Findings: s.Findings}
 	case Repairing:
