@@ -61,3 +61,24 @@ func ParseOffsets(data []byte) (Offsets, error) {
 	}
 	return offsets, nil
 }
+
+type Reading struct {
+	Tokens  Tokens
+	Offsets Offsets
+}
+
+func ReadAll(transcripts map[string][]byte, offsets Offsets) Reading {
+	reading := Reading{Offsets: Offsets{}}
+	for path, at := range offsets {
+		reading.Offsets[path] = at
+	}
+	for path, transcript := range transcripts {
+		var tokens Tokens
+		tokens, reading.Offsets[path] = Read(transcript, offsets[path])
+		reading.Tokens.Input += tokens.Input
+		reading.Tokens.CacheCreation += tokens.CacheCreation
+		reading.Tokens.CacheRead += tokens.CacheRead
+		reading.Tokens.Output += tokens.Output
+	}
+	return reading
+}
