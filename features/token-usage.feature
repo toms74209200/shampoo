@@ -56,13 +56,12 @@ Feature: Token usage of a task
     Then the statistics of task "task-b" have 10 input, 20 cache creation, 30 cache read and 40 output tokens
 
   @skip
-  @sha:b21f87bd602a
   Scenario: A merged task has the lines it changed
     Given a transcript with a message using 1 input, 2 cache creation, 3 cache read and 4 output tokens
     And "shampoo guard task --json" has passed with the transcript
     And the branch "task-a" is committed and merged
     When I run "shampoo guard edit"
-    Then the statistics of task "task-a" have 1 changed line
+    Then the statistics of task "task-a" have the lines its merge changed
 
   @skip
   @sha:6ca00c713469
