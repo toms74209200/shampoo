@@ -43,6 +43,12 @@ def given_review_attempts(workspace, settings_sections, count):
     write_settings(workspace, settings_sections)
 
 
+@given(parsers.parse("settings allowing {count:d} reviews of a task"))
+def given_review_limit(workspace, settings_sections, count):
+    settings_sections.setdefault("state-machine.review", {})["max-reviews"] = count
+    write_settings(workspace, settings_sections)
+
+
 @given("the review found nothing")
 def given_review_found_nothing(workspace, shampoo_binary, fake_bin):
     record_review(workspace, shampoo_binary, fake_bin, [])

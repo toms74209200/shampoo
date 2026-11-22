@@ -6,7 +6,8 @@ Feature: Review a task against its policies
   send the task back to its editing, with them, and it is reviewed again
   once changed; a review without findings lets it open its pull request.
   Findings that do not drop from one review to the next show a policy
-  that does not settle what to do, and send the work to repair it.
+  that does not settle what to do, and send the work to repair it. So do
+  findings that drop but are still found after too many reviews.
 
   Background:
     Given a git repository with a commit
@@ -164,3 +165,35 @@ Feature: Review a task against its policies
     And no pull request is open
     When I run "shampoo next"
     Then the next action is "review"
+
+  @skip
+  @sha:066f30448959
+  Scenario: Findings still found after too many reviews repair the harness
+    Given a policy "functions" for review
+    And settings allowing 2 reviews of a task
+    And "shampoo guard task" has passed
+    And the review found 3 findings on policy "functions"
+    And a changed file "main.go"
+    And "shampoo guard task" has passed
+    And the review found 2 findings on policy "functions"
+    And a changed file "main.go"
+    And "shampoo guard task" has passed
+    And the review found 1 finding on policy "functions"
+    And no pull request is open
+    When I run "shampoo next"
+    Then the next action is "repair-harness"
+    And the next action has the policies "functions"
+
+  @skip
+  @sha:7f4c6d2b412e
+  Scenario: Findings that drop within the reviews of a task go on editing
+    Given a policy "functions" for review
+    And settings allowing 2 reviews of a task
+    And "shampoo guard task" has passed
+    And the review found 2 findings on policy "functions"
+    And a changed file "main.go"
+    And "shampoo guard task" has passed
+    And the review found 1 finding on policy "functions"
+    And no pull request is open
+    When I run "shampoo next"
+    Then the next action is "continue"
