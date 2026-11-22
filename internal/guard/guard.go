@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/toms74209200/shampoo/internal/budget"
@@ -177,9 +178,16 @@ func Usage(dir string, named hook.Transcript) error {
 	case hook.Named:
 		path = t.Path
 	}
-	transcript, err := files.Optional(path)
+	subagents, err := filepath.Glob(filepath.Join(strings.TrimSuffix(path, filepath.Ext(path)), "subagents", "*.jsonl"))
 	if err != nil {
 		return err
+	}
+	transcripts := map[string][]byte{}
+	for _, transcript := range append(subagents, path) {
+		transcripts[transcript], err = files.Optional(transcript)
+		if err != nil {
+			return err
+		}
 	}
 	repo, err := git.Open(dir)
 	if err != nil {
@@ -207,8 +215,9 @@ func Usage(dir string, named hook.Transcript) error {
 		if err != nil {
 			return nil, err
 		}
-		tokens, read[path] = usage.Read(transcript, read[path])
-		return json.Marshal(read)
+		reading := usage.ReadAll(transcripts, read)
+		tokens = reading.Tokens
+		return json.Marshal(reading.Offsets)
 	})
 	if err != nil {
 		return err
