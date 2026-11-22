@@ -30,10 +30,12 @@ type Settings struct {
 }
 
 type WorkflowReview struct {
-	Tasks             int `toml:"tasks"`
-	MaxQuestions      int `toml:"max-questions"`
-	MaxRepairs        int `toml:"max-repairs"`
-	MaxFailedAttempts int `toml:"max-failed-attempts"`
+	Tasks             int     `toml:"tasks"`
+	MaxQuestions      int     `toml:"max-questions"`
+	MaxRepairs        int     `toml:"max-repairs"`
+	MaxFailedAttempts int     `toml:"max-failed-attempts"`
+	CostDeviations    float64 `toml:"cost-deviations"`
+	MinCostTasks      int     `toml:"min-cost-tasks"`
 }
 
 func Parse(data []byte) (Settings, error) {
@@ -79,7 +81,7 @@ func Parse(data []byte) (Settings, error) {
 	file.WorkflowFailure.Budget = rule.Count{Violations: 2, Runs: 20}
 	file.WorkflowFailure.Stop = rule.Count{Violations: 2, Runs: 5}
 	file.HumanReview.MaxOpen = 3
-	file.StateMachine.WorkflowReview = WorkflowReview{Tasks: 20, MaxQuestions: 10, MaxRepairs: 10, MaxFailedAttempts: 3}
+	file.StateMachine.WorkflowReview = WorkflowReview{Tasks: 20, MaxQuestions: 10, MaxRepairs: 10, MaxFailedAttempts: 3, CostDeviations: 2, MinCostTasks: 10}
 	meta, err := toml.Decode(string(data), &file)
 	if err != nil {
 		return Settings{}, fmt.Errorf("%w: %v", ErrInvalid, err)
@@ -123,8 +125,8 @@ func Parse(data []byte) (Settings, error) {
 	if file.HumanReview.MaxOpen < 0 {
 		return Settings{}, fmt.Errorf("%w: human-review has max-open of at least zero", ErrInvalid)
 	}
-	if review := file.StateMachine.WorkflowReview; review.Tasks < 1 || review.MaxQuestions < 0 || review.MaxRepairs < 0 || review.MaxFailedAttempts < 0 {
-		return Settings{}, fmt.Errorf("%w: workflow-review has tasks of at least one, and max-questions, max-repairs and max-failed-attempts of at least zero", ErrInvalid)
+	if review := file.StateMachine.WorkflowReview; review.Tasks < 1 || review.MaxQuestions < 0 || review.MaxRepairs < 0 || review.MaxFailedAttempts < 0 || review.CostDeviations < 0 || review.MinCostTasks < 2 {
+		return Settings{}, fmt.Errorf("%w: workflow-review has tasks of at least one, max-questions, max-repairs, max-failed-attempts and cost-deviations of at least zero, and min-cost-tasks of at least two", ErrInvalid)
 	}
 	if !slices.Contains([]string{"merge", "squash", "rebase"}, file.Orchestrator.Merge) {
 		return Settings{}, fmt.Errorf("%w: merge %q is not merge, squash or rebase", ErrInvalid, file.Orchestrator.Merge)

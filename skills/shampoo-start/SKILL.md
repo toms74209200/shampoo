@@ -19,7 +19,7 @@ a workflow failure to fix or report rather than guessing.
 | `wait` | Wait for the PR's checks without polling faster than CI runs, then run `shampoo next` |
 | `fix-pr` | Inspect each failed run in `failures` (`workflow`, `url`), fix the cause on `branch`, and push |
 | `merged` | The PR was merged: switch back to the default branch, pull, and run `shampoo next` |
-| `review-workflow` | Inspect `.shampoo/policies/`, `.shampoo/settings.toml`, and `.shampoo/checks/` for why the tasks in `asked` or `repaired` asked a human or repaired the harness too often, and fix the cause as a task PR |
+| `review-workflow` | Inspect `.shampoo/policies/`, `.shampoo/settings.toml`, and `.shampoo/checks/` for why the tasks in `asked` or `repaired` asked a human or repaired the harness too often, and the task source for how it cut the tasks in `costly`, which used far more tokens than their size explains; fix the cause as a task PR |
 | `wait-for-human` | Stop: the GitHub issues in `questions` await a human |
 | `hand-to-human` | Stop: the task on `branch` is handed to a human |
 

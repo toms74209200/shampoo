@@ -87,7 +87,6 @@ Feature: Review the workflow when tasks ask a human or repair too often
     When I run "shampoo next"
     Then the next action is "continue"
 
-  @skip
   @sha:5ff67df652f5
   Scenario: A task costing far more than its size explains reviews the workflow
     Given 12 merged tasks whose tokens follow their changed lines
@@ -96,7 +95,6 @@ Feature: Review the workflow when tasks ask a human or repair too often
     Then the next action is "review-workflow"
     And the next action names the costly task "task-x"
 
-  @skip
   @sha:b1848b08df1b
   Scenario: A task costing within the spread lets a new task be taken
     Given 12 merged tasks whose tokens follow their changed lines
@@ -104,7 +102,6 @@ Feature: Review the workflow when tasks ask a human or repair too often
     When I run "shampoo next"
     Then the next action is "take-task"
 
-  @skip
   @sha:9b2aa8fb9c4e
   Scenario: Too few tasks to compare judge no cost
     Given 8 merged tasks whose tokens follow their changed lines
@@ -112,7 +109,6 @@ Feature: Review the workflow when tasks ask a human or repair too often
     When I run "shampoo next"
     Then the next action is "take-task"
 
-  @skip
   @sha:3c31c0d60824
   Scenario: The settings widen the spread a cost may take
     Given settings judging a cost beyond 20 deviations
