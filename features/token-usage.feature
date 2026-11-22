@@ -65,3 +65,19 @@ Feature: Token usage of a task
     And the branch "task-a" is committed and merged
     When I run "shampoo guard edit"
     Then the statistics of task "task-a" have no tokens
+
+  @skip
+  Scenario: Tokens used on the default branch count for no task
+    Given a transcript with a message using 1 input, 2 cache creation, 3 cache read and 4 output tokens
+    And "shampoo guard task --json" has passed with the transcript
+    And the branch "task-a" is committed and merged
+    And the transcript adds a message using 10 input, 20 cache creation, 30 cache read and 40 output tokens
+    And "shampoo guard task --json" has passed with the transcript
+    And a branch "task-b"
+    And a changed file "lib.go"
+    And the transcript adds a message using 100 input, 200 cache creation, 300 cache read and 400 output tokens
+    And "shampoo guard task --json" has passed with the transcript
+    And the branch "task-b" is committed and merged
+    When I run "shampoo guard edit"
+    Then the statistics of task "task-b" have 100 input, 200 cache creation, 300 cache read and 400 output tokens
+    And the statistics have no line for the default branch
