@@ -143,3 +143,26 @@ func (r Repository) Base() (string, error) {
 	}
 	return strings.TrimSpace(string(out)) + "^{tree}", nil
 }
+
+type Diff struct {
+	Added   int
+	Removed int
+}
+
+func (r Repository) Diff(from, to string) (Diff, error) {
+	cmd := exec.Command("git", "diff", "--numstat", "--no-renames", from, to)
+	cmd.Dir = r.Root
+	out, err := cmd.Output()
+	if err != nil {
+		return Diff{}, fmt.Errorf("git diff --numstat: %w", err)
+	}
+	var diff Diff
+	for _, row := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		var added, removed int
+		if _, err := fmt.Sscanf(row, "%d\t%d", &added, &removed); err == nil {
+			diff.Added += added
+			diff.Removed += removed
+		}
+	}
+	return diff, nil
+}

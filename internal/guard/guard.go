@@ -12,10 +12,12 @@ import (
 	"github.com/toms74209200/shampoo/internal/budget"
 	"github.com/toms74209200/shampoo/internal/files"
 	"github.com/toms74209200/shampoo/internal/git"
+	"github.com/toms74209200/shampoo/internal/hook"
 	"github.com/toms74209200/shampoo/internal/judgment"
 	"github.com/toms74209200/shampoo/internal/rule"
 	"github.com/toms74209200/shampoo/internal/settings"
 	"github.com/toms74209200/shampoo/internal/shell"
+	"github.com/toms74209200/shampoo/internal/usage"
 )
 
 func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
@@ -165,6 +167,59 @@ func Run(dir string, transition rule.Transition) (rule.Outcome, string, error) {
 		return rule.WorkflowFailure, report, err
 	}
 	return verdict, report, nil
+}
+
+func Usage(dir string, named hook.Transcript) error {
+	var path string
+	switch t := named.(type) {
+	case hook.Unnamed:
+		return nil
+	case hook.Named:
+		path = t.Path
+	}
+	transcript, err := files.Optional(path)
+	if err != nil {
+		return err
+	}
+	repo, err := git.Open(dir)
+	if err != nil {
+		return err
+	}
+	branch, err := repo.Branch()
+	if err != nil {
+		return err
+	}
+	tree, err := repo.Snapshot()
+	if err != nil {
+		return err
+	}
+	mergeBase, err := repo.Base()
+	if err != nil {
+		return err
+	}
+	diff, err := repo.Diff(mergeBase, tree)
+	if err != nil {
+		return err
+	}
+	var tokens usage.Tokens
+	err = files.Update(filepath.Join(repo.GitDir, "shampoo", "transcripts.json"), func(data []byte) ([]byte, error) {
+		read, err := usage.ParseOffsets(data)
+		if err != nil {
+			return nil, err
+		}
+		tokens, read[path] = usage.Read(transcript, read[path])
+		return json.Marshal(read)
+	})
+	if err != nil {
+		return err
+	}
+	encoded, err := json.Marshal(budget.Line{Run: rand.Text(), Task: branch, Transition: "usage", Tokens: &tokens, Changed: diff.Added + diff.Removed})
+	if err != nil {
+		return err
+	}
+	return files.Update(filepath.Join(repo.CommonDir, "shampoo", "ledger.jsonl"), func(data []byte) ([]byte, error) {
+		return append(append(data, encoded...), '\n'), nil
+	})
 }
 
 func Last(dir string, transition rule.Transition) (rule.Outcome, error) {

@@ -6,18 +6,21 @@ import (
 	"slices"
 
 	"github.com/toms74209200/shampoo/internal/rule"
+	"github.com/toms74209200/shampoo/internal/usage"
 )
 
 type Line struct {
-	Run        string       `json:"run"`
-	Task       string       `json:"task"`
-	Transition string       `json:"transition"`
-	Rule       string       `json:"rule"`
-	Check      string       `json:"check"`
-	Policy     string       `json:"policy,omitempty"`
-	Outcome    rule.Outcome `json:"outcome"`
-	Millis     int64        `json:"millis"`
-	Exceptions *int         `json:"exceptions,omitempty"`
+	Run        string        `json:"run"`
+	Task       string        `json:"task"`
+	Transition string        `json:"transition"`
+	Rule       string        `json:"rule"`
+	Check      string        `json:"check"`
+	Policy     string        `json:"policy,omitempty"`
+	Outcome    rule.Outcome  `json:"outcome"`
+	Millis     int64         `json:"millis"`
+	Exceptions *int          `json:"exceptions,omitempty"`
+	Tokens     *usage.Tokens `json:"tokens,omitempty"`
+	Changed    int           `json:"changed,omitempty"`
 }
 
 type Summary struct {
@@ -28,6 +31,8 @@ type Summary struct {
 	Millis     map[string]int64 `json:"millis"`
 	Repairs    int              `json:"repairs"`
 	Questions  int              `json:"questions"`
+	Tokens     *usage.Tokens    `json:"tokens,omitempty"`
+	Changed    int              `json:"changed,omitempty"`
 }
 
 func ParseLedger(data []byte) []Line {
@@ -112,6 +117,10 @@ func Compact(lines []Line, open []string, window int) Compaction {
 	latest := map[string]int{}
 	keep := make([]bool, len(lines))
 	for i, line := range slices.Backward(lines) {
+		if line.Tokens != nil {
+			keep[i] = slices.Contains(open, line.Task)
+			continue
+		}
 		key := "rule:" + line.Rule
 		if line.Policy != "" {
 			key = "policy:" + line.Policy
@@ -141,6 +150,19 @@ func Compact(lines []Line, open []string, window int) Compaction {
 			at = len(summaries)
 			index[line.Task] = at
 			summaries = append(summaries, Summary{Task: line.Task, Attempts: map[string]int{}, Violations: map[string]int{}, Findings: map[string]int{}, Millis: map[string]int64{}})
+		}
+		if t := line.Tokens; t != nil {
+			total := usage.Tokens{}
+			if summaries[at].Tokens != nil {
+				total = *summaries[at].Tokens
+			}
+			total.Input += t.Input
+			total.CacheCreation += t.CacheCreation
+			total.CacheRead += t.CacheRead
+			total.Output += t.Output
+			summaries[at].Tokens = &total
+			summaries[at].Changed = line.Changed
+			continue
 		}
 		if !attempted[line.Run] {
 			attempted[line.Run] = true
