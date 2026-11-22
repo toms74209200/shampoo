@@ -38,6 +38,24 @@ def given_transcript(workspace, input, creation, read, output):
     transcript_path(workspace).write_text(message(input, creation, read, output))
 
 
+def subagent_path(workspace: Path) -> Path:
+    path = transcript_path(workspace)
+    return path.parent / path.stem / "subagents" / "agent-a.jsonl"
+
+
+@given(parsers.re("a subagent transcript with a message using " + USAGE))
+def given_subagent_transcript(workspace, input, creation, read, output):
+    path = subagent_path(workspace)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(message(input, creation, read, output))
+
+
+@given(parsers.re("the subagent transcript adds a message using " + USAGE))
+def given_subagent_transcript_adds(workspace, input, creation, read, output):
+    with subagent_path(workspace).open("a") as f:
+        f.write(message(input, creation, read, output))
+
+
 @given(parsers.re("a transcript with a message written twice using " + USAGE))
 def given_transcript_twice(workspace, input, creation, read, output):
     line = message(input, creation, read, output)
