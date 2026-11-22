@@ -35,6 +35,13 @@ type Summary struct {
 	Changed    int              `json:"changed,omitempty"`
 }
 
+func Used(run, branch, defaultBranch string, tokens usage.Tokens, changed int) []Line {
+	if branch == defaultBranch {
+		return nil
+	}
+	return []Line{{Run: run, Task: branch, Transition: "usage", Tokens: &tokens, Changed: changed}}
+}
+
 func ParseLedger(data []byte) []Line {
 	var lines []Line
 	for _, raw := range bytes.Split(data, []byte("\n")) {

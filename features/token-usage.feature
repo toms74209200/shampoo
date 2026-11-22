@@ -66,7 +66,6 @@ Feature: Token usage of a task
     When I run "shampoo guard edit"
     Then the statistics of task "task-a" have no tokens
 
-  @skip
   @sha:7bdb1dceab68
   Scenario: Tokens used on the default branch count for no task
     Given a transcript with a message using 1 input, 2 cache creation, 3 cache read and 4 output tokens

@@ -213,12 +213,19 @@ func Usage(dir string, named hook.Transcript) error {
 	if err != nil {
 		return err
 	}
-	encoded, err := json.Marshal(budget.Line{Run: rand.Text(), Task: branch, Transition: "usage", Tokens: &tokens, Changed: diff.Added + diff.Removed})
+	defaultBranch, err := repo.DefaultBranch()
 	if err != nil {
 		return err
 	}
 	return files.Update(filepath.Join(repo.CommonDir, "shampoo", "ledger.jsonl"), func(data []byte) ([]byte, error) {
-		return append(append(data, encoded...), '\n'), nil
+		for _, line := range budget.Used(rand.Text(), branch, defaultBranch, tokens, diff.Added+diff.Removed) {
+			encoded, err := json.Marshal(line)
+			if err != nil {
+				return nil, err
+			}
+			data = append(append(data, encoded...), '\n')
+		}
+		return data, nil
 	})
 }
 
