@@ -9,7 +9,7 @@ import (
 
 var Exits = map[rule.Outcome]int{rule.TaskFailure: 1, rule.WorkflowFailure: 2, rule.Exceeded: 3, rule.Handed: 4}
 
-var ErrUsage = errors.New("usage: shampoo guard <transition> [--json] | shampoo next | shampoo review | shampoo policies [--json] | shampoo ask | shampoo init")
+var ErrUsage = errors.New("usage: shampoo guard <transition> | shampoo hook <transition> | shampoo next | shampoo review | shampoo policies [--json] | shampoo ask | shampoo init")
 
 //sumtype:decl
 type Command interface{ command() }
@@ -49,18 +49,17 @@ func Parse(args []string) (Command, error) {
 	if len(args) == 2 && args[0] == "policies" && args[1] == "--json" {
 		return PoliciesHook{}, nil
 	}
-	hooked := len(args) == 3 && args[2] == "--json"
-	if (len(args) != 2 && !hooked) || args[0] != "guard" {
+	if len(args) != 2 || (args[0] != "guard" && args[0] != "hook") {
 		return nil, ErrUsage
 	}
 	transition, err := rule.ParseTransition(args[1])
 	if err != nil {
-		return nil, fmt.Errorf("shampoo guard: %w", err)
+		return nil, fmt.Errorf("shampoo %s: %w", args[0], err)
 	}
 	if transition != rule.Edit && transition != rule.Task {
-		return nil, fmt.Errorf("shampoo guard: %s is checked by the repository's CI, not by shampoo", transition)
+		return nil, fmt.Errorf("shampoo %s: %s is checked by the repository's CI, not by shampoo", args[0], transition)
 	}
-	if hooked {
+	if args[0] == "hook" {
 		return GuardHook{Transition: transition}, nil
 	}
 	return Guard{Transition: transition}, nil

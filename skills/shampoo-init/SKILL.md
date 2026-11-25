@@ -74,8 +74,8 @@ so only if the project wants no policy review.
 ## 6. Wire the agent's hooks
 
 Add three hooks to the agent's project settings, merged into what is there:
-after every tool use `shampoo guard edit --json`, when the agent stops
-`shampoo guard task --json`, and at the start of a session
+after every tool use `shampoo hook edit`, when the agent stops
+`shampoo hook task`, and at the start of a session
 `shampoo policies --json`. Each prints one JSON object with every agent's
 fields and exits 0, so the hook passes it on unchanged.
 
