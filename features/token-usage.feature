@@ -101,3 +101,9 @@ Feature: Token usage of a task
     And the branch "task-a" is committed and merged
     When I run "shampoo guard edit"
     Then the statistics of task "task-a" have 111 input, 222 cache creation, 333 cache read and 444 output tokens
+
+  @skip
+  Scenario: A stop whose input is left open still finishes
+    When I run "shampoo guard task --json" with an input left open
+    Then the guard finishes within 10 seconds
+    And the answer has "code" 0

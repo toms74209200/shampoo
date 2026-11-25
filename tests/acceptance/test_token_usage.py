@@ -1,9 +1,11 @@
 import json
+import os
 import secrets
 import subprocess
+import time
 from pathlib import Path
 
-from pytest_bdd import given, parsers, scenarios, then
+from pytest_bdd import given, parsers, scenarios, then, when
 
 from conftest import run_shampoo
 
@@ -120,3 +122,34 @@ def then_statistics_no_tokens(workspace, task):
 def then_statistics_no_default(workspace, default_branch):
     got = statistics(workspace, default_branch)
     assert got == [], f"got statistics {got!r} for {default_branch}"
+
+
+@when(parsers.parse('I run "{command}" with an input left open'))
+def when_running_input_open(workspace, shampoo_binary, fake_bin, run_result, command):
+    args = command.split()
+    started = time.monotonic()
+    process = subprocess.Popen(
+        [str(shampoo_binary), *args[1:]],
+        cwd=workspace,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env={**os.environ, "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}"},
+    )
+    try:
+        process.wait(timeout=20)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+    elapsed = time.monotonic() - started
+    stdout, stderr = process.stdout.read(), process.stderr.read()
+    process.stdin.close()
+    run_result.update({"stdout": stdout, "stderr": stderr, "returncode": process.returncode, "elapsed": elapsed})
+
+
+@then(parsers.parse("the guard finishes within {seconds:d} seconds"))
+def then_finishes_within(run_result, seconds):
+    assert run_result["elapsed"] < seconds, (
+        f"took {run_result['elapsed']:.1f}s: stdout={run_result['stdout']!r}, stderr={run_result['stderr']!r}"
+    )
