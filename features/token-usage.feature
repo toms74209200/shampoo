@@ -103,6 +103,7 @@ Feature: Token usage of a task
     Then the statistics of task "task-a" have 111 input, 222 cache creation, 333 cache read and 444 output tokens
 
   @skip
+  @sha:2f2471321271
   Scenario: A stop whose input is left open still finishes
     When I run "shampoo guard task --json" with an input left open
     Then the guard finishes within 10 seconds
