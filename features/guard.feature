@@ -305,8 +305,8 @@ Feature: Guard a transition
     And the answer's "systemMessage" contains "hand the task to a human"
 
   @skip
-  @sha:7f74e64d9a18
+  @sha:6e08093c23d6
   Scenario: A guard asked for JSON is a usage error
     When I run "shampoo guard edit --json"
-    Then the exit code is 1
+    Then the exit code is 2
     And stderr contains "shampoo hook <transition>"
