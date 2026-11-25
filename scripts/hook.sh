@@ -13,12 +13,7 @@ elif [ ! -x out/shampoo ]; then
 fi
 case "${1:-}" in
 guard)
-	out/shampoo guard "${2:-edit}"
-	case $? in
-	0) exit 0 ;;
-	1 | 3) exit 2 ;;
-	*) exit 1 ;;
-	esac
+	exec out/shampoo hook "${2:-edit}"
 	;;
 policies)
 	out/shampoo policies || exit 1
