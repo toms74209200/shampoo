@@ -308,5 +308,5 @@ Feature: Guard a transition
   @sha:7f74e64d9a18
   Scenario: A guard asked for JSON is a usage error
     When I run "shampoo guard edit --json"
-    Then the exit code is 1
+    Then the exit code is 2
     And stderr contains "shampoo hook <transition>"
