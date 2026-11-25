@@ -4,9 +4,10 @@ Feature: Guard a transition
   order of their needs, and judges the rules after each check. It stops
   when a judgment reaches its rule's stop. It exits 0 on pass, 1 on a
   task failure, 2 on a workflow failure, 3 when a stop sends the work to
-  harness repair, and 4 when failed repairs exceed their limit. With
-  `--json` it exits 0 and answers an agent's hook in one JSON object
-  carrying every agent's fields.
+  harness repair, and 4 when failed repairs exceed their limit.
+  `shampoo hook <transition>` runs the same guard for an agent's hook: it
+  exits 0 and answers the hook in one JSON object carrying every agent's
+  fields.
 
   Background:
     Given a git repository with a commit
@@ -238,12 +239,12 @@ Feature: Guard a transition
     When I run "shampoo guard edit"
     Then the exit code is 1
 
-  @sha:ccfacef97f23
+  @skip
   Scenario: A violation answers a hook in JSON that sends the agent back
     Given a check "lint" that prints "found TODO" and exits 1
     And a rule "no-todo" guarding edit with check "lint"
     And a changed file "main.go"
-    When I run "shampoo guard edit --json"
+    When I run "shampoo hook edit"
     Then the exit code is 0
     And the answer has "code" 1
     And the answer has "decision" "block"
@@ -251,40 +252,40 @@ Feature: Guard a transition
     And the answer's "followup_message" contains "found TODO"
     And the answer's "additional_context" contains "found TODO"
 
-  @sha:e8823a5086d1
+  @skip
   Scenario: A stop to harness repair answers a hook in JSON that sends the agent back
     Given a check "lint" that exits 1
     And a rule "strict" guarding edit with check "lint" and a zero budget
     And a changed file "main.go"
-    When I run "shampoo guard edit --json"
+    When I run "shampoo hook edit"
     Then the exit code is 0
     And the answer has "code" 3
     And the answer has "decision" "block"
     And the answer's "reason" contains "repair the harness"
 
-  @sha:b7743d07dd5c
+  @skip
   Scenario: A pass answers a hook in JSON that lets the agent go on
     Given a check "lint" that exits 0
     And a rule guarding edit with check "lint"
     And a changed file "main.go"
-    When I run "shampoo guard edit --json"
+    When I run "shampoo hook edit"
     Then the exit code is 0
     And the answer has "code" 0
     And the answer has no "decision"
     And the answer has no "followup_message"
 
-  @sha:bcd5dc2f8e56
+  @skip
   Scenario: A workflow failure answers a hook in JSON that shows it to the human
     Given a check "lint" that exits 2
     And a rule guarding edit with check "lint" judging exit 2 as a workflow failure
     And a changed file "main.go"
-    When I run "shampoo guard edit --json"
+    When I run "shampoo hook edit"
     Then the exit code is 0
     And the answer has "code" 2
     And the answer has no "decision"
     And the answer's "systemMessage" contains "workflow-failure"
 
-  @sha:698cfb0f4670
+  @skip
   Scenario: Repairs beyond their limit answer a hook in JSON that shows it to the human
     Given settings allowing 1 failed attempt in harness repair
     And a check "lint" that exits 1
@@ -292,8 +293,14 @@ Feature: Guard a transition
     And a changed file "main.go"
     And "shampoo guard edit" has run
     And a changed file "main.go"
-    When I run "shampoo guard edit --json"
+    When I run "shampoo hook edit"
     Then the exit code is 0
     And the answer has "code" 4
     And the answer has no "decision"
     And the answer's "systemMessage" contains "hand the task to a human"
+
+  @skip
+  Scenario: A guard asked for JSON is a usage error
+    When I run "shampoo guard edit --json"
+    Then the exit code is 1
+    And stderr contains "shampoo hook <transition>"
