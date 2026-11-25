@@ -93,6 +93,10 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			break
 		}
 		output = string(encoded) + "\n"
+	case cli.Help:
+		output = cli.HelpText
+	case cli.PrintVersion:
+		output = cli.Version + "\n"
 	case cli.Guard:
 		outcome, report, err := guard.Run("", c.Transition)
 		code, message = cli.Exits[outcome], report

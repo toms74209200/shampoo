@@ -30,6 +30,10 @@ type Ask struct{}
 
 type Init struct{}
 
+type Help struct{}
+
+type PrintVersion struct{}
+
 func (Guard) command()        {}
 func (GuardHook) command()    {}
 func (PoliciesHook) command() {}
@@ -38,9 +42,11 @@ func (Review) command()       {}
 func (Policies) command()     {}
 func (Ask) command()          {}
 func (Init) command()         {}
+func (Help) command()         {}
+func (PrintVersion) command() {}
 
 func Parse(args []string) (Command, error) {
-	commands := map[string]Command{"next": Next{}, "review": Review{}, "policies": Policies{}, "ask": Ask{}, "init": Init{}}
+	commands := map[string]Command{"next": Next{}, "review": Review{}, "policies": Policies{}, "ask": Ask{}, "init": Init{}, "help": Help{}, "-h": Help{}, "--help": Help{}, "version": PrintVersion{}, "-v": PrintVersion{}, "--version": PrintVersion{}}
 	if len(args) == 1 {
 		if command, ok := commands[args[0]]; ok {
 			return command, nil
