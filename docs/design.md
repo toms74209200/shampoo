@@ -246,6 +246,8 @@ What a project provides depends on the project: its linter and its configuration
 - `shampoo ask`: asks a human (§5.3), read as JSON from stdin: `{"decision": "...", "alternatives": "...", "tradeoffs": "..."}`, none empty. Opens the issue, its title the decision's first line, records the question in the ledger for the current branch and among the issues shampoo opened (§12), and prints the issue's URL
 - `shampoo init`: sets up shampoo in a project (§7.1), read as JSON from stdin: `{"tasks": "...", "checks": {"<rule>": {"command": "...", "size": "small", "paths": ["..."], "exceptions": "..."}}}`, each key a recommended rule, each `command` not empty; `size` (default `small`), `paths` (default all) and `exceptions` (for `lint` only) are optional. Writes `.shampoo/settings.toml` with the task source, `.shampoo/checks/<rule>.toml` and `.shampoo/rules/<rule>.toml` for each check given, and the recommended policies in `.shampoo/policies/`, keeping every file that exists; prints `{"written": [...], "kept": [...]}` to stdout, and warns on stderr when no policy is marked for review. Called by the skill `shampoo-init`
 - `shampoo review`: records a review of the current tree, read as JSON from stdin: `{"findings": [{"policy": "<id>", "comment": "..."}]}`. Each finding names a policy marked for review. Called by the reviewing agent
+- `shampoo help` (also `-h`, `--help`): prints what each command does to stdout and exits 0. A command it does not know is a usage error instead: the usage line goes to stderr and it exits 2
+- `shampoo version` (also `-v`, `--version`): prints the version of the build to stdout and exits 0. A release build carries its tag; any other build prints `dev`
 
 ---
 
