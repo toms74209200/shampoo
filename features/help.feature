@@ -3,7 +3,6 @@ Feature: Help and version
   prints the version of the build, each to stdout with exit 0. A release
   build carries its tag as its version; any other build prints `dev`.
 
-  @skip
   @sha:2c8f7cf2c9d3
   Scenario Outline: Help is printed for each of its spellings
     When I run "shampoo <argument>"
@@ -18,7 +17,6 @@ Feature: Help and version
       | -h       |
       | --help   |
 
-  @skip
   @sha:6c2668478f8b
   Scenario Outline: The version of a release build is printed for each of its spellings
     Given shampoo built as version "1.2.3"
@@ -32,7 +30,6 @@ Feature: Help and version
       | -v        |
       | --version |
 
-  @skip
   @sha:0d4fc8e1bcc5
   Scenario: A build that is not a release prints dev as its version
     When I run "shampoo version"
