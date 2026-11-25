@@ -240,6 +240,7 @@ Feature: Guard a transition
     Then the exit code is 1
 
   @skip
+  @sha:c27c283b5dce
   Scenario: A violation answers a hook in JSON that sends the agent back
     Given a check "lint" that prints "found TODO" and exits 1
     And a rule "no-todo" guarding edit with check "lint"
@@ -253,6 +254,7 @@ Feature: Guard a transition
     And the answer's "additional_context" contains "found TODO"
 
   @skip
+  @sha:679c15a12cc7
   Scenario: A stop to harness repair answers a hook in JSON that sends the agent back
     Given a check "lint" that exits 1
     And a rule "strict" guarding edit with check "lint" and a zero budget
@@ -264,6 +266,7 @@ Feature: Guard a transition
     And the answer's "reason" contains "repair the harness"
 
   @skip
+  @sha:6d380502a7f0
   Scenario: A pass answers a hook in JSON that lets the agent go on
     Given a check "lint" that exits 0
     And a rule guarding edit with check "lint"
@@ -275,6 +278,7 @@ Feature: Guard a transition
     And the answer has no "followup_message"
 
   @skip
+  @sha:8e22f1440169
   Scenario: A workflow failure answers a hook in JSON that shows it to the human
     Given a check "lint" that exits 2
     And a rule guarding edit with check "lint" judging exit 2 as a workflow failure
@@ -286,6 +290,7 @@ Feature: Guard a transition
     And the answer's "systemMessage" contains "workflow-failure"
 
   @skip
+  @sha:d49e4cab1ea7
   Scenario: Repairs beyond their limit answer a hook in JSON that shows it to the human
     Given settings allowing 1 failed attempt in harness repair
     And a check "lint" that exits 1
@@ -300,6 +305,7 @@ Feature: Guard a transition
     And the answer's "systemMessage" contains "hand the task to a human"
 
   @skip
+  @sha:7f74e64d9a18
   Scenario: A guard asked for JSON is a usage error
     When I run "shampoo guard edit --json"
     Then the exit code is 1
